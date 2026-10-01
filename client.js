@@ -718,7 +718,7 @@ function loadImg(src) {
         game.setPlayerSprites(charSprites[net.pick] || luxSprites);
         p.maxHp = 100; p.hp = Math.min(p.hp, 100);
         p.maxJumps = 1;
-        game.moveSpeed = 260;
+        game.moveSpeed = 240;
         game.spawn = { x: 60, y: 100 };
         p.invis = false; p.rooted = false; p.chargeDir = 0;
         K.charging = false;
