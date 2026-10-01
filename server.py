@@ -172,14 +172,16 @@ round_start = 0.0
 killer_id = None
 current_round = 0
 result = None # last result
+round_players = set() # players eligible for the current round
 
 STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
-              "invis", "m1", "stunned", "pull", "away", "cower", "windup", "pose", "dashing")
+              "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing")
 # fresh stamps
 
 
 def _alive_players():
-    return {pid: pl for pid, pl in players.items() if pl.get("alive", True) and pl.get("hp", 100) > 0}
+    return {pid: pl for pid, pl in players.items()
+            if pid in round_players and pl.get("alive", True) and pl.get("hp", 100) > 0}
 
 
 def _here_players():
@@ -200,13 +202,17 @@ def start_intermission():
 def start_select():
     # pick phase
     global phase, phase_end, killer_id
+    here = _here_players()
+    if len(here) < 2:
+        phase = "lobby"
+        killer_id = None
+        print("!! not enough active players — character select cancelled!!", flush=True)
+        return
     for pl in players.values():
         pl["char"] = None # fresh picks
     killer_id = None
-    here = _here_players()
-    if here:
-        killer_id = random.choice(list(here.keys()))
-        print(f"[GAME] preselected evil: {players[killer_id]['name']}", flush=True)
+    killer_id = random.choice(list(here.keys()))
+    print(f"[GAME] preselected evil: {players[killer_id]['name']}", flush=True)
     phase = "select"
     phase_end = time.time() + SELECT_TIME
     print("[GAME] State: CHARACTER_SELECT (30s)", flush=True)
@@ -215,14 +221,23 @@ def start_select():
 def start_round():
     global phase, phase_end, round_start, killer_id, current_round, result, pending_end
     global lms_set, lms_notice_until
+    global round_players
     pending_end = 0
     lms_set = False
     lms_notice_until = 0.0
+    eligible = _here_players()
+    if len(eligible) < 2:
+        round_players.clear()
+        killer_id = None
+        phase = "lobby"
+        print("!! not enough active players — round cancelled!!", flush=True)
+        return
+    round_players = set(eligible)
     # random picks
-    for pid, pl in players.items():
+    for pid, pl in eligible.items():
         if pl.get("char") not in [c["id"] for c in CHARACTERS]:
             pl["char"] = random.choice(CHARACTERS)["id"]
-    for pl in players.values():
+    for pl in eligible.values():
         pl["alive"] = True
         pl["hp"] = pl.get("maxhp", 100)
         pl["stun_until"] = 0
@@ -230,20 +245,20 @@ def start_round():
     del alerts[:]
     last_hit.clear()
     # find killer
-    if killer_id not in players:
-        killer_id = random.choice(list(players.keys()))
+    if killer_id not in round_players:
+        killer_id = random.choice(list(round_players))
         print(f"!! fallback — {players[killer_id]['name']} is EVIL LUX!!", flush=True)
     current_round += 1
     phase = "round"
     round_start = time.time()
     # flex time
-    phase_end = round_start + min(ROUND_MAX, ROUND_BASE + ROUND_PER_PLAYER * len(players))
+    phase_end = round_start + min(ROUND_MAX, ROUND_BASE + ROUND_PER_PLAYER * len(round_players))
     result = None
     print(f"!! round {current_round} starts — {players[killer_id]['name']} is EVIL LUX!!", flush=True)
 
 
 def end_round(winner):
-    global phase, phase_end, result, killer_id, current_round
+    global phase, phase_end, result, killer_id, current_round, round_players
     if phase != "round":
         return
     current_round += 1 # fresh rounds
@@ -258,6 +273,7 @@ def end_round(winner):
     name = players.get(killer_id, {}).get("name", "???") if killer_id else "???"
     result = {"winner": winner, "killer_name": name}
     killer_id = None # drop evil
+    round_players.clear()
     phase = "intermission"
     phase_end = time.time() + INTER_TIME
     print(f"!! round {current_round} over — {winner} win!! intermission!!", flush=True)
@@ -323,11 +339,12 @@ def game_tick():
                             phase = "lobby"
                             killer_id = None
                 elif phase == "round":
-                    if len(players) < 2:
+                    if len(round_players.intersection(players)) < 2:
                         for pl in players.values():
                             pl["alive"] = True
                             pl["hp"] = pl.get("maxhp", 100)
                         killer_id = None
+                        round_players.clear()
                         phase = "lobby"
                         print("!! not enough players — back to lobby!!", flush=True)
                     else:
@@ -433,10 +450,6 @@ class Handler(SimpleHTTPRequestHandler):
                     # locked match
                     self._send_json({"error": "match running!!"}, 403)
                     return
-                if phase == "select":
-                    # locked picks
-                    self._send_json({"error": "match locked!!"}, 403)
-                    return
                 pid = secrets.token_hex(4)
                 # stays forever
                 # name numbers
@@ -508,6 +521,16 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json({"ok": True})
             return
 
+        if self.path == "/api/afk":
+            data = self._read_json()
+            with lock:
+                pl = players.get(data.get("id"))
+                if pl:
+                    pl["away"] = bool(data.get("away", False))
+                    pl["last"] = time.time()
+            self._send_json({"ok": bool(pl)})
+            return
+
         if self.path == "/api/leave":
             pid = self._read_json().get("id")
             with lock:
@@ -560,6 +583,7 @@ class Handler(SimpleHTTPRequestHandler):
                 atk_evil = data.get("id") == killer_id
                 vic_evil = data.get("victim") == killer_id
                 if (atk and vic and data.get("victim") != data.get("id")
+                    and data.get("id") in round_players and data.get("victim") in round_players
                         and atk_evil != vic_evil and phase == "round"
                         and atk.get("alive", True) and vic.get("alive", True)
                         and _grace_over(now)):
@@ -632,7 +656,7 @@ class Handler(SimpleHTTPRequestHandler):
                 me = players.get(data.get("id"))
                 want = data.get("char")
                 ids = [c["id"] for c in CHARACTERS]
-                if me and phase == "select" and want in ids:
+                if me and data.get("id") in _here_players() and phase == "select" and want in ids:
                     me["char"] = want
                     print(f"!! {me['name']} picked {want}!!", flush=True)
                     self._send_json({"ok": True, "char": want})
@@ -687,7 +711,7 @@ class Handler(SimpleHTTPRequestHandler):
                 action = data.get("action")
                 if action == "killall":
                     for pid, pl in players.items():
-                        if pid != killer_id and pl.get("alive", True):
+                        if pid in round_players and pid != killer_id and pl.get("alive", True):
                             pl["hp"] = 0
                             pl["alive"] = False
                     print(f"!! mod {me['name']} killed everyone!!", flush=True)
@@ -709,11 +733,11 @@ class Handler(SimpleHTTPRequestHandler):
                         start_round()
                     print(f"!! mod skipped the wait!!", flush=True)
                 elif action == "forcestart":
-                    if players:
+                    if len(_here_players()) >= 2:
                         start_round()
                         print(f"!! mod forced a match!!", flush=True)
                     else:
-                        self._send_json({"ok": False, "reason": "nobody here!!"})
+                        self._send_json({"ok": False, "reason": "need two active players!!"})
                         return
                 elif action == "makekiller":
                     target = data.get("target")
@@ -768,7 +792,8 @@ class Handler(SimpleHTTPRequestHandler):
                 snapshot = {}
                 for pid, pl in players.items():
                     # safe keys
-                    d = {k: pl.get(k) for k in ("name", "hp", "alive") + STATE_KEYS}
+                    d = {k: pl.get(k) for k in ("name", "hp", "alive", "away") + STATE_KEYS}
+                    d["in_round"] = phase == "round" and pid in round_players
                     d["stun"] = round(max(0, pl.get("stun_until", 0) - now), 2)
                     d["maxhp"] = pl.get("maxhp", 100) # true bars
                     d["countered"] = bool(pl.pop("countered", False)) # once flag
