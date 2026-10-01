@@ -273,6 +273,14 @@ function loadImg(src) {
       net.afk = on;
       afkBtn.classList.toggle('on', on); // away tint
       if (on) game.input.left = game.input.right = game.input.jump = false;
+      if (net.id) {
+        const id = net.id;
+        net.afkSync = (net.afkSync || Promise.resolve()).then(() => fetch('/api/afk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, away: on }),
+        })).catch(() => {});
+      }
     }
     afkBtn.addEventListener('click', () => setAFK(!net.afk));
     const specBox = document.getElementById('spectate');
@@ -892,6 +900,7 @@ function loadImg(src) {
         if (!res.ok) throw new Error('nope');
         const joined = await res.json();
         net.id = joined.id;
+        setAFK(false); // fresh joins always enter as active players
         hideFatal(); // error clear
         // fake loading
         const held = Date.now() - (net.titleT0 || Date.now());
@@ -979,7 +988,6 @@ function loadImg(src) {
             cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil,
             dashing: !!S.dashing,
             pose: (poseName && Date.now() < poseUntil) ? poseName : null,
-            away: !!net.afk,
           }),
         });
         const data = await (await fetch('/api/players')).json();
@@ -994,6 +1002,7 @@ function loadImg(src) {
           return;
         }
         const prevPhase = net.phase;
+        const you = others[net.id];
         let justRevived = false;
         // phase reset
         if (data.phase && data.phase !== net.phase) {
@@ -1003,31 +1012,32 @@ function loadImg(src) {
           beds.lms.pause(); beds.lmslux.pause(); beds.chase.pause(); beds.terror.pause();
           clearEvil(p);
           trippedIds.clear();
-          if (data.phase === 'round') game.switchMap('main', 60, 100);
-          else game.switchMap('inter', 6120, 100); // island map
-          if (!p.evil) { p.maxHp = 100; } // drop buffs
-          p.hp = p.maxHp;
-          game.respawn();
-          justRevived = true;
-          game.cameraTarget = null;
-          specId = null;
-          roleBox.style.display = 'none';
-          // fast revive
-          fetch('/api/state', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: net.id, r: data.round, maxhp: p.maxHp,
-              x: Math.round(p.pos.x * 10) / 10, y: Math.round(p.pos.y * 10) / 10,
-              facing: p.facing, hp: Math.ceil(p.hp),
-              moving: false, onGround: p.onGround, alive: true,
-              invis: false, m1: true, stunned: false, pull: false,
-            }),
-          }).catch(() => {});
+          if (data.phase !== 'round' || you?.in_round) {
+            if (data.phase === 'round') game.switchMap('main', 60, 100);
+            else game.switchMap('inter', 6120, 100); // island map
+            if (!p.evil) { p.maxHp = 100; } // drop buffs
+            p.hp = p.maxHp;
+            game.respawn();
+            justRevived = true;
+            game.cameraTarget = null;
+            specId = null;
+            roleBox.style.display = 'none';
+            // fast revive
+            fetch('/api/state', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: net.id, r: data.round, maxhp: p.maxHp,
+                x: Math.round(p.pos.x * 10) / 10, y: Math.round(p.pos.y * 10) / 10,
+                facing: p.facing, hp: Math.ceil(p.hp),
+                moving: false, onGround: p.onGround, alive: true,
+                invis: false, m1: true, stunned: false, pull: false,
+              }),
+            }).catch(() => {});
+          }
         }
         net.round = data.round;
         // take hits
-        const you = others[net.id];
         if (!justRevived && you && data.round === prevRound && you.hp < p.hp && p.alive !== false) {
           game.hurtPlayer(Math.ceil(p.hp - you.hp), 'killer');
         }
@@ -1081,8 +1091,8 @@ function loadImg(src) {
         } else if (data.phase === 'round') {
           const t = Math.max(0, data.time_left || 0);
           // count up
-          const sl = (p.alive !== false && !p.evil ? 1 : 0) +
-            game.remotes.filter((r) => r.alive && r.hp > 0 && !r.evil).length;
+          const sl = (you?.in_round && p.alive !== false && !p.evil ? 1 : 0) +
+            game.remotes.filter((r) => r.inRound && r.alive && r.hp > 0 && !r.evil).length;
           let mm;
           if (sl === 1) {
             const up = lmsStartT ? Math.max(0, Math.floor((Date.now() - lmsStartT) / 1000)) : 0;
@@ -1090,7 +1100,8 @@ function loadImg(src) {
           } else {
             mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
           }
-          phaseText = data.notice
+          phaseText = !you?.in_round ? 'AFK — spectating this round!!'
+            : data.notice
             ? `${data.notice} (${data.notice_left || 0}s)`
             : data.grace
             ? `GRACE — RUN!! (${mm})`
@@ -1131,6 +1142,7 @@ function loadImg(src) {
           r.pull = !!d.pull;
           r.dashing = !!d.dashing;
           r.away = !!d.away;
+          r.inRound = !!d.in_round;
           r.redFlash = !!d.windup && !!r.evil; // red warning
           r.cyanFlash = !!d.windup && !r.evil; // cyan windup
           r.cowering = !!d.cower;
@@ -1177,8 +1189,8 @@ function loadImg(src) {
         }
         const picking = data.phase === 'select';
         // agree twice
-        const inReveal = data.phase === 'round' && Date.now() < revealUntil && data.round !== revealedRound;
-        const wantOpen = (!!net.id || net.everOnline) && (picking || inReveal);
+        const inReveal = data.phase === 'round' && you?.in_round && Date.now() < revealUntil && data.round !== revealedRound;
+        const wantOpen = (!!net.id || net.everOnline) && ((picking && !net.afk) || inReveal);
         if (wantOpen) {
           openStreak++; closeStreak = 0;
           if (openStreak >= 2) {
@@ -1202,9 +1214,9 @@ function loadImg(src) {
         }
         // scary music
         let nearestEvil = Infinity;
-        if (data.phase === 'round' && !p.evil && p.alive !== false) {
+        if (data.phase === 'round' && you?.in_round && !p.evil && p.alive !== false) {
           for (const r of game.remotes) {
-            if (!r.evil || !r.alive || r.hp <= 0 || r.invis) continue; // sneak hides
+            if (!r.inRound || !r.evil || !r.alive || r.hp <= 0 || r.invis) continue; // sneak hides
             const d = Math.hypot(r.pos.x - p.pos.x, r.pos.y - p.pos.y);
             if (d < nearestEvil) nearestEvil = d;
           }
@@ -1217,8 +1229,8 @@ function loadImg(src) {
         if (chaseT > 0.05) terrorT = 0; // chase wins
         // last survivor
         // lux anthem
-        const survsLeft = (p.alive !== false && !p.evil ? 1 : 0) +
-          game.remotes.filter((r) => r.alive && r.hp > 0 && !r.evil).length;
+        const survsLeft = (you?.in_round && p.alive !== false && !p.evil ? 1 : 0) +
+          game.remotes.filter((r) => r.inRound && r.alive && r.hp > 0 && !r.evil).length;
         const isLMS = data.phase === 'round' && survsLeft === 1;
         let lmsChar = null;
         if (isLMS) {
