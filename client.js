@@ -1100,7 +1100,8 @@ function loadImg(src) {
           } else {
             mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
           }
-          phaseText = !you?.in_round ? 'AFK — spectating this round!!'
+          phaseText = !you?.in_round
+            ? (you?.away ? 'AFK — spectating this round!!' : 'NOT IN THIS ROUND — spectating!!')
             : data.notice
             ? `${data.notice} (${data.notice_left || 0}s)`
             : data.grace
