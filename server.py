@@ -185,10 +185,20 @@ def _alive_players():
 
 
 def _here_players():
-    """keyboard players"""
+    """Players who are not explicitly away and have not timed out."""
     now = time.time()
     return {pid: pl for pid, pl in players.items()
-            if not pl.get("away", False) and now - pl.get("last", 0) < 10}
+            if not pl.get("away", False) and now - pl.get("last", 0) < TIMEOUT}
+
+
+def _player_activity():
+    """Compact AFK/timeout snapshot for round-transition logs."""
+    now = time.time()
+    return ", ".join(
+        f"{pid}:{pl.get('name', '?')} away={bool(pl.get('away', False))} "
+        f"idle={max(0, now - pl.get('last', now)):.1f}s"
+        for pid, pl in players.items()
+    ) or "none"
 
 
 def start_intermission():
@@ -230,9 +240,11 @@ def start_round():
         round_players.clear()
         killer_id = None
         phase = "lobby"
-        print("!! not enough active players — round cancelled!!", flush=True)
+        print(f"!! not enough active players — round cancelled!! [{_player_activity()}]", flush=True)
         return
     round_players = set(eligible)
+    roster = ", ".join(f"{pid}:{pl.get('name', '?')}" for pid, pl in eligible.items())
+    print(f"[ROUND] roster: {roster} | all players: {_player_activity()}", flush=True)
     # random picks
     for pid, pl in eligible.items():
         if pl.get("char") not in [c["id"] for c in CHARACTERS]:
@@ -526,8 +538,11 @@ class Handler(SimpleHTTPRequestHandler):
             with lock:
                 pl = players.get(data.get("id"))
                 if pl:
+                    was_away = bool(pl.get("away", False))
                     pl["away"] = bool(data.get("away", False))
                     pl["last"] = time.time()
+                    if was_away != pl["away"]:
+                        print(f"[AFK] {pl['name']} ({data.get('id')}) {was_away} -> {pl['away']}", flush=True)
             self._send_json({"ok": bool(pl)})
             return
 
@@ -841,7 +856,7 @@ if __name__ == "__main__":
         print("dual-stack!! ipv4 + ipv6!!", flush=True)
     except Exception:
         server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"party crashers homecoming is LIVE at http://localhost:{PORT} !!", flush=True)
+    print(f"party crashers homecoming is LIVE at http://localhost:{PORT} !! ({os.path.abspath(__file__)})", flush=True)
     print("friends on your wifi: use your computer's IP instead of localhost!!", flush=True)
     try:
         server.serve_forever()
