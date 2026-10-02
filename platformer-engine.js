@@ -115,13 +115,15 @@ class PlatformerEngine {
     this.statics = [];
     this.maps = { main: this.statics, inter: [] }; // two maps
     this.activeMap = 'main';
+    this.backdrop = null; // map art
+    this.hitmask = null; // pixel map
     this.remotes = []; // draw only
     this.player = null;
     this.camera = { x: 0, y: 0 };
     this.followPlayer = opts.followPlayer ?? true;
     this.background = opts.background || '#1a1b26';
     this.spawn = { x: 60, y: 100 };
-    this.evilSpawn = { x: 4300, y: 100 }; // far spawn
+    this.evilSpawn = { x: 2582, y: 830 }; // far spawn
     this.fallY = opts.fallY ?? 800; // fall line
     this.fallDamage = opts.fallDamage ?? 50;
 
@@ -199,6 +201,8 @@ class PlatformerEngine {
     p.lastJumpT = -99;
     p.rooted = false; p.chargeDir = 0; // clear locks
     p.cowerT = 0; p.cowering = false; p.stunT = 0; p.actionT = 0;
+    this.camera.x = p.pos.x + p.w / 2 - this.width / 2; // snap cam
+    this.camera.y = p.pos.y + p.h / 2 - this.height / 2;
   }
 
   // debug heal
@@ -225,6 +229,46 @@ class PlatformerEngine {
     this.activeMap = name;
     this.statics = this.maps[name];
     this.spawn = { x: spawnX, y: spawnY };
+  }
+  // raw pixels
+  setHitbox(map, img, x, y, thr = 127) {
+    const m = { map, x, y, w: 0, h: 0, data: null, img };
+    m.build = () => {
+      if (!img.complete || !img.naturalWidth || m.data) return;
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0);
+      const d = g.getImageData(0, 0, c.width, c.height).data;
+      m.data = new Uint8Array(c.width * c.height);
+      for (let i = 0; i < m.data.length; i++) m.data[i] = d[i * 4 + 3] >= thr ? 1 : 0;
+      m.w = c.width; m.h = c.height;
+    };
+    img.addEventListener('load', m.build);
+    m.build();
+    this.hitmask = m;
+  }
+  // solid here
+  solidAt(wx, wy) {
+    const m = this.hitmask;
+    if (!m || m.map !== this.activeMap) return false;
+    if (!m.data) m.build();
+    if (!m.data) return false;
+    const lx = Math.floor(wx - m.x), ly = Math.floor(wy - m.y);
+    if (lx < 0 || ly < 0 || lx >= m.w || ly >= m.h) return false;
+    return !!m.data[ly * m.w + lx];
+  }
+  // any solid here
+  touching(x0, y0, w, h) {
+    for (let y = y0; y < y0 + h; y += 3)
+      for (let x = x0; x < x0 + w; x += 3)
+        if (this.solidAt(x, y)) return true;
+    return this.solidAt(x0 + w - 1, y0 + h - 1);
+  }
+
+  // map art
+  setBackdrop(map, img, x, y, w, h) {
+    this.backdrop = { map, img, x, y, w, h };
   }
 
   // load tiles
@@ -305,24 +349,130 @@ class PlatformerEngine {
     // move bodies
     for (const b of this.bodies) {
       if (b.isStatic) continue;
-
-      // push x
-      b.pos.x += b.vel.x * dt;
+      // split motion
+      const steps = Math.min(6, Math.max(1, Math.ceil(Math.max(Math.abs(b.vel.x), Math.abs(b.vel.y)) * dt / 6)));
+      const sx = b.vel.x * dt / steps, sy = b.vel.y * dt / steps;
       b.onGround = false;
-      for (const s of this.statics) {
-        if (!aabbOverlap(b, s)) continue;
-        if (b.vel.x > 0) b.pos.x = s.pos.x - b.w;
-        else if (b.vel.x < 0) b.pos.x = s.pos.x + s.w;
-        b.vel.x = 0;
+      const hm = this.hitmask;
+      let pixel = false;
+      if (hm && hm.map === this.activeMap) {
+        if (!hm.data) hm.build();
+        pixel = !!hm.data;
       }
+      for (let st = 0; st < steps; st++) {
+        if (pixel) {
+          // push x
+          b.pos.x += sx;
+          if (this.touching(b.pos.x, b.pos.y, b.w, b.h)) {
+            // steps or walls
+            let stepped = false;
+            if (b.vel.y >= 0) {
+              let top = Infinity;
+              for (let y = b.pos.y + b.h - 14; y < b.pos.y + b.h; y += 1)
+                for (let x = b.pos.x; x < b.pos.x + b.w; x += 3)
+                  if (this.solidAt(x, y)) { if (y < top) top = y; }
+              const lip = top === Infinity ? 0 : (b.pos.y + b.h) - top;
+              if (lip > 0 && lip <= 10) {
+                const ny = top - b.h;
+                const dir = b.vel.x >= 0 ? 1 : -1;
+                const px = (dir > 0 ? b.pos.x + b.w : b.pos.x) + dir * 20;
+                let atop = Infinity;
+                for (let y = ny - 40; y < ny; y += 2) {
+                  if (this.solidAt(px, y)) { atop = y; break; }
+                }
+                if (!this.touching(b.pos.x, ny, b.w, b.h) && atop >= ny - 12) {
+                  b.pos.y = ny; b.onGround = true; stepped = true;
+                }
+              }
+            }
+            if (!stepped) {
+              let face = null;
+              if (b.vel.x > 0) {
+                face = b.pos.x + b.w;
+                for (let y = b.pos.y; y < b.pos.y + b.h; y += 3) {
+                  for (let x = b.pos.x + b.w; x > b.pos.x + b.w - 8 && x >= b.pos.x; x -= 1) {
+                    if (this.solidAt(x, y)) { if (x < face) face = x; break; }
+                  }
+                }
+                b.pos.x = face - b.w;
+              } else if (b.vel.x < 0) {
+                face = b.pos.x;
+                for (let y = b.pos.y; y < b.pos.y + b.h; y += 3) {
+                  for (let x = b.pos.x; x < b.pos.x + 8 && x < b.pos.x + b.w; x += 1) {
+                    if (this.solidAt(x, y)) { if (x > face) face = x; break; }
+                  }
+                }
+                b.pos.x = face + 1;
+              }
+              if (face === null || this.touching(b.pos.x, b.pos.y, b.w, b.h)) b.pos.x -= sx;
+              b.vel.x = 0;
+            }
+          }
 
-      // push y
-      b.pos.y += b.vel.y * dt;
-      for (const s of this.statics) {
-        if (!aabbOverlap(b, s)) continue;
-        if (b.vel.y > 0) { b.pos.y = s.pos.y - b.h; b.onGround = true; }
-        else if (b.vel.y < 0) { b.pos.y = s.pos.y + s.h; }
-        b.vel.y = 0;
+          // push y
+          b.pos.y += sy;
+          if (this.touching(b.pos.x, b.pos.y, b.w, b.h)) {
+            if (b.vel.y > 0) {
+              let top = Infinity;
+              for (let x = b.pos.x; x < b.pos.x + b.w; x += 3)
+                for (let y = b.pos.y + b.h; y > b.pos.y + b.h - 10 && y >= b.pos.y; y -= 1)
+                  if (this.solidAt(x, y)) { if (y < top) top = y; break; }
+              if (top === Infinity) {
+                b.pos.y -= sy;
+              } else {
+                b.pos.y = top - b.h;
+                b.onGround = true;
+              }
+            } else if (b.vel.y < 0) {
+              let bot = -Infinity;
+              for (let x = b.pos.x; x < b.pos.x + b.w; x += 3)
+                for (let y = b.pos.y; y < b.pos.y + 10 && y < b.pos.y + b.h; y += 1)
+                  if (this.solidAt(x, y)) { if (y > bot) bot = y; break; }
+              if (bot === -Infinity) {
+                b.pos.y -= sy;
+              } else {
+                b.pos.y = bot + 1;
+              }
+            } else {
+              b.pos.y -= sy;
+            }
+            b.vel.y = 0;
+          }
+          continue;
+        }
+        // push x
+        b.pos.x += sx;
+        for (const s of this.statics) {
+          if (!aabbOverlap(b, s)) continue;
+          // steps or walls
+          if (b.vel.y >= 0) {
+            const lip = (b.pos.y + b.h) - s.pos.y;
+            if (lip > 0 && lip <= 10) {
+              const ny = s.pos.y - b.h;
+              const dir = b.vel.x >= 0 ? 1 : -1;
+              const px = (dir > 0 ? b.pos.x + b.w : b.pos.x) + dir * 20;
+              let free = true, top = Infinity;
+              for (const t of this.statics) {
+                if (t === s) continue;
+                if (b.pos.x < t.pos.x + t.w && b.pos.x + b.w > t.pos.x && ny < t.pos.y + t.h && ny + b.h > t.pos.y) { free = false; break; }
+                if (px > t.pos.x && px < t.pos.x + t.w && t.pos.y + t.h > ny - 40 && t.pos.y < ny && t.pos.y < top) top = t.pos.y;
+              }
+              if (free && top >= ny - 12) { b.pos.y = ny; b.onGround = true; continue; }
+            }
+          }
+          if (b.vel.x > 0) b.pos.x = s.pos.x - b.w;
+          else if (b.vel.x < 0) b.pos.x = s.pos.x + s.w;
+          b.vel.x = 0;
+        }
+
+        // push y
+        b.pos.y += sy;
+        for (const s of this.statics) {
+          if (!aabbOverlap(b, s)) continue;
+          if (b.vel.y > 0) { b.pos.y = s.pos.y - b.h; b.onGround = true; }
+          else if (b.vel.y < 0) { b.pos.y = s.pos.y + s.h; }
+          b.vel.y = 0;
+        }
       }
     }
 
@@ -444,8 +594,9 @@ class PlatformerEngine {
 
     if (this.followPlayer && p) {
       const t = this.cameraTarget || p; // watch who
-      this.camera.x = t.pos.x + t.w / 2 - this.width / 2;
-      this.camera.y = t.pos.y + t.h / 2 - this.height / 2;
+      const k = Math.min(1, 12 * dt);
+      this.camera.x += (t.pos.x + t.w / 2 - this.width / 2 - this.camera.x) * k;
+      this.camera.y += (t.pos.y + t.h / 2 - this.height / 2 - this.camera.y) * k;
     }
 
     if (this.onUpdate) this.onUpdate(dt);
@@ -461,7 +612,11 @@ class PlatformerEngine {
     ctx.save();
     ctx.translate(-Math.round(this.camera.x), -Math.round(this.camera.y));
 
-    for (const s of this.statics) {
+    const bd = this.backdrop;
+    const artOk = bd && bd.map === this.activeMap && bd.img.complete && bd.img.naturalWidth;
+    if (artOk) ctx.drawImage(bd.img, bd.x, bd.y, bd.w, bd.h);
+    // bare fallback
+    if (!artOk) for (const s of this.statics) {
       ctx.fillStyle = s.color;
       ctx.fillRect(s.pos.x, s.pos.y, s.w, s.h);
     }
