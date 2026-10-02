@@ -172,7 +172,7 @@ round_start = 0.0
 killer_id = None
 current_round = 0
 result = None # last result
-round_players = set() # round players
+round_players = set() # players eligible for the current round
 
 STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
               "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing")

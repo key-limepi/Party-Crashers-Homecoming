@@ -65,16 +65,38 @@ function loadImg(src) {
     };
 
     // exit door
-    game.exitZone = { x: 2590, y: 814, w: 60, h: 100 };
-    const EXIT_X = 2620, EXIT_SAFE = 150;
+    game.exitZone = { x: 4300, y: 280, w: 60, h: 100 };
+    const EXIT_X = 4330, EXIT_SAFE = 150;
     game.chatBubbleImg = loadImg("./Assets/Images/UI/chatbub.png");
     game.alertArrow = loadImg("./Assets/Images/UI/CharacterSelect/left.png"); // ping arrow
     game.spikeImg = loadImg("./Assets/Images/Characters/Killers/Evil Lux/spikes.png");
 
-    // jagged cliffs zone
-    const JC_ART = loadImg('./Assets/Images/Levels/Hitboxes/JaggedCliffs.png');
-    game.setBackdrop('main', JC_ART, 0, 0, 2861, 2160);
-    game.setHitbox('main', JC_ART, 0, 0);
+    // big map
+    game.addPlatform(-200, 380, 1000, 80, '#8ac926'); // west floor
+    game.addPlatform(900, 380, 900, 80, '#8ac926'); // gap floor
+    game.addPlatform(1920, 380, 1200, 80, '#8ac926'); // mid floor
+    game.addPlatform(3240, 380, 1160, 80, '#8ac926'); // east floor
+    const P = '#ff9f1c';
+    game.addPlatform(180, 300, 140, 22, P);
+    game.addPlatform(380, 240, 140, 22, P);
+    game.addPlatform(580, 300, 140, 22, P);
+    game.addPlatform(800, 220, 160, 22, P);
+    game.addPlatform(1020, 280, 140, 22, P);
+    game.addPlatform(1220, 200, 160, 22, P);
+    game.addPlatform(1440, 280, 140, 22, P);
+    game.addPlatform(1660, 190, 180, 22, P);
+    game.addPlatform(1900, 270, 140, 22, P);
+    game.addPlatform(2100, 200, 140, 22, P);
+    game.addPlatform(2300, 280, 160, 22, P);
+    game.addPlatform(2520, 180, 180, 22, P);
+    game.addPlatform(2760, 260, 140, 22, P);
+    game.addPlatform(2960, 190, 160, 22, P);
+    game.addPlatform(3180, 270, 140, 22, P);
+    game.addPlatform(3380, 200, 200, 22, P);
+    game.addPlatform(3640, 280, 160, 22, P);
+    // climb towers
+    game.addPlatform(1300, 120, 60, 260, '#c084fc');
+    game.addPlatform(2600, 100, 60, 280, '#c084fc');
 
     // rest island
     game.addPlatform(6000, 380, 800, 80, '#8ac926', 'inter'); // island floor
@@ -699,7 +721,7 @@ function loadImg(src) {
         p.maxHp = 250; p.hp = 250;
         p.maxJumps = 2; // double jump
         game.moveSpeed = 300; // evil speed
-        game.spawn = { x: 2582, y: 830 }; // far spawn
+        game.spawn = { x: 4300, y: 100 }; // far spawn
       } else {
         game.setPlayerSprites(charSprites[net.pick] || luxSprites);
         p.maxHp = 100; p.hp = Math.min(p.hp, 100);
@@ -796,25 +818,9 @@ function loadImg(src) {
     };
     // blocked sight
     function losClear(x1, y1, x2, y2) {
-      // pixel sight
-      if (game.hitmask && game.hitmask.map === game.activeMap && game.hitmask.data) {
-        const dx = x2 - x1, dy = y2 - y1;
-        const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 4));
-        for (let i = 1; i < n; i++) {
-          if (game.solidAt(x1 + dx * i / n, y1 + dy * i / n)) return false;
-        }
-        return true;
-      }
-      const bx0 = Math.min(x1, x2), bx1 = Math.max(x1, x2);
-      const by0 = Math.min(y1, y2), by1 = Math.max(y1, y2);
-      const near = [];
-      for (const s of game.statics) {
-        if (s.pos.x > bx1 || s.pos.x + s.w < bx0 || s.pos.y > by1 || s.pos.y + s.h < by0) continue;
-        near.push(s);
-      }
       for (let i = 1; i < 12; i++) {
         const sx = x1 + (x2 - x1) * i / 12, sy = y1 + (y2 - y1) * i / 12;
-        for (const s of near) {
+        for (const s of game.statics) {
           if (sx > s.pos.x && sx < s.pos.x + s.w && sy > s.pos.y && sy < s.pos.y + s.h) return false;
         }
       }
@@ -894,7 +900,7 @@ function loadImg(src) {
         if (!res.ok) throw new Error('nope');
         const joined = await res.json();
         net.id = joined.id;
-        setAFK(false); // fresh joins play
+        setAFK(false); // fresh joins always enter as active players
         hideFatal(); // error clear
         // fake loading
         const held = Date.now() - (net.titleT0 || Date.now());
@@ -1007,8 +1013,8 @@ function loadImg(src) {
           clearEvil(p);
           trippedIds.clear();
           if (data.phase !== 'round' || you?.in_round) {
-            if (data.phase === 'round') { game.switchMap('main', 932, 590); game.fallY = 2300; }
-            else { game.switchMap('inter', 6120, 100); game.fallY = 800; } // island map
+            if (data.phase === 'round') game.switchMap('main', 60, 100);
+            else game.switchMap('inter', 6120, 100); // island map
             if (!p.evil) { p.maxHp = 100; } // drop buffs
             p.hp = p.maxHp;
             game.respawn();
@@ -1334,7 +1340,7 @@ function loadImg(src) {
         abilBar.style.display = net.id && p.alive !== false ? 'flex' : 'none';
         // evil keys
         const now = Date.now();
-        // picking locks abilities
+        // abilities locked while picking
         const canCast = p.alive !== false && (p.stunT || 0) <= 0 && !selectOpen;
         if (!canCast) while (game.input.consumeAbility()) {} // clear queue
         const m1Muted = now < K.penaltyUntil; // sneak mute
