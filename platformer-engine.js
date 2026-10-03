@@ -236,6 +236,47 @@ class PlatformerEngine {
     });
   }
 
+  // step a body through its own velocity, splitting fast moves into
+  // substeps so it can't tunnel clean through a thin platform
+  moveBody(b, dt, statics) {
+    const dist = Math.hypot(b.vel.x, b.vel.y) * dt; // how far this frame
+    const maxStep = Math.max(4, Math.min(b.w, b.h) / 2); // thinnest safe move
+    const steps = Math.max(1, Math.min(8, Math.ceil(dist / maxStep))); // cap substeps
+    const stepDt = dt / steps;
+    for (let i = 0; i < steps; i++) {
+      b.pos.x += b.vel.x * stepDt;
+      this.resolveAxis(b, statics, 'x');
+      b.pos.y += b.vel.y * stepDt;
+      this.resolveAxis(b, statics, 'y');
+    }
+  }
+
+  // push a body out of any statics it overlaps, along one axis only.
+  // using overlap depth (not just velocity sign) means a body that's
+  // already stuck at zero speed still gets popped out the short way
+  resolveAxis(b, statics, axis) {
+    for (const s of statics) {
+      if (!aabbOverlap(b, s)) continue;
+      if (axis === 'x') {
+        const fromLeft = b.right - s.left; // depth if arriving from the left
+        const fromRight = s.right - b.left; // depth if arriving from the right
+        if (b.vel.x > 0 || (b.vel.x === 0 && fromLeft <= fromRight)) b.pos.x = s.pos.x - b.w;
+        else b.pos.x = s.pos.x + s.w;
+        b.vel.x = 0;
+      } else {
+        const fromAbove = b.bottom - s.top; // depth if arriving from above
+        const fromBelow = s.bottom - b.top; // depth if arriving from below
+        if (b.vel.y > 0 || (b.vel.y === 0 && fromAbove <= fromBelow)) {
+          b.pos.y = s.pos.y - b.h;
+          b.onGround = true; // feet landed
+        } else {
+          b.pos.y = s.pos.y + s.h; // bonked head
+        }
+        b.vel.y = 0;
+      }
+    }
+  }
+
   update(dt) {
     const p = this.player;
     if (p) {
@@ -305,25 +346,8 @@ class PlatformerEngine {
     // move bodies
     for (const b of this.bodies) {
       if (b.isStatic) continue;
-
-      // push x
-      b.pos.x += b.vel.x * dt;
       b.onGround = false;
-      for (const s of this.statics) {
-        if (!aabbOverlap(b, s)) continue;
-        if (b.vel.x > 0) b.pos.x = s.pos.x - b.w;
-        else if (b.vel.x < 0) b.pos.x = s.pos.x + s.w;
-        b.vel.x = 0;
-      }
-
-      // push y
-      b.pos.y += b.vel.y * dt;
-      for (const s of this.statics) {
-        if (!aabbOverlap(b, s)) continue;
-        if (b.vel.y > 0) { b.pos.y = s.pos.y - b.h; b.onGround = true; }
-        else if (b.vel.y < 0) { b.pos.y = s.pos.y + s.h; }
-        b.vel.y = 0;
-      }
+      this.moveBody(b, dt, this.statics); // push + resolve, tunnel-safe
     }
 
     // drag close
