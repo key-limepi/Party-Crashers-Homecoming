@@ -891,8 +891,13 @@ function loadImg(src) {
       kickCD: 0, jabCD: 0, kickUntil: 0, kickHit: false,
       jabUntil: 0, jabHit: false,
     };
-    const isToko = () => (net.pick || 'lux') === 'toko';
-    const isSonic = () => (net.pick || 'lux') === 'sonic';
+    const isToko = () => effChar() === 'toko';
+    const isSonic = () => effChar() === 'sonic';
+    // costume counts
+    function effChar() {
+      if (net.phase === 'intermission' && net.costume) return net.costume;
+      return net.pick || 'lux';
+    }
     // sonic peelout
     const SN = {
       peelCD: 0, windupUntil: 0, peelUntil: 0, peeling: false,
@@ -1122,7 +1127,14 @@ function loadImg(src) {
           trippedIds.clear();
           if (data.phase !== 'round' || you?.in_round) {
             if (data.phase === 'round') game.switchMap('main', 60, 100);
-            else game.switchMap('inter', 6120, 100); // island map
+            else {
+              game.switchMap('inter', 6120, 100); // island map
+              if (data.phase === 'intermission' && !p.evil) {
+                // random look
+                const ids = ['lux', 'toko', 'sonic'];
+                wearChar(ids[Math.floor(Math.random() * ids.length)]);
+              }
+            }
             if (!p.evil) { p.maxHp = 100; } // drop buffs
             p.hp = p.maxHp;
             game.respawn();
