@@ -148,7 +148,8 @@
       position: absolute;
       inset: 0;
       background-image: url("./Assets/Images/UI/CharacterSelect/charselectbg.png");
-      background-repeat: repeat;
+      background-repeat: repeat-x;
+      background-size: auto 100%;
       image-rendering: pixelated;
       z-index: 50;
       overflow: hidden;
