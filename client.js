@@ -47,19 +47,23 @@ function loadImg(src) {
       idle: [loadImg(SONIC + "sonic_idle1.png"), loadImg(SONIC + "sonic_idle2.png")],
       walk: [loadImg(SONIC + "sonic_walk1.png"), loadImg(SONIC + "sonic_walk2.png"), loadImg(SONIC + "sonic_walk3.png"), loadImg(SONIC + "sonic_walk4.png"), loadImg(SONIC + "sonic_walk5.png"), loadImg(SONIC + "sonic_walk6.png"), loadImg(SONIC + "sonic_walk7.png"), loadImg(SONIC + "sonic_walk8.png")],
       run: [loadImg(SONIC + "sonic_run1.png"), loadImg(SONIC + "sonic_run2.png"), loadImg(SONIC + "sonic_run3.png"), loadImg(SONIC + "sonic_run4.png")],
+      runStride: 35,
       jump: [loadImg(SONIC + "sonic_roll1.png"), loadImg(SONIC + "sonic_roll2.png"), loadImg(SONIC + "sonic_roll3.png"), loadImg(SONIC + "sonic_roll4.png"), loadImg(SONIC + "sonic_roll5.png"), loadImg(SONIC + "sonic_roll6.png"), loadImg(SONIC + "sonic_roll7.png"), loadImg(SONIC + "sonic_roll8.png")],
+      jumpScale: 0.87,
       stun: loadImg(SONIC + "sonic_struggle1.png"),
       struggle: [loadImg(SONIC + "sonic_struggle1.png"), loadImg(SONIC + "sonic_struggle2.png")],
       cower: loadImg(SONIC + "sonic_idle1.png"),
       dash: loadImg(SONIC + "sonic_run1.png"),
+      peel: [loadImg(SONIC + "sonic_peelout1.png"), loadImg(SONIC + "sonic_peelout2.png"), loadImg(SONIC + "sonic_peelout3.png"), loadImg(SONIC + "sonic_peelout4.png")],
+      spin: [loadImg(SONIC + "sonic_spindash1.png"), loadImg(SONIC + "sonic_spindash2.png"), loadImg(SONIC + "sonic_spindash3.png")],
+      charge: loadImg(SONIC + "sonic_peeloutcharge.png"),
     };
     const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, evil: null }; // evil later
     function wearChar(id) {
       game.setPlayerSprites(charSprites[id] || luxSprites);
-      // sonic's art is true-size 8-bit pixel art already draw it at its
-      // own native size (idle1.png is 50x66) so nothing gets resampled
+      // true size
       game.player.drawW = 50;
-      game.player.drawH = id === 'sonic' ? 66 : 70;
+      game.player.drawH = id === 'sonic' ? 64 : 70;
     }
     game.setPlayerSprites(luxSprites);
 
@@ -80,6 +84,7 @@ function loadImg(src) {
       spike: loadImg(EVIL + "spikeplace1.png"),
       windup: loadImg(EVIL + "m1idle.png"),
       pull: loadImg(EVIL + "pull1.png"),
+      pullwindup: loadImg(EVIL + "pullwindup.png"),
       m1: null, // random swing
     };
 
@@ -194,7 +199,7 @@ function loadImg(src) {
         `vel: ${Math.round(p.vel.x)}, ${Math.round(p.vel.y)}\n` +
         `ground: ${p.onGround ? 'yep!!' : 'nope!!'}\n` +
         `phase: ${net.phase}\n` +
-        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
+        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
     }, 100);
 
     // needs server
@@ -278,6 +283,15 @@ function loadImg(src) {
       try { netError('uh oh!! a request failed, refresh if stuck!!', 10); } catch (_) { /* too broken!! */ }
     });
     const nameBox = document.getElementById('nameBox');
+    // rename here
+    nameBox.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const name = (nameBox.value.trim() || 'friend').slice(0, 16);
+      net.pendingName = name;
+      nameBox.blur();
+      joinOnline(name);
+    });
     const midBox = document.getElementById('midBox');
     let midShown = false;
     midBox.addEventListener('click', () => {
@@ -573,6 +587,7 @@ function loadImg(src) {
       inter: loopTrack(MUS + 'intermission.mp3'),
       lms: loopTrack(MUS + 'last_man_standing.mp3'),
       lmslux: loopTrack(MUS + 'lux_lms.mp3'), // lux anthem
+      lmssonic: loopTrack(MUS + 'sonic_lms.mp3'), // sonic anthem
       chase: loopTrack(MUS + 'chase_elux.mp3'),
       terror: loopTrack(MUS + 'terror_radius_elux.mp3'),
       charselect: loopTrack(MUS + 'charselect.mp3'),
@@ -585,7 +600,7 @@ function loadImg(src) {
     // lms rules
     let lmsTrack = null; // track ids
     let lmsStartT = null; // lms clock
-    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'chase', 'terror', 'charselect'];
+    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'chase', 'terror', 'charselect'];
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.key.toLowerCase() !== 'm') return;
       soloIdx = soloIdx >= soloOrder.length - 1 ? -1 : soloIdx + 1;
@@ -647,17 +662,67 @@ function loadImg(src) {
     const pullLoop = loopSfx(SFX + 'pull_loop.wav', 0.35);
     // evil kit
     // weak pull
+    // wound ticking ropes
     const PULL_RANGE = 450;
     // lms buffs
     const LMS_HP = 150; // more health
     const LMS_CD = 0.6; // faster cds
     const K = {
       spikeCD: 0, sneakCD: 0, pullCD: 0, rushCD: 0, m1CD: 0, m1ok: true,
-      invisUntil: 0, penaltyUntil: 0, pullUntil: 0, pullHit: false,
+      invisUntil: 0, penaltyUntil: 0, pullUntil: 0, pullHit: false, pullWindup: 0,
       windupUntil: 0, chargeUntil: 0, charging: false,
     };
     const trippedIds = new Set(); // used spikes
     const abilBar = document.getElementById('abilities');
+    // party list
+    const partyList = document.getElementById('partyList');
+    const CHAR_ICON = {
+      lux: './Assets/Images/UI/luxicon.png',
+      toko: './Assets/Images/UI/tokoicon.png',
+      sonic: './Assets/Images/UI/sonicicon.png',
+    };
+    function renderParty(self, p, others, killerId) {
+      partyList.innerHTML = '';
+      // killer spot
+      let kx = null, ky = null;
+      if (p.evil) {
+        kx = p.pos.x + p.w / 2; ky = p.pos.y + p.h / 2;
+      } else {
+        const ek = game.remotes.find((r) => r.id === killerId && r.alive && r.hp > 0);
+        if (ek && !ek.invis) { kx = ek.pos.x + ek.w / 2; ky = ek.pos.y + ek.h / 2; }
+      }
+      const chasedAt = (x, y) => kx !== null && Math.hypot(kx - x, ky - y) < 260;
+      const add = (name, char, hp, maxhp, alive, me, evil, x, y) => {
+        const row = document.createElement('div');
+        row.className = 'pRow' + (alive ? '' : ' dead') + (me ? ' me' : '') + (!evil && alive && chasedAt(x, y) ? ' chased' : '');
+        const img = document.createElement('img');
+        img.src = evil ? EVIL + 'idle1.png' : (CHAR_ICON[char] || CHAR_ICON.lux);
+        img.alt = '';
+        const col = document.createElement('div');
+        col.className = 'pCol';
+        const tx = document.createElement('span');
+        tx.textContent = `${name} ${Math.max(0, Math.ceil(hp || 0))}`;
+        const bar = document.createElement('div');
+        bar.className = 'pBar';
+        const fill = document.createElement('div');
+        fill.className = 'pFill';
+        const frac = Math.max(0, Math.min(1, (hp || 0) / (maxhp || 100)));
+        fill.style.width = `${Math.round(frac * 100)}%`;
+        bar.appendChild(fill);
+        col.appendChild(tx);
+        col.appendChild(bar);
+        row.appendChild(img);
+        row.appendChild(col);
+        partyList.appendChild(row);
+      };
+      if (self && !p.evil) add(self.name, self.char, p.hp, p.maxHp, p.alive !== false, true, false, p.pos.x + p.w / 2, p.pos.y + p.h / 2);
+      for (const [id, d] of Object.entries(others || {})) {
+        if (!d || id === net.id || id === killerId) continue;
+        const r = game.remotes.find((r) => r.id === id);
+        const rx = r ? r.pos.x + r.w / 2 : 1e9, ry = r ? r.pos.y + r.h / 2 : 1e9;
+        add(d.name, d.char, d.hp, d.maxhp || 100, (d.alive ?? d.hp > 0), false, false, rx, ry);
+      }
+    }
     // spike pips
     const spikeBar = document.getElementById('spikeBar');
     const spikePips = document.getElementById('spikePips');
@@ -673,6 +738,7 @@ function loadImg(src) {
     const AB = './Assets/Images/UI/Abillities/';
     const ABIL_ICONS = {
       hit: null,
+      blank: AB + 'ability_blank.png',
       spikes: AB + 'ability_spikes.png',
       sneak: AB + 'ability_sneak.png',
       pull: AB + 'abillity_pull.png',
@@ -700,7 +766,10 @@ function loadImg(src) {
           { key: 'X', name: 'JAB', icon: ABIL_ICONS.jab, cd: () => T.jabCD },
         ];
       } else if (isSonic()) {
-        abilDefs = []; // no kit yet
+        abilDefs = [
+          { key: 'Z', name: 'PEEL', icon: null, cd: () => SN.peelCD },
+          { key: 'X', name: 'SPIN', icon: null, cd: () => SN.spinCD },
+        ];
       } else {
         abilDefs = [
           { key: 'Z', name: 'DASH', icon: ABIL_ICONS.dash, cd: () => S.dashCD },
@@ -711,16 +780,10 @@ function loadImg(src) {
       for (const d of abilDefs) {
         const slot = document.createElement('div');
         slot.className = 'abSlot';
-        if (d.icon) {
-          const img = document.createElement('img');
-          img.src = d.icon;
-          img.alt = d.name;
-          slot.appendChild(img);
-        } else {
-          const blank = document.createElement('div');
-          blank.className = 'abBlank';
-          slot.appendChild(blank);
-        }
+        const img = document.createElement('img');
+        img.src = d.icon || ABIL_ICONS.blank;
+        img.alt = d.name;
+        slot.appendChild(img);
         const cd = document.createElement('span');
         cd.className = 'abCd';
         slot.appendChild(cd);
@@ -748,7 +811,7 @@ function loadImg(src) {
         wearChar(net.pick);
         p.maxHp = 100; p.hp = Math.min(p.hp, 100);
         p.maxJumps = 1;
-        game.moveSpeed = 240;
+        game.moveSpeed = net.pick === 'sonic' ? 270 : 240;
         game.spawn = { x: 60, y: 100 };
         p.invis = false; p.rooted = false; p.chargeDir = 0;
         K.charging = false;
@@ -809,10 +872,13 @@ function loadImg(src) {
     function clearEvil(p) {
       p.invis = false; p.rooted = false; p.chargeDir = 0;
       p.cowerT = 0; p.cowering = false; p.stunT = 0;
-      K.charging = false; K.pullUntil = 0; K.windupUntil = 0;
+      K.charging = false; K.pullUntil = 0; K.pullWindup = 0; K.windupUntil = 0;
       S.windupUntil = 0; S.dashing = false;
       T.kickUntil = 0; T.jabUntil = 0;
-      game.pullSrc = null;
+      SN.windupUntil = 0; SN.peelUntil = 0; SN.peeling = false;
+      SN.spinWindup = 0; SN.spinUntil = 0; SN.spinning = false;
+      p.actionImg = null;
+      game.pullSrc = null; game.peelSrc = null;
     }
     // survivor kit
     // hit or whiff
@@ -827,6 +893,11 @@ function loadImg(src) {
     };
     const isToko = () => (net.pick || 'lux') === 'toko';
     const isSonic = () => (net.pick || 'lux') === 'sonic';
+    // sonic peelout
+    const SN = {
+      peelCD: 0, windupUntil: 0, peelUntil: 0, peeling: false,
+      spinCD: 0, spinWindup: 0, spinUntil: 0, spinning: false, spinHits: 0, spinTouching: false, spinHitCD: 0,
+    };
     game.onCounter = () => {
       // eat hits
       S.countered = true;
@@ -867,9 +938,23 @@ function loadImg(src) {
       // tired overlay
       vignette.style.opacity = game.player ? Math.min(1, game.player.fatigue || 0).toFixed(2) : 0;
     }, 100);
+    // death fx
+    const deathStatic = document.getElementById('deathStatic');
+    function deathFx() {
+      fileSfx(SFX + 'death.mp3', {});
+      if (!deathStatic) return;
+      deathStatic.style.display = 'block';
+      deathStatic.style.opacity = '1';
+      clearTimeout(deathStatic._t);
+      clearTimeout(deathStatic._t2);
+      deathStatic._t = setTimeout(() => { deathStatic.style.opacity = '0'; }, 2500);
+      deathStatic._t2 = setTimeout(() => { deathStatic.style.display = 'none'; }, 5100);
+    }
     game.onDeath = () => {
       const p = game.player;
       clearEvil(p);
+      deathFx();
+      net.diedAt = Date.now(); // delayed spec
       if (!net.id) { // dead respawn
         netError('not connected!! start the server and refresh!!', 30);
         p.hp = p.maxHp;
@@ -910,10 +995,10 @@ function loadImg(src) {
         });
         if (res.status === 403) {
           // still knocking
-          let msg = 'match running — waiting to sneak in!!';
+          let msg = 'match running - waiting to sneak in!!';
           try {
             const e = await res.json();
-            if (e && /locked/.test(e.error || '')) msg = 'match locked — waiting for next one!!';
+            if (e && /locked/.test(e.error || '')) msg = 'match locked - waiting for next one!!';
           } catch (e2) { /* plain 403!! */ }
           netStatus.textContent = msg;
           clearTimeout(net.retry);
@@ -974,7 +1059,7 @@ function loadImg(src) {
         return;
       }
       const params = new URLSearchParams(location.search);
-      const name = (params.get('name') || `lux${Math.floor(1000 + Math.random() * 9000)}`).slice(0, 16);
+      const name = (params.get('name') || 'name').slice(0, 16);
       nameBox.value = name;
       net.pendingName = name;
     })();
@@ -1006,9 +1091,9 @@ function loadImg(src) {
             facing: p.facing, hp: Math.ceil(p.hp),
             moving: Math.abs(p.vel.x) > 10, onGround: p.onGround,
             alive: p.alive !== false,
-            invis: p.invis === true, m1: K.m1ok !== false,
+            invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
-            cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil,
+            cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup,
             dashing: !!S.dashing,
             pose: (poseName && Date.now() < poseUntil) ? poseName : null,
           }),
@@ -1032,7 +1117,7 @@ function loadImg(src) {
           net.phase = data.phase;
           soloIdx = -1; // reset ears
           lmsTrack = null; lmsStartT = null; // reset lms
-          beds.lms.pause(); beds.lmslux.pause(); beds.chase.pause(); beds.terror.pause();
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.chase.pause(); beds.terror.pause();
           clearEvil(p);
           trippedIds.clear();
           if (data.phase !== 'round' || you?.in_round) {
@@ -1074,7 +1159,7 @@ function loadImg(src) {
           roleBox.style.color = '#ff4757';
           roleBox.style.display = 'block';
           roleTimer = setTimeout(() => { roleBox.style.display = 'none'; }, 3000);
-          sayStatus('you will be evil — no picking!!', 5);
+          sayStatus('you will be evil - no picking!!', 5);
           game.spawn = { x: 6650, y: 100 };
           game.respawn();
         }
@@ -1102,7 +1187,7 @@ function loadImg(src) {
           const here = Object.entries(others)
             .filter(([id, o]) => id !== net.id && !o.away && (o.idle || 0) < 10).length
             + (net.afk ? 0 : 1);
-          phaseText = `lobby — waiting for players (${here}/2)!!`;
+          phaseText = `lobby - waiting for players (${here}/2)!!`;
         } else if (data.phase === 'intermission') {
           const t = Math.max(0, data.time_left || 0);
           const r = data.result;
@@ -1124,14 +1209,21 @@ function loadImg(src) {
             mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
           }
           phaseText = !you?.in_round
-            ? (you?.away ? 'AFK — spectating this round!!' : 'NOT IN THIS ROUND — spectating!!')
+            ? (you?.away ? 'AFK - spectating this round!!' : 'NOT IN THIS ROUND - spectating!!')
             : data.notice
             ? `${data.notice} (${data.notice_left || 0}s)`
             : data.grace
-            ? `GRACE — RUN!! (${mm})`
-            : (p.evil ? `${mm} — YOU ARE EVIL!! Z = hit!!` : `${mm} — run!! evil: ${data.killer_name || '???'}`);
+            ? `GRACE - RUN!! (${mm})`
+            : (p.evil ? `${mm} - YOU ARE EVIL!! Z = hit!!` : `${mm} - run!! evil: ${data.killer_name || '???'}`);
         }
         if (phaseText !== lastPhaseText) { phaseLine.textContent = phaseText; lastPhaseText = phaseText; }
+        // party list
+        const showParty = data.phase === 'round' && net.id;
+        partyList.style.display = showParty ? 'flex' : 'none';
+        if (showParty && Date.now() - (net._partyT || 0) > 250) {
+          net._partyT = Date.now();
+          renderParty((data.players || {})[net.id], p, data.players, data.killer_id);
+        }
         const seen = new Set();
         for (const [id, d] of Object.entries(others)) {
           if (id === net.id) continue;
@@ -1161,13 +1253,15 @@ function loadImg(src) {
           r.evil = id === data.killer_id;
           r.maxHp = d.maxhp || (r.evil ? 250 : 100); // true bars
           r.sprites = r.evil ? evilSprites : (charSprites[r.char] || luxSprites); // see all
-          // sonic's art is true-size 8-bit pixel art already. draw it at
-          // its own native size (idle1.png is 50x66) so nothing gets resampled
+          // true size
+          if (r._lastChar !== r.char) { r._baseFrame = null; r._lastChar = r.char; }
           r.drawW = 50;
-          r.drawH = (!r.evil && r.char === 'sonic') ? 66 : 70;
+          r.drawH = (!r.evil && r.char === 'sonic') ? 64 : 70;
           r.invis = !!d.invis;
           r.stunned = !!d.stunned;
           r.pull = !!d.pull;
+          r.peeling = !!d.peeling;
+          r.spinning = !!d.spinning;
           r.dashing = !!d.dashing;
           r.away = !!d.away;
           r.inRound = !!d.in_round;
@@ -1176,7 +1270,19 @@ function loadImg(src) {
           r.cowering = !!d.cower;
           // pose frames
           if (d.windup) {
-            r.poseImg = r.evil ? evilWindup[0] : luxSprites.run[0];
+            if (!r._wasWindup) r._windupStart = Date.now();
+            if (r.evil) {
+              r.poseImg = evilWindup[0];
+            } else if (r.char === 'sonic') {
+              // revving up
+              const t = (Date.now() - (r._windupStart || Date.now())) / 3000;
+              const w = sonicSprites.walk;
+              r.poseImg = t < 0.3 ? sonicSprites.charge
+                : t < 0.7 ? w[Math.floor(Date.now() / 100) % w.length]
+                : sonicSprites.peel[Math.floor(Date.now() / 60) % 4];
+            } else {
+              r.poseImg = luxSprites.run[0];
+            }
             r.poseUntil = Date.now() + 150;
           } else if (d.pose && d.pose !== r.pose) {
             r.pose = d.pose;
@@ -1185,9 +1291,23 @@ function loadImg(src) {
           } else if (!d.pose) {
             r.pose = null;
           }
+          r._wasWindup = !!d.windup;
+          // spin for all
+          if (!r.evil && r.peeling) {
+            r.poseImg = sonicSprites.peel[Math.floor(Date.now() / 60) % 4];
+            r.poseUntil = Date.now() + 150;
+          }
+          if (!r.evil && r.spinning) {
+            r.poseImg = sonicSprites.jump[Math.floor(Date.now() / 60) % 8];
+            r.poseUntil = Date.now() + 150;
+          }
           if (p.evil && r._lastHp !== undefined && r.hp < r._lastHp) {
             fileSfx(SFX + 'm1_hit.wav', {}); // hit sound
           }
+          if (r._wasAlive && !r.alive && data.phase === 'round') {
+            fileSfx(SFX + 'death.mp3', {}); // they died
+          }
+          r._wasAlive = !!r.alive;
           r._lastHp = r.hp;
         }
         game.remotes = game.remotes.filter((r) => seen.has(r.id));
@@ -1269,10 +1389,11 @@ function loadImg(src) {
           }
         }
         const luxLMS = isLMS && lmsChar === 'lux';
-        const lmsKey = luxLMS ? 'lmslux' : 'lms';
+        const sonicLMS = isLMS && lmsChar === 'sonic';
+        const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : 'lms');
         if (isLMS && lmsTrack !== lmsKey) {
           // start anthem
-          for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux']) {
+          for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic']) {
             beds[k].pause();
             try { beds[k].currentTime = 0; } catch (_) { /* hush!! */ }
           }
@@ -1291,7 +1412,7 @@ function loadImg(src) {
           }
         } else if (!isLMS && lmsTrack) {
           // lms over
-          beds.lms.pause(); beds.lmslux.pause();
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause();
           lmsTrack = null; lmsStartT = null;
           if (!p.evil) { p.maxHp = 100; p.hp = Math.min(p.hp, 100); } // drop buffs
         }
@@ -1300,7 +1421,8 @@ function loadImg(src) {
         // lms first
         const cands = [
           ['lmslux', luxLMS ? 1 : 0, 0.25],
-          ['lms', isLMS && !luxLMS ? 1 : 0, 0.25],
+          ['lmssonic', sonicLMS ? 1 : 0, 0.25],
+          ['lms', isLMS && !luxLMS && !sonicLMS ? 1 : 0, 0.25],
           ['chase', chaseT, 0.5],
           ['terror', terrorT, 0.5],
           ['inter', data.phase === 'intermission' ? 1 : 0, 0.3],
@@ -1308,7 +1430,7 @@ function loadImg(src) {
           ['map', data.phase === 'round' ? 1 : 0, 0.12],
           ['wait', data.phase === 'lobby' ? 1 : 0, 0.3],
         ];
-        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, chase: 0, terror: 0, charselect: 0 };
+        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, chase: 0, terror: 0, charselect: 0 };
         const win = cands.find((c) => c[1] > 0.05);
         if (win) bedT[win[0]] = win[2] * (win[0] === 'chase' || win[0] === 'terror' ? win[1] : 1);
         if (document.hidden) for (const k in bedT) bedT[k] = 0; // mute hidden
@@ -1341,7 +1463,8 @@ function loadImg(src) {
         // shove killers
         if (p.evil && you && you.kb && you.kb.at !== p._lastKb) {
           p._lastKb = you.kb.at;
-          p.vel.x = (you.kb.x || 0) * Math.min(1100, 375 * (you.kb.s || 2));
+          const kbPow = you.kb.p || 1;
+          p.vel.x = (you.kb.x || 0) * Math.min(kbPow > 1 ? 4000 : 1100, 375 * (you.kb.s || 2) * kbPow);
           if (p.onGround) p.vel.y = Math.min(p.vel.y || 0, -220); // hop up
         }
         // traps pings
@@ -1361,6 +1484,7 @@ function loadImg(src) {
           }
         }
         game.showAlerts = !!p.evil;
+        game.sneakArrows = !!(p.evil && p.invis);
         game.seeInvis = !!p.evil || p.alive === false;
         game.damageOn = !!net.id && (!net.phase || net.phase === 'round');
         game.lmsResist = !!(isLMS && !p.evil && p.alive !== false);
@@ -1394,7 +1518,23 @@ function loadImg(src) {
               }
               continue;
             }
-            if (isSonic()) continue; // no kit yet
+            if (isSonic()) {
+              // peelout
+              if (ab === 'Z' && now >= SN.peelCD && !SN.windupUntil && !SN.peeling && !SN.spinning && !SN.spinWindup) {
+                // long zoom
+                SN.windupUntil = now + 3000;
+                p.rooted = true;
+                p.actionImg = sonicSprites.charge; p.actionT = 3.1;
+                fileSfx(SFX + 'dash_charge.wav', {});
+              } else if (ab === 'X' && now >= SN.spinCD && !SN.spinWindup && !SN.spinning && !SN.peeling && !SN.windupUntil) {
+                // spindash
+                SN.spinWindup = now + 1000;
+                p.rooted = true;
+                p.actionImg = sonicSprites.spin[0]; p.actionT = 1.1;
+                fileSfx(SFX + 'dash_charge.wav', {});
+              }
+              continue;
+            }
             if (ab === 'Z' && now >= S.dashCD && !S.windupUntil && !S.dashing) {
               // dash zoom
               S.windupUntil = now + 3000;
@@ -1463,23 +1603,25 @@ function loadImg(src) {
             // ghost mode
             p.invis = true;
             K.invisUntil = now + 10000; K.sneakCD = now + 20000;
-          } else if (ab === 'V' && now >= K.pullCD) {
-            K.pullUntil = now + 5000;
-            // empty pull
+          } else if (ab === 'V' && now >= K.pullCD && !K.pullWindup) {
+            // wound up ropes
             const kx = p.pos.x + p.w / 2, ky = p.pos.y + p.h / 2;
             const anyone = game.remotes.some((r) => {
               if (r.evil || !r.alive || r.hp <= 0) return false;
               const rx = r.pos.x + r.w / 2, ry = r.pos.y + r.h / 2;
-              return Math.hypot(kx - rx, ky - ry) < PULL_RANGE && losClear(kx, ky, rx, ry);
+              return Math.hypot(kx - rx, ky - ry) < PULL_RANGE;
             });
             K.pullCD = now + (anyone ? 22000 : 8000);
             K.pullHit = false;
             if (!anyone) {
               // drop ropes
-              K.pullUntil = 0;
               p.stunT = Math.max(p.stunT || 0, 3);
               fileSfx(SFX + 'denied.wav', {});
               sayStatus('nobody around!!', 2);
+            } else {
+              K.pullWindup = now + 1500;
+              p.rooted = true;
+              p.actionImg = evilAct.pullwindup; p.actionT = 1.6;
             }
           } else if (ab === 'B' && now >= K.rushCD && !K.charging && !K.windupUntil) {
             K.windupUntil = now + 3000; // rooted windup
@@ -1499,6 +1641,14 @@ function loadImg(src) {
         K.wasInvis = !!p.invis;
         if (p.evil && p.alive !== false && now < K.pullUntil) { p.actionImg = evilAct.pull; p.actionT = 0.15; pullLoop.start(); }
         else pullLoop.stop();
+        // wound up
+        if (p.evil && K.pullWindup && now >= K.pullWindup) {
+          K.pullWindup = 0;
+          p.rooted = false;
+          if (p.alive !== false && (p.stunT || 0) <= 0 && data.phase === 'round') {
+            K.pullUntil = now + 5000;
+          }
+        }
         // fizzled pull
         if (p.evil && K.pullUntil && now >= K.pullUntil && p.alive !== false) {
           K.pullUntil = 0;
@@ -1551,26 +1701,26 @@ function loadImg(src) {
         // evil waits
         if (p.evil) {
           if (data.grace) p.rooted = true;
-          else if (!K.windupUntil && !K.charging) p.rooted = false;
+          else if (!K.windupUntil && !K.charging && !K.pullWindup) p.rooted = false;
         }
-        // weak grab
+        // rope ticks
         if (p.evil && p.alive !== false && data.phase === 'round' && now < K.pullUntil) {
           const kx = p.pos.x + p.w / 2, ky = p.pos.y + p.h / 2;
           for (const r of game.remotes) {
             if (r.evil || !r.alive || r.hp <= 0) continue;
             const rx = r.pos.x + r.w / 2, ry = r.pos.y + r.h / 2;
-            if (Math.hypot(kx - rx, ky - ry) >= 640) continue;
-            if (!losClear(kx, ky, rx, ry)) continue; // caught here
-            if (Math.abs(r.pos.x - p.pos.x) < 55 &&
-                Math.abs((r.pos.y + r.h / 2) - (p.pos.y + p.h / 2)) < 70) {
-              fetch('/api/hit', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: net.id, victim: r.id, dmg: 10, stun: 0 }),
-              }).catch(() => {});
-              K.pullHit = true; // caught one
-              fileSfx(SFX + 'basic_hit.wav', {}); // grab sound
-            }
+            const pullD = Math.hypot(kx - rx, ky - ry);
+            if (pullD >= PULL_RANGE) continue;
+            // through walls now
+            if (!K.pullHit) fileSfx(SFX + 'basic_hit.wav', {}); // caught one
+            K.pullHit = true;
+            // closer burns more
+            const tickDmg = Math.round(2 + 8 * (1 - pullD / PULL_RANGE));
+            fetch('/api/hit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: net.id, victim: r.id, dmg: tickDmg, stun: 0 }),
+            }).catch(() => {});
           }
         }
         // fast ghost
@@ -1581,7 +1731,9 @@ function loadImg(src) {
             S.windupUntil = 0;
             S.dashing = true; S.dashUntil = now + 2000; S.dashHit = false;
             S.dashTouching = false;
-            p.chargeDir = p.facing || 1;
+            S.lastX = p.pos.x;
+            p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
+            p.facing = p.chargeDir;
             p.rooted = false;
             fileSfx(SFX + 'dash_release.wav', {});
           }
@@ -1589,7 +1741,18 @@ function loadImg(src) {
             // steer dash
             if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
             else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
-            if (now >= S.dashUntil || p.alive === false) {
+            // bonked a wall
+            const dashAge = 2000 - (S.dashUntil - now);
+            const stuck = dashAge > 300 && Math.abs(p.pos.x - (S.lastX ?? p.pos.x)) < 2 && p.alive !== false;
+            S.lastX = p.pos.x;
+            if (now >= S.dashUntil || p.alive === false || stuck) {
+              if (stuck) {
+                // bonk stun
+                p.facing = -(p.chargeDir || p.facing || 1);
+                p.vel.x = p.facing * 400;
+                p.stunT = Math.max(p.stunT || 0, 2);
+                fileSfx(SFX + 'basic_hit.wav', { v: 0.5 });
+              }
               S.dashing = false; p.chargeDir = 0; S.dashTouching = false;
               S.dashCD = now + (S.dashHit ? 15000 : 25000) * (isLMS ? LMS_CD : 1); // dash waits
             } else {
@@ -1640,6 +1803,129 @@ function loadImg(src) {
           }
           // pose all
           p.cowering = (p.cowerT || 0) > 0;
+        }
+        // sonic taxi
+        if (!p.evil && isSonic()) {
+          if (SN.windupUntil && now < SN.windupUntil) {
+            // revving up
+            const t = 1 - (SN.windupUntil - now) / 3000;
+            if (t < 0.3) {
+              p.actionImg = sonicSprites.charge;
+            } else if (t < 0.7) {
+              const w = sonicSprites.walk;
+              p.actionImg = w[Math.floor(now / Math.max(40, 140 - t * 150)) % w.length];
+            } else {
+              p.actionImg = sonicSprites.peel[Math.floor(now / 60) % 4];
+            }
+            p.actionT = 0.15;
+          }
+          if (SN.windupUntil && now >= SN.windupUntil) {
+            SN.windupUntil = 0;
+            SN.peeling = true; SN.peelUntil = now + 6000;
+            p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
+            p.facing = p.chargeDir;
+            p.chargeSpeed = 750;
+            p.rooted = false;
+            fileSfx(SFX + 'dash_release.wav', {});
+          }
+          if (SN.peeling) {
+            if (now >= SN.peelUntil || p.alive === false) {
+              SN.peeling = false; p.chargeDir = 0; p.chargeSpeed = 0;
+              p.actionImg = null;
+              SN.peelCD = now + 20000;
+            } else {
+              // steer the zoom
+              if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
+              else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
+              p.actionImg = sonicSprites.peel[Math.floor(now / 60) % 4]; p.actionT = 0.15;
+              const pgi = game._spriteFor(p);
+              const pfs = game.frameSize(p, pgi);
+              game.afterimages.push({
+                x: p.pos.x, y: p.pos.y, w: p.w, h: p.h,
+                drawW: pfs.dw, drawH: pfs.dh, facing: p.facing,
+                img: pgi, age: 0, plain: true,
+              });
+            }
+          }
+          p.rooted = !!SN.windupUntil || !!SN.spinWindup;
+        }
+        // sonic spin
+        if (!p.evil && isSonic()) {
+          if (SN.spinWindup && now < SN.spinWindup) {
+            p.actionImg = sonicSprites.spin[Math.floor(now / 100) % 3]; p.actionT = 0.15;
+          }
+          if (SN.spinWindup && now >= SN.spinWindup) {
+            SN.spinWindup = 0;
+            SN.spinning = true; SN.spinUntil = now + 4000; SN.spinHits = 0; SN.spinTouching = false;
+            p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
+            p.facing = p.chargeDir;
+            SN.dir = p.chargeDir;
+            SN.lastX = p.pos.x;
+            p.chargeSpeed = 600;
+            p.rooted = false;
+            fileSfx(SFX + 'dash_release.wav', {});
+          }
+          if (SN.spinning) {
+            if (now >= SN.spinUntil || p.alive === false) {
+              SN.spinning = false; p.chargeDir = 0; p.chargeSpeed = 0;
+              p.actionImg = null;
+              SN.spinCD = now + (SN.spinHits > 0 ? 18000 : 25000);
+            } else {
+              // slow steer
+              const want = game.input.left ? -1 : (game.input.right ? 1 : (SN.dir || p.chargeDir));
+              SN.dir = SN.dir ?? p.chargeDir;
+              SN.dir += Math.max(-0.15, Math.min(0.15, want - SN.dir));
+              if (Math.abs(SN.dir) > 0.2) {
+                p.chargeDir = Math.sign(SN.dir);
+                p.facing = Math.sign(SN.dir);
+              }
+              p.chargeSpeed = 600 * (0.4 + 0.6 * Math.min(1, Math.abs(SN.dir)));
+              // locked line
+              const spinAge = 4000 - (SN.spinUntil - now);
+              if (spinAge > 300 && Math.abs(p.pos.x - (SN.lastX ?? p.pos.x)) < 2 && p.alive !== false) {
+                // bonked a wall
+                p.chargeDir = -(p.chargeDir || p.facing || 1);
+                p.facing = p.chargeDir;
+                SN.dir = p.chargeDir;
+                fileSfx(SFX + 'basic_hit.wav', { v: 0.25 });
+              }
+              SN.lastX = p.pos.x;
+              p.actionImg = sonicSprites.jump[Math.floor(now / 60) % 8]; p.actionT = 0.15;
+              const sgi = game._spriteFor(p);
+              const sfs = game.frameSize(p, sgi);
+              game.afterimages.push({
+                x: p.pos.x, y: p.pos.y, w: p.w, h: p.h,
+                drawW: sfs.dw, drawH: sfs.dh, facing: p.facing,
+                img: sgi, age: 0, plain: true,
+              });
+              const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
+              const touching = !!(ek &&
+                  Math.abs(ek.pos.x - p.pos.x) < 55 &&
+                  Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 70);
+              if (touching && !SN.spinTouching && SN.spinHits < 3 && now >= (SN.spinHitCD || 0)) {
+                SN.spinTouching = true;
+                SN.spinHits++;
+                SN.spinHitCD = now + 1000;
+                fileSfx(SFX + 'basic_hit.wav', {});
+                // both fly
+                const away = (p.pos.x + p.w / 2) >= (ek.pos.x + ek.w / 2) ? 1 : -1;
+                p.chargeDir = away; p.facing = away; SN.dir = away;
+                p.vel.y = Math.min(p.vel.y || 0, -300);
+                fetch('/api/hit', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 5, stun: 3, stack: true, kb: 2.5 }),
+                }).catch(() => {});
+                if (SN.spinHits >= 3) {
+                  SN.spinning = false; p.chargeDir = 0; p.chargeSpeed = 0;
+                  p.actionImg = null;
+                  SN.spinCD = now + 18000;
+                }
+              } else if (!touching) {
+                SN.spinTouching = false;
+              }
+            }
+          }
         }
         // toko ticks
         if (!p.evil && isToko()) {
@@ -1714,22 +2000,52 @@ function loadImg(src) {
             for (const vc of victims) {
               if (vc === pl) continue;
               const mx = vc.pos.x + vc.w / 2, my = vc.pos.y + vc.h / 2;
-              if (Math.hypot(kx - mx, ky - my) < 640 && losClear(mx, my, kx, ky)) {
+              if (Math.hypot(kx - mx, ky - my) < PULL_RANGE) {
                 game.pullLinks.push({ x1: mx, y1: my, x2: kx, y2: ky });
                 if (vc === p) game.pullSrc = { x: kx, y: ky };
               }
             }
           }
         }
+        // sonic taxi
+        game.peelSrc = null;
+        if (!p.evil && p.alive !== false && data.phase === 'round') {
+          const jumpEdge = game.input.jump && !p._jumpPrev;
+          if (p._rideId) {
+            // latched on
+            const ride = game.remotes.find((r) => r.id === p._rideId && r.peeling && r.alive && r.hp > 0);
+            const far = !ride || Math.hypot((ride.pos.x + ride.w / 2) - (p.pos.x + p.w / 2), (ride.pos.y) - (p.pos.y)) > 400;
+            if (!ride || far || jumpEdge) {
+              if (jumpEdge && ride) p._dropRideUntil = now + 1000;
+              p._rideId = null;
+            } else {
+              game.peelSrc = { x: ride.pos.x + ride.w / 2, y: ride.pos.y - 10 };
+            }
+          } else if (!game.input.jump && !(now < (p._dropRideUntil || 0))) {
+            // fresh board
+            const ride = game.remotes.find((r) => r.peeling && r.alive && r.hp > 0 && !r.evil &&
+              Math.abs(r.pos.x - p.pos.x) < 70 &&
+              Math.abs((r.pos.y + r.h / 2) - (p.pos.y + p.h / 2)) < 90);
+            if (ride) {
+              p._rideId = ride.id;
+              game.peelSrc = { x: ride.pos.x + ride.w / 2, y: ride.pos.y - 10 };
+            }
+          }
+        } else {
+          p._rideId = null;
+        }
+        p._jumpPrev = !!game.input.jump;
         // dead spec
         if (p.alive === false && net.id) {
           const alive = game.remotes.filter((r) => r.alive && r.hp > 0);
           if (!alive.find((r) => r.id === specId)) specId = alive.length ? alive[0].id : null;
           game.cameraTarget = alive.find((r) => r.id === specId) || null;
           const t = game.cameraTarget;
+          // delayed spec
+          const showSpec = !net.diedAt || Date.now() - net.diedAt > 5100;
           specBox.textContent = t ? `SPECTATING ${t.name}!!` : 'SPECTATING!!';
-          specBox.style.display = 'block';
-          specHint.style.display = 'block';
+          specBox.style.display = showSpec ? 'block' : 'none';
+          specHint.style.display = showSpec ? 'block' : 'none';
         } else {
           specBox.style.display = 'none';
           specHint.style.display = 'none';
