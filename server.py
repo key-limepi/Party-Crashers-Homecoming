@@ -31,7 +31,7 @@ TOUCH_COOLDOWN = 1.0
 SPIKE_MAX = 5 # trap cap
 SPIKE_LIFE = 45 # trap rot
 SPIKE_DMG = 30
-EXIT_X = 4330 # safe exit
+EXIT_X = 2605 # safe exit
 EXIT_SAFE_R = 150
 
 players = {} # player list

@@ -152,6 +152,26 @@ class PlatformerEngine {
     this.peelSrc = null; // ride point
     this.pullLinks = []; // rope lines
     this.debug = false; // debug view
+    this.levelArt = null; // main-map art image
+    this.levelBounds = null; // main-map size {w,h}
+    this.levelBackdrop = null; // picture behind the level
+    this.mapFall = { main: this.fallY, inter: this.fallY }; // fall line per map
+    this.mapBg = { main: this.background, inter: this.background }; // sky per map
+  }
+
+  // load a pixel-traced level: collision rects + art image
+  loadLevel(level, art, opts = {}) {
+    for (const [x, y, w, h] of level.rects) this.addPlatform(x, y, w, h, '#000');
+    // keep players inside the picture
+    this.addPlatform(-200, -1500, 200, level.h + 3000, '#000'); // left wall
+    this.addPlatform(level.w, -1500, 200, level.h + 3000, '#000'); // right wall
+    this.addPlatform(-200, -1700, level.w + 400, 200, '#000'); // ceiling
+    this.levelArt = art;
+    this.levelBackdrop = opts.backdrop || null;
+    this.levelBounds = { w: level.w, h: level.h };
+    this.mapFall.main = level.h + 600;
+    if (opts.background) this.mapBg.main = opts.background;
+    if (this.activeMap === 'main') { this.fallY = this.mapFall.main; this.background = this.mapBg.main; }
   }
 
   addPlayer(x, y, w = 36, h = 52, color = '#7aa2f7') {
@@ -229,6 +249,8 @@ class PlatformerEngine {
   switchMap(name, spawnX, spawnY) {
     this.activeMap = name;
     this.statics = this.maps[name];
+    this.fallY = this.mapFall[name] ?? this.fallY;
+    this.background = this.mapBg[name] ?? this.background;
     this.spawn = { x: spawnX, y: spawnY };
   }
 
@@ -260,6 +282,16 @@ class PlatformerEngine {
     for (const s of statics) {
       if (!aabbOverlap(b, s)) continue;
       if (axis === 'x') {
+        // walk up small steps (traced slopes are staircases)
+        const rise = b.bottom - s.top;
+        if (b.vel.y >= 0 && (b.wasGround || b.onGround) && rise > 0 && rise <= 12) {
+          const oy = b.pos.y;
+          b.pos.y = s.pos.y - b.h;
+          let clear = true;
+          for (const o of statics) { if (o !== s && aabbOverlap(b, o)) { clear = false; break; } }
+          if (clear) { b.onGround = true; continue; }
+          b.pos.y = oy;
+        }
         const fromLeft = b.right - s.left; // left depth
         const fromRight = s.right - b.left; // right depth
         if (b.vel.x > 0 || (b.vel.x === 0 && fromLeft <= fromRight)) b.pos.x = s.pos.x - b.w;
@@ -348,6 +380,7 @@ class PlatformerEngine {
     // move bodies
     for (const b of this.bodies) {
       if (b.isStatic) continue;
+      b.wasGround = b.onGround;
       b.onGround = false;
       this.moveBody(b, dt, this.statics); // tunnel-safe push
     }
@@ -479,6 +512,10 @@ class PlatformerEngine {
       const t = this.cameraTarget || p; // watch who
       this.camera.x = t.pos.x + t.w / 2 - this.width / 2;
       this.camera.y = t.pos.y + t.h / 2 - this.height / 2;
+      if (this.levelBounds && this.activeMap === 'main') { // stay inside the level picture
+        this.camera.x = Math.max(0, Math.min(this.levelBounds.w - this.width, this.camera.x));
+        this.camera.y = Math.max(0, Math.min(this.levelBounds.h - this.height, this.camera.y));
+      }
     }
 
     if (this.onUpdate) this.onUpdate(dt);
@@ -494,9 +531,19 @@ class PlatformerEngine {
     ctx.save();
     ctx.translate(-Math.round(this.camera.x), -Math.round(this.camera.y));
 
-    for (const s of this.statics) {
-      ctx.fillStyle = s.color;
-      ctx.fillRect(s.pos.x, s.pos.y, s.w, s.h);
+    if (this.levelArt && this.levelArt.complete && this.activeMap === 'main') {
+      const cx = Math.max(0, Math.round(this.camera.x)), cy = Math.max(0, Math.round(this.camera.y));
+      const sw = Math.min(this.width + 2, this.levelArt.width - cx), sh = Math.min(this.height + 2, this.levelArt.height - cy);
+      if (sw > 0 && sh > 0) {
+        const bd = this.levelBackdrop;
+        if (bd && bd.complete && bd.naturalWidth) ctx.drawImage(bd, cx, cy, sw, sh, cx, cy, sw, sh);
+        ctx.drawImage(this.levelArt, cx, cy, sw, sh, cx, cy, sw, sh);
+      }
+    } else {
+      for (const s of this.statics) {
+        ctx.fillStyle = s.color;
+        ctx.fillRect(s.pos.x, s.pos.y, s.w, s.h);
+      }
     }
     // exit door
     if (this.exitZone && this.activeMap === 'main') {

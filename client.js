@@ -89,38 +89,20 @@ function loadImg(src) {
     };
 
     // exit door
-    game.exitZone = { x: 4300, y: 280, w: 60, h: 100 };
-    const EXIT_X = 4330, EXIT_SAFE = 150;
+    game.exitZone = { x: 2575, y: 1787, w: 60, h: 100 };
+    const EXIT_X = 2605, EXIT_SAFE = 150;
     game.chatBubbleImg = loadImg("./Assets/Images/UI/chatbub.png");
     game.alertArrow = loadImg("./Assets/Images/UI/CharacterSelect/left.png"); // ping arrow
     game.spikeImg = loadImg("./Assets/Images/Characters/Killers/Evil Lux/spikes.png");
 
-    // big map
-    game.addPlatform(-200, 380, 1000, 80, '#8ac926'); // west floor
-    game.addPlatform(900, 380, 900, 80, '#8ac926'); // gap floor
-    game.addPlatform(1920, 380, 1200, 80, '#8ac926'); // mid floor
-    game.addPlatform(3240, 380, 1160, 80, '#8ac926'); // east floor
-    const P = '#ff9f1c';
-    game.addPlatform(180, 300, 140, 22, P);
-    game.addPlatform(380, 240, 140, 22, P);
-    game.addPlatform(580, 300, 140, 22, P);
-    game.addPlatform(800, 220, 160, 22, P);
-    game.addPlatform(1020, 280, 140, 22, P);
-    game.addPlatform(1220, 200, 160, 22, P);
-    game.addPlatform(1440, 280, 140, 22, P);
-    game.addPlatform(1660, 190, 180, 22, P);
-    game.addPlatform(1900, 270, 140, 22, P);
-    game.addPlatform(2100, 200, 140, 22, P);
-    game.addPlatform(2300, 280, 160, 22, P);
-    game.addPlatform(2520, 180, 180, 22, P);
-    game.addPlatform(2760, 260, 140, 22, P);
-    game.addPlatform(2960, 190, 160, 22, P);
-    game.addPlatform(3180, 270, 140, 22, P);
-    game.addPlatform(3380, 200, 200, 22, P);
-    game.addPlatform(3640, 280, 160, 22, P);
-    // climb towers
-    game.addPlatform(1300, 120, 60, 260, '#c084fc');
-    game.addPlatform(2600, 100, 60, 280, '#c084fc');
+    // big map: traced from the hitbox png (see tools/build_level.py)
+    const LV_SPAWN = { x: 100, y: 880 }; // west pillar-side ground
+    const LV_EXIT = { x: 2575, y: 1787, w: 60, h: 100 }; // far east floor
+    game.loadLevel(LEVEL_ROUGH_DRAFT, loadImg('./Assets/Images/Levels/RoughDraft.png'), { background: '#3b2a2a', backdrop: loadImg('./Assets/Images/Levels/RoughDraft_bg.jpg') }); // Rough Draft
+    game.mapBg.inter = '#bfe9ff';
+    game.spawn = { x: LV_SPAWN.x, y: LV_SPAWN.y };
+    game.evilSpawn = { x: LV_EXIT.x, y: LV_EXIT.y - 120 };
+    game.respawn();
 
     // rest island
     game.addPlatform(6000, 380, 800, 80, '#8ac926', 'inter'); // island floor
@@ -806,13 +788,13 @@ function loadImg(src) {
         p.maxHp = 250; p.hp = 250;
         p.maxJumps = 2; // double jump
         game.moveSpeed = 300; // evil speed
-        game.spawn = { x: 4300, y: 100 }; // far spawn
+        game.spawn = { x: game.evilSpawn.x, y: game.evilSpawn.y }; // far spawn
       } else {
         wearChar(net.pick);
         p.maxHp = 100; p.hp = Math.min(p.hp, 100);
         p.maxJumps = 1;
         game.moveSpeed = net.pick === 'sonic' ? 270 : 240;
-        game.spawn = { x: 60, y: 100 };
+        game.spawn = { x: 100, y: 880 };
         p.invis = false; p.rooted = false; p.chargeDir = 0;
         K.charging = false;
         game.pullSrc = null;
@@ -1126,7 +1108,7 @@ function loadImg(src) {
           clearEvil(p);
           trippedIds.clear();
           if (data.phase !== 'round' || you?.in_round) {
-            if (data.phase === 'round') game.switchMap('main', 60, 100);
+            if (data.phase === 'round') game.switchMap('main', 100, 880);
             else {
               game.switchMap('inter', 6120, 100); // island map
               if (data.phase === 'intermission' && !p.evil) {
