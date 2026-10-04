@@ -41,6 +41,7 @@ alerts = [] # ping list
 CHARACTERS = [
     {"id": "lux", "name": "LUX"},
     {"id": "toko", "name": "TOKO"},
+    {"id": "sonic", "name": "SONIC"},
 ]
 chat_log = [] # chat list
 last_chat = {} # spam guard
