@@ -655,7 +655,7 @@ class PlatformerEngine {
         const frac = Math.max(0, (b.hp ?? 100) / (b.maxHp ?? 100));
         ctx.fillStyle = '#000';
         ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
-        ctx.fillStyle = '#8e0000';
+        ctx.fillStyle = '#000';
         ctx.fillRect(bx, by, bw, bh);
         ctx.fillStyle = (b.hp ?? 100) <= 30 ? '#8e0000' // low health
           : frac > 0.5 ? '#2ed573' : frac > 0.25 ? '#ffa502' : '#8e0000';

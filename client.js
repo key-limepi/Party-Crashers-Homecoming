@@ -767,8 +767,8 @@ function loadImg(src) {
         ];
       } else if (isSonic()) {
         abilDefs = [
-          { key: 'Z', name: 'PEEL', icon: null, cd: () => SN.peelCD },
-          { key: 'X', name: 'SPIN', icon: null, cd: () => SN.spinCD },
+          { key: 'Z', name: 'PEELOUT', icon: null, cd: () => SN.peelCD },
+          { key: 'X', name: 'SPINDASH', icon: null, cd: () => SN.spinCD },
         ];
       } else {
         abilDefs = [
@@ -1091,7 +1091,7 @@ function loadImg(src) {
             facing: p.facing, hp: Math.ceil(p.hp),
             moving: Math.abs(p.vel.x) > 10, onGround: p.onGround,
             alive: p.alive !== false,
-            invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true,
+            invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true, spinwindup: !!SN.spinWindup,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
             cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup,
             dashing: !!S.dashing,
@@ -1262,6 +1262,7 @@ function loadImg(src) {
           r.pull = !!d.pull;
           r.peeling = !!d.peeling;
           r.spinning = !!d.spinning;
+          r.spinwindup = !!d.spinwindup;
           r.dashing = !!d.dashing;
           r.away = !!d.away;
           r.inRound = !!d.in_round;
@@ -1275,11 +1276,15 @@ function loadImg(src) {
               r.poseImg = evilWindup[0];
             } else if (r.char === 'sonic') {
               // revving up
-              const t = (Date.now() - (r._windupStart || Date.now())) / 3000;
-              const w = sonicSprites.walk;
-              r.poseImg = t < 0.3 ? sonicSprites.charge
-                : t < 0.7 ? w[Math.floor(Date.now() / 100) % w.length]
-                : sonicSprites.peel[Math.floor(Date.now() / 60) % 4];
+              if (r.spinwindup) {
+                r.poseImg = sonicSprites.spin[Math.floor(Date.now() / 100) % 3];
+              } else {
+                const t = (Date.now() - (r._windupStart || Date.now())) / 3000;
+                const w = sonicSprites.walk;
+                r.poseImg = t < 0.3 ? sonicSprites.charge
+                  : t < 0.7 ? w[Math.floor(Date.now() / 100) % w.length]
+                  : sonicSprites.peel[Math.floor(Date.now() / 60) % 4];
+              }
             } else {
               r.poseImg = luxSprites.run[0];
             }
@@ -1914,7 +1919,7 @@ function loadImg(src) {
                 fetch('/api/hit', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 5, stun: 3, stack: true, kb: 2.5 }),
+                  body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 2, stun: 3, stack: true, kb: 2.5 }),
                 }).catch(() => {});
                 if (SN.spinHits >= 3) {
                   SN.spinning = false; p.chargeDir = 0; p.chargeSpeed = 0;
