@@ -358,7 +358,7 @@ class PlatformerEngine {
       const dx = this.pullSrc.x - (p.pos.x + p.w / 2);
       const dy = this.pullSrc.y - (p.pos.y + p.h / 2);
       const d = Math.hypot(dx, dy) || 1;
-      const pull = 240 * dt;
+      const pull = 450 * dt;
       p.pos.x += (dx / d) * pull;
       p.pos.y += (dy / d) * pull;
       p.pulled = true; // dragged pose
