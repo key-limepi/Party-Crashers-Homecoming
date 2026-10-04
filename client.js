@@ -56,9 +56,10 @@ function loadImg(src) {
     const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, evil: null }; // evil later
     function wearChar(id) {
       game.setPlayerSprites(charSprites[id] || luxSprites);
-      const small = id === 'sonic';
-      game.player.drawW = small ? 44 : 50;
-      game.player.drawH = small ? 62 : 70;
+      // sonic's art is true-size 8-bit pixel art already draw it at its
+      // own native size (idle1.png is 50x66) so nothing gets resampled
+      game.player.drawW = 50;
+      game.player.drawH = id === 'sonic' ? 66 : 70;
     }
     game.setPlayerSprites(luxSprites);
 
@@ -274,7 +275,7 @@ function loadImg(src) {
       try { netError(`uh oh!! ${String((e && e.message) || 'something broke').slice(0, 80)}`, 10); } catch (_) { /* too broken!! */ }
     });
     window.addEventListener('unhandledrejection', () => {
-      try { netError('uh oh!! a request failed — refresh if stuck!!', 10); } catch (_) { /* too broken!! */ }
+      try { netError('uh oh!! a request failed, refresh if stuck!!', 10); } catch (_) { /* too broken!! */ }
     });
     const nameBox = document.getElementById('nameBox');
     const midBox = document.getElementById('midBox');
@@ -1160,9 +1161,10 @@ function loadImg(src) {
           r.evil = id === data.killer_id;
           r.maxHp = d.maxhp || (r.evil ? 250 : 100); // true bars
           r.sprites = r.evil ? evilSprites : (charSprites[r.char] || luxSprites); // see all
-          const small = !r.evil && r.char === 'sonic';
-          r.drawW = small ? 44 : 50;
-          r.drawH = small ? 62 : 70;
+          // sonic's art is true-size 8-bit pixel art already. draw it at
+          // its own native size (idle1.png is 50x66) so nothing gets resampled
+          r.drawW = 50;
+          r.drawH = (!r.evil && r.char === 'sonic') ? 66 : 70;
           r.invis = !!d.invis;
           r.stunned = !!d.stunned;
           r.pull = !!d.pull;
