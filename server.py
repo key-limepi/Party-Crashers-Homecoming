@@ -177,7 +177,7 @@ round_players = set() # players eligible for the current round
 
 STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
               "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing",
-              "peeling", "spinning", "spinwindup")
+              "peeling", "spinning", "spinwindup", "pullwindup")
 # fresh stamps
 
 

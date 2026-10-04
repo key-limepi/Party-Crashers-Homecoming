@@ -1093,7 +1093,7 @@ function loadImg(src) {
             alive: p.alive !== false,
             invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true, spinwindup: !!SN.spinWindup,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
-            cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup,
+            cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup || !!K.pullWindup, pullwindup: !!K.pullWindup,
             dashing: !!S.dashing,
             pose: (poseName && Date.now() < poseUntil) ? poseName : null,
           }),
@@ -1263,6 +1263,7 @@ function loadImg(src) {
           r.peeling = !!d.peeling;
           r.spinning = !!d.spinning;
           r.spinwindup = !!d.spinwindup;
+          r.pullwindup = !!d.pullwindup;
           r.dashing = !!d.dashing;
           r.away = !!d.away;
           r.inRound = !!d.in_round;
@@ -1273,7 +1274,7 @@ function loadImg(src) {
           if (d.windup) {
             if (!r._wasWindup) r._windupStart = Date.now();
             if (r.evil) {
-              r.poseImg = evilWindup[0];
+              r.poseImg = r.pullwindup ? evilAct.pullwindup : evilWindup[0];
             } else if (r.char === 'sonic') {
               // revving up
               if (r.spinwindup) {
