@@ -134,9 +134,9 @@ try:
                 BLACKLIST.append((re.compile(_body), _exc))
     print(f"blacklist loaded!! {len(BLACKLIST)} patterns!!", flush=True)
 except FileNotFoundError:
-    print("!! no blacklist.json — chat unfiltered!!", flush=True)
+    print("!! no blacklist.json - chat unfiltered!!", flush=True)
 except (ValueError, OSError) as _err:
-    print(f"!! blacklist broken ({_err}) — chat unfiltered!!", flush=True)
+    print(f"!! blacklist broken ({_err}) - chat unfiltered!!", flush=True)
 
 
 def _excused(text, words, excs):
@@ -176,7 +176,8 @@ result = None # last result
 round_players = set() # players eligible for the current round
 
 STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
-              "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing")
+              "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing",
+              "peeling", "spinning")
 # fresh stamps
 
 
@@ -217,7 +218,7 @@ def start_select():
     if len(here) < 2:
         phase = "lobby"
         killer_id = None
-        print("!! not enough active players — character select cancelled!!", flush=True)
+        print("!! not enough active players - character select cancelled!!", flush=True)
         return
     for pl in players.values():
         pl["char"] = None # fresh picks
@@ -241,7 +242,7 @@ def start_round():
         round_players.clear()
         killer_id = None
         phase = "lobby"
-        print(f"!! not enough active players — round cancelled!! [{_player_activity()}]", flush=True)
+        print(f"!! not enough active players - round cancelled!! [{_player_activity()}]", flush=True)
         return
     round_players = set(eligible)
     roster = ", ".join(f"{pid}:{pl.get('name', '?')}" for pid, pl in eligible.items())
@@ -260,14 +261,14 @@ def start_round():
     # find killer
     if killer_id not in round_players:
         killer_id = random.choice(list(round_players))
-        print(f"!! fallback — {players[killer_id]['name']} is EVIL LUX!!", flush=True)
+        print(f"!! fallback - {players[killer_id]['name']} is EVIL LUX!!", flush=True)
     current_round += 1
     phase = "round"
     round_start = time.time()
     # flex time
     phase_end = round_start + min(ROUND_MAX, ROUND_BASE + ROUND_PER_PLAYER * len(round_players))
     result = None
-    print(f"!! round {current_round} starts — {players[killer_id]['name']} is EVIL LUX!!", flush=True)
+    print(f"!! round {current_round} starts - {players[killer_id]['name']} is EVIL LUX!!", flush=True)
 
 
 def end_round(winner):
@@ -289,7 +290,7 @@ def end_round(winner):
     round_players.clear()
     phase = "intermission"
     phase_end = time.time() + INTER_TIME
-    print(f"!! round {current_round} over — {winner} win!! intermission!!", flush=True)
+    print(f"!! round {current_round} over - {winner} win!! intermission!!", flush=True)
 
 
 def _grace_over(now):
@@ -327,7 +328,7 @@ def game_tick():
                     if len(_here_players()) < 2:
                         phase = "lobby"
                         killer_id = None
-                        print("!! not enough players — back to lobby!!", flush=True)
+                        print("!! not enough players - back to lobby!!", flush=True)
                     elif now >= phase_end:
                         if len(_here_players()) >= 2:
                             start_select()
@@ -340,10 +341,10 @@ def game_tick():
                     if len(here) < 2:
                         phase = "lobby"
                         killer_id = None
-                        print("!! not enough players — back to lobby!!", flush=True)
+                        print("!! not enough players - back to lobby!!", flush=True)
                     elif all(pl.get("char") for pid, pl in here.items() if pid != killer_id):
                         # quick start
-                        print("[GAME] everyone picked — starting early!!", flush=True)
+                        print("[GAME] everyone picked - starting early!!", flush=True)
                         start_round()
                     elif now >= phase_end:
                         if len(_here_players()) >= 2:
@@ -359,7 +360,7 @@ def game_tick():
                         killer_id = None
                         round_players.clear()
                         phase = "lobby"
-                        print("!! not enough players — back to lobby!!", flush=True)
+                        print("!! not enough players - back to lobby!!", flush=True)
                     else:
                         k = players.get(killer_id)
                         # gone killer
@@ -392,7 +393,7 @@ def game_tick():
                                     lms_set = True
                                     _lc = players.get(survs[0], {}).get("char")
                                     lms_notice_until = now + 5
-                                    print(f"!! LMS ({_lc} vs evil) — fight!!", flush=True)
+                                    print(f"!! LMS ({_lc} vs evil) - fight!!", flush=True)
                             # manual swings
                 elif phase == "intermission":
                     if now >= phase_end:
@@ -401,7 +402,7 @@ def game_tick():
                         else:
                             phase = "lobby"
                             killer_id = None
-                            print("!! not enough players — back to lobby!!", flush=True)
+                            print("!! not enough players - back to lobby!!", flush=True)
         except Exception as err: # catch all
             print(f"!! tick oops: {err}", flush=True)
 
@@ -638,6 +639,10 @@ class Handler(SimpleHTTPRequestHandler):
                             last_hit[data["victim"]] = now
                             vic["hp"] = max(0, vic.get("hp", 100) - dmg)
                             stack = bool(data.get("stack", False))
+                            try:
+                                kbp = max(1, min(3, float(data.get("kb", 1))))
+                            except (ValueError, TypeError):
+                                kbp = 1
                             # stun gaps
                             if stun > 0 and data.get("victim") == killer_id and not stack:
                                 if now - last_stun.get(data["victim"], 0) < STUN_IFRAMES:
@@ -656,7 +661,7 @@ class Handler(SimpleHTTPRequestHandler):
                                     _dx = vic.get("x", 0) - k.get("x", 0)
                                     _dy = vic.get("y", 0) - k.get("y", 0)
                                     _dist = (_dx * _dx + _dy * _dy) ** 0.5 or 1
-                                    vic["kb"] = {"x": _dx / _dist, "y": _dy / _dist, "at": now, "s": stun}
+                                    vic["kb"] = {"x": _dx / _dist, "y": _dy / _dist, "at": now, "s": stun, "p": kbp}
                             if vic["hp"] <= 0:
                                 vic["alive"] = False
                             print(f"!! {k['name']} hit {vic['name']} for {dmg}!!", flush=True)

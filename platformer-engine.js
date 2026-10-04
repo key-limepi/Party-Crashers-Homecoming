@@ -144,10 +144,12 @@ class PlatformerEngine {
     this.bubbles = {}; // chat bubbles
     this.chatBubbleImg = null; // bubble art
     this.showAlerts = false;
+    this.sneakArrows = false; // ghost tracks
     this.seeInvis = false; // see ghosts
     this.damageOn = true; // safe rounds
     this.exitZone = null; // exit door
     this.pullSrc = null; // drag point
+    this.peelSrc = null; // ride point
     this.pullLinks = []; // rope lines
     this.debug = false; // debug view
   }
@@ -211,7 +213,10 @@ class PlatformerEngine {
 
   // set sprites
   setPlayerSprites(sprites) {
-    if (this.player) this.player.sprites = sprites;
+    if (this.player) {
+      if (this.player.sprites !== sprites) this.player._baseFrame = null;
+      this.player.sprites = sprites;
+    }
   }
 
   addPlatform(x, y, w, h, color = '#9ece6a', map = 'main') {
@@ -308,7 +313,7 @@ class PlatformerEngine {
       // soft accel
       const accel = p.onGround ? 14 : 8;
       p.vel.x += (target - p.vel.x) * Math.min(accel * dt, 1);
-      if (p.chargeDir) p.vel.x = p.chargeDir * (p.chargeSpeed || 700); // dash speed
+      if (p.chargeDir && (p.stunT || 0) <= 0) p.vel.x = p.chargeDir * (p.chargeSpeed || 700); // dash speed
 
       if (ax !== 0) p.facing = ax > 0 ? 1 : -1;
       p.animTime += dt;
@@ -356,6 +361,12 @@ class PlatformerEngine {
       const pull = 240 * dt;
       p.pos.x += (dx / d) * pull;
       p.pos.y += (dy / d) * pull;
+      p.pulled = true; // dragged pose
+    }
+    // ride sonic
+    if (p && this.peelSrc && p.alive !== false && !p.evil) {
+      p.pos.x = this.peelSrc.x - p.w / 2;
+      p.pos.y = this.peelSrc.y - p.h / 2;
       p.pulled = true; // dragged pose
     }
     // mark caught
@@ -437,7 +448,7 @@ class PlatformerEngine {
         }
         r.pos.x = nx; r.pos.y = ny;
         // dash ghosts
-        if (r.dashing && moved > 1) {
+        if ((r.dashing || r.peeling || r.spinning) && moved > 1) {
           r.ghostDist = (r.ghostDist || 0) + moved;
           if (r.ghostDist > 14) {
             r.ghostDist = 0;
@@ -447,7 +458,7 @@ class PlatformerEngine {
               this.afterimages.push({
                 x: r.pos.x, y: r.pos.y, w: r.w, h: r.h,
                 drawW: fs.dw, drawH: fs.dh, facing: r.facing,
-                img: gi, age: 0,
+                img: gi, age: 0, plain: !!(r.peeling || r.spinning),
               });
             }
           }
@@ -521,41 +532,52 @@ class PlatformerEngine {
     }
     ctx.restore();
     // trip pings
-    // edge arrows
+    const arrow = this.alertArrow && this.alertArrow.complete && this.alertArrow.naturalWidth
+      ? this._redTint(this.alertArrow) : null;
+    // edge arrow
+    const edgeArrow = (sx, sy) => {
+      const m = 34; // edge space
+      const cx = Math.min(Math.max(sx, m), this.width - m);
+      const cy = Math.min(Math.max(sy, m), this.height - m);
+      const ang = Math.atan2(sy - this.height / 2, sx - this.width / 2);
+      const px = cx + this.camera.x, py = cy + this.camera.y;
+      if (arrow) {
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(ang - Math.PI); // spin arrow
+        ctx.drawImage(arrow, -14, -14, 28, 28);
+        ctx.restore();
+      } else {
+        // backup triangle
+        ctx.fillStyle = '#ff4757';
+        ctx.beginPath();
+        ctx.moveTo(px + Math.cos(ang) * 14, py + Math.sin(ang) * 14);
+        ctx.lineTo(px + Math.cos(ang + 2.5) * 12, py + Math.sin(ang + 2.5) * 12);
+        ctx.lineTo(px + Math.cos(ang - 2.5) * 12, py + Math.sin(ang - 2.5) * 12);
+        ctx.fill();
+      }
+    };
     if (this.showAlerts) {
       const pulse = 1 + Math.sin(this.time * 10) * 0.2;
       ctx.fillStyle = '#ff4757';
       ctx.font = `${Math.round(20 * pulse)}px "Comic Sans MS", "Comic Sans", cursive`;
       ctx.textAlign = 'center';
-      const m = 34; // edge space
-      const arrow = this.alertArrow && this.alertArrow.complete && this.alertArrow.naturalWidth
-        ? this._redTint(this.alertArrow) : null;
       for (const a of this.alerts) {
         const sx = a.x - this.camera.x, sy = (a.y - 30) - this.camera.y;
         if (sx > -20 && sx < this.width + 20 && sy > -20 && sy < this.height + 20) {
           ctx.fillText('!!', a.x, a.y - 30);
           continue;
         }
-        // clamp here
-        const cx = Math.min(Math.max(sx, m), this.width - m);
-        const cy = Math.min(Math.max(sy, m), this.height - m);
-        const ang = Math.atan2(sy - this.height / 2, sx - this.width / 2);
-        const px = cx + this.camera.x, py = cy + this.camera.y;
-        if (arrow) {
-          ctx.save();
-          ctx.translate(px, py);
-          ctx.rotate(ang - Math.PI); // spin arrow
-          ctx.drawImage(arrow, -14, -14, 28, 28);
-          ctx.restore();
-        } else {
-          // backup triangle
-          ctx.fillStyle = '#ff4757';
-          ctx.beginPath();
-          ctx.moveTo(px + Math.cos(ang) * 14, py + Math.sin(ang) * 14);
-          ctx.lineTo(px + Math.cos(ang + 2.5) * 12, py + Math.sin(ang + 2.5) * 12);
-          ctx.lineTo(px + Math.cos(ang - 2.5) * 12, py + Math.sin(ang - 2.5) * 12);
-          ctx.fill();
-        }
+        edgeArrow(sx, sy);
+      }
+    }
+    // ghost tracks
+    if (this.sneakArrows) {
+      for (const r of this.remotes) {
+        if (r.evil || !r.alive || r.hp <= 0) continue;
+        const sx = (r.pos.x + r.w / 2) - this.camera.x, sy = (r.pos.y + r.h / 2) - this.camera.y;
+        if (sx > -20 && sx < this.width + 20 && sy > -20 && sy < this.height + 20) continue;
+        edgeArrow(sx, sy);
       }
     }
     const bars = []; // bar list
@@ -702,7 +724,7 @@ class PlatformerEngine {
         ctx.translate(-Math.round(g.x + g.w / 2), 0);
       }
       const dw = g.drawW || g.w, dh = g.drawH || g.h;
-      ctx.drawImage(this._cyanTint(g.img), Math.round(g.x + (g.w - dw) / 2), Math.round(g.y + (g.h - dh)), dw, dh);
+      ctx.drawImage(g.plain ? g.img : this._cyanTint(g.img), Math.round(g.x + (g.w - dw) / 2), Math.round(g.y + (g.h - dh)), dw, dh);
       ctx.restore();
     }
     // debug boxes
@@ -747,7 +769,7 @@ class PlatformerEngine {
     return img._cyanTint;
   }
 
-  // resting-pose size, used as the scale reference for every other pose
+  // idle scale
   baseFrame(b) {
     if (b._baseFrame) return b._baseFrame;
     const idle = b.sprites && b.sprites.idle;
@@ -755,7 +777,7 @@ class PlatformerEngine {
     if (ref && ref.complete && ref.naturalWidth && ref.naturalHeight) {
       b._baseFrame = { w: ref.naturalWidth, h: ref.naturalHeight };
     }
-    return b._baseFrame || null; // idle art not loaded yet
+    return b._baseFrame || null; // idle loading
   }
 
   frameSize(b, img) {
@@ -764,7 +786,9 @@ class PlatformerEngine {
       return { dw: b.drawW || b.w, dh: boxH };
     }
     const base = this.baseFrame(b);
-    const scale = base ? boxH / base.h : boxH / img.naturalHeight;
+    let scale = base ? boxH / base.h : boxH / img.naturalHeight;
+    const s = b.sprites;
+    if (s && Array.isArray(s.jump) && s.jump.includes(img)) scale *= (s.jumpScale || 1);
     return {
       dw: Math.max(1, Math.round(img.naturalWidth * scale)),
       dh: Math.max(1, Math.round(img.naturalHeight * scale)),
@@ -773,6 +797,16 @@ class PlatformerEngine {
   // sprite order
   // pick sprite
   _spriteFor(b) {
+    const pick = this._spritePick(b);
+    if (pick && pick.complete && pick.naturalWidth) return pick;
+    // no hitbox
+    const idle = b.sprites && b.sprites.idle;
+    const fb = Array.isArray(idle) ? idle[0] : idle;
+    if (fb && fb.complete && fb.naturalWidth) return fb;
+    return null;
+  }
+  // raw pick
+  _spritePick(b) {
     if (!b.sprites) return null;
     const s = b.sprites;
     if (b.actionImg && b.actionT > 0) return b.actionImg;
@@ -802,7 +836,7 @@ class PlatformerEngine {
       else if (b.animRunning && speed < 260) b.animRunning = false;
       const frames = (b.animRunning && s.run && s.run.length) ? s.run : s.walk;
       // slow run
-      const stride = b.animRunning ? 65 : (tired ? 70 : 40);
+      const stride = b.animRunning ? (s.runStride || 65) : (tired ? 70 : 40);
       const i = Math.floor(b.walkDist / stride) % frames.length;
       return frames[i];
     }

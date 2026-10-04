@@ -324,12 +324,11 @@
     #spectate {
       display: none;
       position: fixed;
-      top: 12%;
+      bottom: 8%;
       left: 50%;
-      transform: translateX(-50%) rotate(-3deg);
+      transform: translateX(-50%);
       font-size: 56px;
       color: #ff6fb5;
-      text-shadow: 3px 3px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff;
       pointer-events: none;
       z-index: 998;
       white-space: nowrap;
@@ -368,6 +367,60 @@
     }
     #afkImgBtn.on { filter: sepia(1) saturate(4) hue-rotate(10deg); }
 
+    /* party list */
+    #partyList {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      line-height: normal;
+      z-index: 60;
+    }
+    #partyList .pRow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: rotate(-6deg);
+      font-size: 16px;
+      color: #fff;
+      -webkit-text-stroke: 2px #1a1b26;
+      paint-order: stroke fill;
+    }
+    #partyList .pRow img {
+      width: 40px;
+      height: 40px;
+      border: none;
+    }
+    #partyList .pCol {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    #partyList .pBar {
+      width: 120px;
+      height: 12px;
+      background: #000;
+      border: 2px solid #000;
+    }
+    #partyList .pFill {
+      height: 100%;
+      background: #2ed573;
+    }
+    #partyList .pRow.dead {
+      opacity: 0.45;
+    }
+    #partyList .pRow.dead .pFill {
+      background: #8e0000;
+    }
+    #partyList .pRow.me img {
+      filter: brightness(1.25);
+    }
+    #partyList .pRow.chased img {
+      filter: brightness(0.55) sepia(1) hue-rotate(-45deg) saturate(6);
+    }
     /* lag corner */
     #stats {
       position: fixed;
@@ -447,6 +500,21 @@
       color: #fff;
       font-size: 40px;
       padding: 0 24px;
+    }
+
+    /* death static */
+    #deathStatic {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000 url('./Assets/Images/UI/static.gif') center / cover;
+      z-index: 101;
+      opacity: 1;
+      transition: opacity 2.5s;
+      pointer-events: none;
+      line-height: normal;
     }
 
     /* chat column */
