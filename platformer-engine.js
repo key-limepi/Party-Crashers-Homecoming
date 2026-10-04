@@ -747,13 +747,28 @@ class PlatformerEngine {
     return img._cyanTint;
   }
 
-  // true aspect
-  frameSize(b, img) {
-    const dh = b.drawH || b.h;
-    if (img && img.complete && img.naturalWidth && img.naturalHeight) {
-      return { dw: Math.max(1, Math.round(dh * img.naturalWidth / img.naturalHeight)), dh };
+  // resting-pose size, used as the scale reference for every other pose
+  baseFrame(b) {
+    if (b._baseFrame) return b._baseFrame;
+    const idle = b.sprites && b.sprites.idle;
+    const ref = Array.isArray(idle) ? idle[0] : idle;
+    if (ref && ref.complete && ref.naturalWidth && ref.naturalHeight) {
+      b._baseFrame = { w: ref.naturalWidth, h: ref.naturalHeight };
     }
-    return { dw: b.drawW || b.w, dh };
+    return b._baseFrame || null; // idle art not loaded yet
+  }
+
+  frameSize(b, img) {
+    const boxH = b.drawH || b.h;
+    if (!(img && img.complete && img.naturalWidth && img.naturalHeight)) {
+      return { dw: b.drawW || b.w, dh: boxH };
+    }
+    const base = this.baseFrame(b);
+    const scale = base ? boxH / base.h : boxH / img.naturalHeight;
+    return {
+      dw: Math.max(1, Math.round(img.naturalWidth * scale)),
+      dh: Math.max(1, Math.round(img.naturalHeight * scale)),
+    };
   }
   // sprite order
   // pick sprite
