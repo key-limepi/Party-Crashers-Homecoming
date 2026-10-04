@@ -236,11 +236,10 @@ class PlatformerEngine {
     });
   }
 
-  // step a body through its own velocity, splitting fast moves into
-  // substeps so it can't tunnel clean through a thin platform
+  // split motion
   moveBody(b, dt, statics) {
-    const dist = Math.hypot(b.vel.x, b.vel.y) * dt; // how far this frame
-    const maxStep = Math.max(4, Math.min(b.w, b.h) / 2); // thinnest safe move
+    const dist = Math.hypot(b.vel.x, b.vel.y) * dt; // frame distance
+    const maxStep = Math.max(4, Math.min(b.w, b.h) / 2); // step cap
     const steps = Math.max(1, Math.min(8, Math.ceil(dist / maxStep))); // cap substeps
     const stepDt = dt / steps;
     for (let i = 0; i < steps; i++) {
@@ -251,21 +250,19 @@ class PlatformerEngine {
     }
   }
 
-  // push a body out of any statics it overlaps, along one axis only.
-  // using overlap depth (not just velocity sign) means a body that's
-  // already stuck at zero speed still gets popped out the short way
+  // pop out
   resolveAxis(b, statics, axis) {
     for (const s of statics) {
       if (!aabbOverlap(b, s)) continue;
       if (axis === 'x') {
-        const fromLeft = b.right - s.left; // depth if arriving from the left
-        const fromRight = s.right - b.left; // depth if arriving from the right
+        const fromLeft = b.right - s.left; // left depth
+        const fromRight = s.right - b.left; // right depth
         if (b.vel.x > 0 || (b.vel.x === 0 && fromLeft <= fromRight)) b.pos.x = s.pos.x - b.w;
         else b.pos.x = s.pos.x + s.w;
         b.vel.x = 0;
       } else {
-        const fromAbove = b.bottom - s.top; // depth if arriving from above
-        const fromBelow = s.bottom - b.top; // depth if arriving from below
+        const fromAbove = b.bottom - s.top; // top depth
+        const fromBelow = s.bottom - b.top; // bottom depth
         if (b.vel.y > 0 || (b.vel.y === 0 && fromAbove <= fromBelow)) {
           b.pos.y = s.pos.y - b.h;
           b.onGround = true; // feet landed
@@ -347,7 +344,7 @@ class PlatformerEngine {
     for (const b of this.bodies) {
       if (b.isStatic) continue;
       b.onGround = false;
-      this.moveBody(b, dt, this.statics); // push + resolve, tunnel-safe
+      this.moveBody(b, dt, this.statics); // tunnel-safe push
     }
 
     // drag close
@@ -446,9 +443,10 @@ class PlatformerEngine {
             r.ghostDist = 0;
             const gi = this._spriteFor(r);
             if (gi && gi.complete && gi.naturalWidth) {
+              const fs = this.frameSize(r, gi);
               this.afterimages.push({
                 x: r.pos.x, y: r.pos.y, w: r.w, h: r.h,
-                drawW: r.drawW, drawH: r.drawH, facing: r.facing,
+                drawW: fs.dw, drawH: fs.dh, facing: r.facing,
                 img: gi, age: 0,
               });
             }
@@ -579,7 +577,8 @@ class PlatformerEngine {
         // big sprites
         // cower shake
         const scare = b.cowering ? Math.floor(Math.random() * 3) - 1 : 0;
-        const dw = b.drawW || b.w, dh = b.drawH || b.h;
+        const fs = this.frameSize(b, img);
+        const dw = fs.dw, dh = fs.dh;
         const dx = Math.round(b.pos.x + (b.w - dw) / 2) + scare;
         const dy = Math.round(b.pos.y + (b.h - dh)); // align feet
         const cx = Math.round(b.pos.x + b.w / 2);
@@ -748,8 +747,16 @@ class PlatformerEngine {
     return img._cyanTint;
   }
 
-  // pick sprite
+  // true aspect
+  frameSize(b, img) {
+    const dh = b.drawH || b.h;
+    if (img && img.complete && img.naturalWidth && img.naturalHeight) {
+      return { dw: Math.max(1, Math.round(dh * img.naturalWidth / img.naturalHeight)), dh };
+    }
+    return { dw: b.drawW || b.w, dh };
+  }
   // sprite order
+  // pick sprite
   _spriteFor(b) {
     if (!b.sprites) return null;
     const s = b.sprites;
@@ -766,7 +773,10 @@ class PlatformerEngine {
       const i = Math.floor(b.animTime * 6) % s.struggle.length;
       return s.struggle[i];
     }
-    if (!b.onGround && s.jump) return s.jump;
+    if (!b.onGround && s.jump) {
+      if (Array.isArray(s.jump)) return s.jump[Math.floor(b.animTime * 10) % s.jump.length];
+      return s.jump;
+    }
     const speed = Math.abs(b.vel.x);
     // move gate
     if (!b.animMoving && speed > 25) b.animMoving = true;

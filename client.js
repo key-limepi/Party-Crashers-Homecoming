@@ -9,8 +9,8 @@ function loadImg(src) {
     const game = new PlatformerEngine(canvas, { width: 800, height: 450, background: '#bfe9ff' });
 
     // small hitbox
-    const lux = game.addPlayer(60, 100, 36, 78);
-    lux.drawW = 64; lux.drawH = 90;
+    const lux = game.addPlayer(60, 100, 28, 60);
+    lux.drawW = 50; lux.drawH = 70;
     // lux sprites
     const luxSprites = {
       idle: [loadImg(LUX + "idle1.png"), loadImg(LUX + "idle2.png")],
@@ -27,6 +27,7 @@ function loadImg(src) {
     const ROSTER = [
       { id: 'lux', name: 'LUX', nameImg: CS + 'luxname.png' },
       { id: 'toko', name: 'TOKO', nameImg: CS + 'tokoname.png' },
+      { id: 'sonic', name: 'SONIC', nameImg: CS + 'sonicname.png' },
     ];
     const TOKO = "./Assets/Images/Characters/Survivors/Toko/";
     const tokoSprites = {
@@ -41,7 +42,24 @@ function loadImg(src) {
       kick: [loadImg(TOKO + "kick.png"), loadImg(TOKO + "kick2.png")],
       jab: [loadImg(TOKO + "jab.png"), loadImg(TOKO + "jab2.png")],
     };
-    const charSprites = { lux: luxSprites, toko: tokoSprites, evil: null }; // evil later
+    const SONIC = "./Assets/Images/Characters/Survivors/Sonic/";
+    const sonicSprites = {
+      idle: [loadImg(SONIC + "sonic_idle1.png"), loadImg(SONIC + "sonic_idle2.png")],
+      walk: [loadImg(SONIC + "sonic_walk1.png"), loadImg(SONIC + "sonic_walk2.png"), loadImg(SONIC + "sonic_walk3.png"), loadImg(SONIC + "sonic_walk4.png"), loadImg(SONIC + "sonic_walk5.png"), loadImg(SONIC + "sonic_walk6.png"), loadImg(SONIC + "sonic_walk7.png"), loadImg(SONIC + "sonic_walk8.png")],
+      run: [loadImg(SONIC + "sonic_run1.png"), loadImg(SONIC + "sonic_run2.png"), loadImg(SONIC + "sonic_run3.png"), loadImg(SONIC + "sonic_run4.png")],
+      jump: [loadImg(SONIC + "sonic_roll1.png"), loadImg(SONIC + "sonic_roll2.png"), loadImg(SONIC + "sonic_roll3.png"), loadImg(SONIC + "sonic_roll4.png"), loadImg(SONIC + "sonic_roll5.png"), loadImg(SONIC + "sonic_roll6.png"), loadImg(SONIC + "sonic_roll7.png"), loadImg(SONIC + "sonic_roll8.png")],
+      stun: loadImg(SONIC + "sonic_struggle1.png"),
+      struggle: [loadImg(SONIC + "sonic_struggle1.png"), loadImg(SONIC + "sonic_struggle2.png")],
+      cower: loadImg(SONIC + "sonic_idle1.png"),
+      dash: loadImg(SONIC + "sonic_run1.png"),
+    };
+    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, evil: null }; // evil later
+    function wearChar(id) {
+      game.setPlayerSprites(charSprites[id] || luxSprites);
+      const small = id === 'sonic';
+      game.player.drawW = small ? 44 : 50;
+      game.player.drawH = small ? 62 : 70;
+    }
     game.setPlayerSprites(luxSprites);
 
     // evil stats
@@ -436,7 +454,7 @@ function loadImg(src) {
       }).then((r) => r.json()).then((d) => {
         if (d && d.ok) {
           net.pick = cur.id;
-          if (!game.player.evil) game.setPlayerSprites(charSprites[cur.id] || luxSprites);
+          if (!game.player.evil) wearChar(cur.id);
         }
       }).catch(() => {});
     }
@@ -453,7 +471,7 @@ function loadImg(src) {
     // lobby runners
     setInterval(() => {
       if (!selectOpen) return;
-      csFrame = (csFrame + 1) % 2;
+      csFrame = csFrame + 1; // full run cycles
       const paint = (el) => {
         if (!el || !el._runImg) return;
         const src = runFrameFor(el._runChar, el === csSlotEls.killer);
@@ -680,6 +698,8 @@ function loadImg(src) {
           { key: 'Z', name: 'ROUNDHOUSE', icon: ABIL_ICONS.roundhouse, cd: () => T.kickCD },
           { key: 'X', name: 'JAB', icon: ABIL_ICONS.jab, cd: () => T.jabCD },
         ];
+      } else if (isSonic()) {
+        abilDefs = []; // no kit yet
       } else {
         abilDefs = [
           { key: 'Z', name: 'DASH', icon: ABIL_ICONS.dash, cd: () => S.dashCD },
@@ -718,12 +738,13 @@ function loadImg(src) {
       p.evil = evil;
       if (evil) {
         game.setPlayerSprites(evilSprites);
+        p.drawW = 50; p.drawH = 70; // full size
         p.maxHp = 250; p.hp = 250;
         p.maxJumps = 2; // double jump
         game.moveSpeed = 300; // evil speed
         game.spawn = { x: 4300, y: 100 }; // far spawn
       } else {
-        game.setPlayerSprites(charSprites[net.pick] || luxSprites);
+        wearChar(net.pick);
         p.maxHp = 100; p.hp = Math.min(p.hp, 100);
         p.maxJumps = 1;
         game.moveSpeed = 240;
@@ -740,7 +761,7 @@ function loadImg(src) {
       const now = Date.now();
       const p = game.player;
       if (!p || !net.id) return;
-      const role = p.evil ? 'evil' : (isToko() ? 'toko' : 'lux');
+      const role = p.evil ? 'evil' : (isToko() ? 'toko' : (isSonic() ? 'sonic' : 'lux'));
       if (role !== abilRole) {
         abilRole = role;
         buildAbilities();
@@ -804,6 +825,7 @@ function loadImg(src) {
       jabUntil: 0, jabHit: false,
     };
     const isToko = () => (net.pick || 'lux') === 'toko';
+    const isSonic = () => (net.pick || 'lux') === 'sonic';
     game.onCounter = () => {
       // eat hits
       S.countered = true;
@@ -900,7 +922,7 @@ function loadImg(src) {
         if (!res.ok) throw new Error('nope');
         const joined = await res.json();
         net.id = joined.id;
-        setAFK(false); // fresh joins always enter as active players
+        setAFK(false); // fresh joins play
         hideFatal(); // error clear
         // fake loading
         const held = Date.now() - (net.titleT0 || Date.now());
@@ -1119,7 +1141,7 @@ function loadImg(src) {
               id, isRemote: true, name: d.name,
               pos: { x: d.x, y: d.y }, vel: { x: 0, y: 0 },
               tx: d.x, ty: d.y,
-              w: 36, h: 78, drawW: 64, drawH: 90, facing: 1,
+              w: 28, h: 60, drawW: 50, drawH: 70, facing: 1,
               sprites: luxSprites, walkDist: 0, animTime: 0,
               onGround: true, hp: 100, maxHp: 100, alive: true,
             };
@@ -1138,6 +1160,9 @@ function loadImg(src) {
           r.evil = id === data.killer_id;
           r.maxHp = d.maxhp || (r.evil ? 250 : 100); // true bars
           r.sprites = r.evil ? evilSprites : (charSprites[r.char] || luxSprites); // see all
+          const small = !r.evil && r.char === 'sonic';
+          r.drawW = small ? 44 : 50;
+          r.drawH = small ? 62 : 70;
           r.invis = !!d.invis;
           r.stunned = !!d.stunned;
           r.pull = !!d.pull;
@@ -1168,10 +1193,10 @@ function loadImg(src) {
         const mePick = (data.players || {})[net.id];
         if (mePick && mePick.char && mePick.char !== net.pick) {
           net.pick = mePick.char;
-          if (!p.evil) game.setPlayerSprites(charSprites[mePick.char] || luxSprites);
+          if (!p.evil) wearChar(mePick.char);
         } else if (mePick && !mePick.char && net.pick) {
           net.pick = null;
-          if (!p.evil) game.setPlayerSprites(luxSprites);
+          if (!p.evil) wearChar('lux');
         }
         // server truth
         if (!statusUntil || Date.now() > statusUntil) {
@@ -1340,7 +1365,7 @@ function loadImg(src) {
         abilBar.style.display = net.id && p.alive !== false ? 'flex' : 'none';
         // evil keys
         const now = Date.now();
-        // abilities locked while picking
+        // picking locks abilities
         const canCast = p.alive !== false && (p.stunT || 0) <= 0 && !selectOpen;
         if (!canCast) while (game.input.consumeAbility()) {} // clear queue
         const m1Muted = now < K.penaltyUntil; // sneak mute
@@ -1367,6 +1392,7 @@ function loadImg(src) {
               }
               continue;
             }
+            if (isSonic()) continue; // no kit yet
             if (ab === 'Z' && now >= S.dashCD && !S.windupUntil && !S.dashing) {
               // dash zoom
               S.windupUntil = now + 3000;
@@ -1548,7 +1574,7 @@ function loadImg(src) {
         // fast ghost
         if (p.evil) game.moveSpeed = p.invis ? 430 : 300;
         // lux dash
-        if (!p.evil && !isToko()) {
+        if (!p.evil && !isToko() && !isSonic()) {
           if (S.windupUntil && now >= S.windupUntil) {
             S.windupUntil = 0;
             S.dashing = true; S.dashUntil = now + 2000; S.dashHit = false;
@@ -1565,10 +1591,12 @@ function loadImg(src) {
               S.dashing = false; p.chargeDir = 0; S.dashTouching = false;
               S.dashCD = now + (S.dashHit ? 15000 : 25000) * (isLMS ? LMS_CD : 1); // dash waits
             } else {
+              const gi = game._spriteFor(p);
+              const fs = game.frameSize(p, gi);
               game.afterimages.push({
                 x: p.pos.x, y: p.pos.y, w: p.w, h: p.h,
-                drawW: p.drawW, drawH: p.drawH, facing: p.facing,
-                img: game._spriteFor(p), age: 0,
+                drawW: fs.dw, drawH: fs.dh, facing: p.facing,
+                img: gi, age: 0,
               });
               const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
               const touching = !!(ek &&
