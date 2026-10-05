@@ -25,9 +25,9 @@ We are remaking the whole game from the ground up in Javascript.
 - **Dynamic music & sfx:** chase and terror radius themes.
 
 ## Requirements
-**RAM**: One Billion Gazillion Gigabytes DDR8
-**CPU**: Intel i99 700000 MT/s
--# dude its just a web browser game
+* **RAM**: One Billion Gazillion Gigabytes DDR8
+* **CPU**: Intel i99 700000 MT/s
+* dude its just a web browser game
 
 ## Quick start
 
