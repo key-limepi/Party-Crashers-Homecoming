@@ -627,12 +627,12 @@ function loadImg(src) {
       if (seenChat.size > 200) seenChat.clear();
     }, 500);
     // music beds
-    function loopTrack(src) {
+    function loopTrack(src, looped = true) {
       const a = new Audio(src);
-      a.loop = true;
+      a.loop = looped;
       a.volume = 0;
       // loop backup
-      a.addEventListener('ended', () => { a.currentTime = 0; a.play().catch(() => {}); });
+      if (looped) a.addEventListener('ended', () => { a.currentTime = 0; a.play().catch(() => {}); });
       return a;
     }
     const MUS = './Assets/Musics/';
@@ -640,9 +640,9 @@ function loadImg(src) {
       map: loopTrack(MUS + 'map_musicV2.mp3'),
       wait: loopTrack(MUS + 'waiting4players.mp3'),
       inter: loopTrack(MUS + 'intermission.mp3'),
-      lms: loopTrack(MUS + 'last_man_standing.mp3'),
-      lmslux: loopTrack(MUS + 'lux_lms.mp3'), // lux anthem
-      lmssonic: loopTrack(MUS + 'sonic_lms.mp3'), // sonic anthem
+      lms: loopTrack(MUS + 'last_man_standing.mp3', false),
+      lmslux: loopTrack(MUS + 'lux_lms.mp3', false), // lux anthem
+      lmssonic: loopTrack(MUS + 'sonic_lms.mp3', false), // sonic anthem
       chase: loopTrack(MUS + 'chase_elux.mp3'),
       terror: loopTrack(MUS + 'terror_radius_elux.mp3'),
       charselect: loopTrack(MUS + 'charselect.mp3'),
@@ -654,7 +654,12 @@ function loadImg(src) {
     let soloIdx = -1;
     // lms rules
     let lmsTrack = null; // track ids
-    let lmsStartT = null; // lms clock
+    let lmsEnded = false;
+    for (const key of ['lms', 'lmslux', 'lmssonic']) {
+      beds[key].addEventListener('ended', () => {
+        if (lmsTrack === key) lmsEnded = true;
+      });
+    }
     const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'chase', 'terror', 'charselect'];
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.key.toLowerCase() !== 'm') return;
@@ -1183,7 +1188,7 @@ function loadImg(src) {
         if (data.phase && data.phase !== net.phase) {
           net.phase = data.phase;
           soloIdx = -1; // reset ears
-          lmsTrack = null; lmsStartT = null; // reset lms
+          lmsTrack = null; lmsEnded = false; // reset lms
           beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.chase.pause(); beds.terror.pause();
           clearEvil(p);
           trippedIds.clear();
@@ -1272,16 +1277,7 @@ function loadImg(src) {
           phaseText = `PICK YOUR CHARACTER!! (${t}s)`;
         } else if (data.phase === 'round') {
           const t = Math.max(0, data.time_left || 0);
-          // count up
-          const sl = (you?.in_round && p.alive !== false && !p.evil ? 1 : 0) +
-            game.remotes.filter((r) => r.inRound && r.alive && r.hp > 0 && !r.evil).length;
-          let mm;
-          if (sl === 1) {
-            const up = lmsStartT ? Math.max(0, Math.floor((Date.now() - lmsStartT) / 1000)) : 0;
-            mm = `${Math.floor(up / 60)}:${String(up % 60).padStart(2, '0')}`;
-          } else {
-            mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
-          }
+          const mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
           phaseText = !you?.in_round
             ? (you?.away ? 'AFK - spectating this round!!' : 'NOT IN THIS ROUND - spectating!!')
             : data.notice
@@ -1479,7 +1475,7 @@ function loadImg(src) {
           }
           if (!document.hidden) beds[lmsKey].play().catch(() => {});
           lmsTrack = lmsKey;
-          lmsStartT = Date.now(); // start clock
+          lmsEnded = false;
           if (!p.evil && p.alive !== false) {
             // heal up
             p.maxHp = LMS_HP; p.hp = LMS_HP;
@@ -1493,7 +1489,7 @@ function loadImg(src) {
         } else if (!isLMS && lmsTrack) {
           // lms over
           beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause();
-          lmsTrack = null; lmsStartT = null;
+          lmsTrack = null; lmsEnded = false;
           if (!p.evil) { p.maxHp = 100; p.hp = Math.min(p.hp, 100); } // drop buffs
         }
         // block chase
@@ -1520,7 +1516,7 @@ function loadImg(src) {
           let target = soloIdx >= 0 ? (key === soloOrder[soloIdx] ? 0.8 : 0) : (bedT[key] || 0);
           if (titleLive) target = 0;
           if (target > 0.01) {
-            if (a.paused) a.play().catch(() => {});
+            if (a.paused && !(key === lmsTrack && lmsEnded)) a.play().catch(() => {});
             a.volume += (target - a.volume) * 0.15; // fade in
           } else if (!a.paused) {
             a.volume += (0 - a.volume) * 0.3; // fade out
@@ -1651,7 +1647,7 @@ function loadImg(src) {
               fetch('/api/hit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: net.id, victim: victim.id, dmg: 25, stun: 0 }),
+                body: JSON.stringify({ id: net.id, victim: victim.id, dmg: 40, stun: 0 }),
               }).catch(() => {});
               // bit back
               fileSfx(SFX + (victim.cowering ? 'basic_hit.wav' : 'm1_hit.wav'), {});
