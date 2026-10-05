@@ -1,5 +1,5 @@
-# MOD MENU access!! One machine ID per line!!
-# Press F12 in game (when NOT a mod) and it shows your machine ID.
+# MOD MENU access!! One formbar user ID per line!!
+# Click "show my id" under the game (when NOT a mod) to see your formbar ID.
 # Paste it below, save, and rejoin ; F12 becomes your mod menu!!
 # Lines starting with # are ignored!!
 

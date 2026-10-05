@@ -202,22 +202,6 @@ function loadImg(src) {
     // needs server
     // die to spectate
     const net = { id: null, timer: null, round: null, phase: null, ping: null, wasEvil: false, retry: null, mod: false, everOnline: false, wasElect: false, fail: 0 };
-    // machine id
-    function myMID() {
-      let mid = null;
-      try { mid = sessionStorage.getItem('pch_mid'); } catch (e) { /* private mode!! */ }
-      if (!mid) {
-        mid = '';
-        try {
-          if (window.crypto && crypto.randomUUID) mid = crypto.randomUUID().replace(/-/g, '');
-        } catch (e) { /* old browser!! */ }
-        if (!mid) {
-          for (let i = 0; i < 32; i++) mid += '0123456789abcdef'[Math.floor(Math.random() * 16)];
-        }
-        try { sessionStorage.setItem('pch_mid', mid); } catch (e) { /* oh well!! */ }
-      }
-      return mid;
-    }
     // unique tabs
     let tabId = '';
     for (let i = 0; i < 16; i++) tabId += '0123456789abcdef'[Math.floor(Math.random() * 16)];
@@ -258,13 +242,21 @@ function loadImg(src) {
       setTimeout(dismiss, 4000);
       // click connects
       let titleClicked = false;
-      if (title) title.addEventListener('click', () => {
+      if (title) title.addEventListener('click', async () => {
         if (titleClicked) return;
         titleClicked = true;
+        const me = await loadMe();
+        if (!me.logged_in) { location.href = '/login'; return; } // formbar login
+        if (me.needs_pin && !me.has_pin) {
+          pinRow.style.display = 'block';
+          sayStatus('enter your digipog pin, then click again!!', 8);
+          titleClicked = false;
+          return;
+        }
         net.titleT0 = Date.now(); // hold loading
         const label = title.querySelector('span');
         if (label) label.innerHTML = 'LOADING!!';
-        joinOnline(net.pendingName || (nameBox.value.trim() || 'friend').slice(0, 16));
+        joinOnline();
       });
     })();
     function netError(text, secs) {
@@ -279,21 +271,55 @@ function loadImg(src) {
     window.addEventListener('unhandledrejection', () => {
       try { netError('uh oh!! a request failed, refresh if stuck!!', 10); } catch (_) { /* too broken!! */ }
     });
-    const nameBox = document.getElementById('nameBox');
-    // rename here
-    nameBox.addEventListener('keydown', (e) => {
+    // formbar account, digipog pin and malice shop
+    const pinRow = document.getElementById('pinRow');
+    const pinBox = document.getElementById('pinBox');
+    const malicePanel = document.getElementById('malicePanel');
+    const maliceNum = document.getElementById('maliceNum');
+    const buyMaliceBtn = document.getElementById('buyMaliceBtn');
+    async function loadMe() {
+      net.me = await (await fetch('/api/me')).json();
+      return net.me;
+    }
+    async function savePin() {
+      const res = await fetch('/api/pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: pinBox.value.trim() }),
+      });
+      const out = await res.json();
+      if (out.ok) {
+        pinBox.value = '';
+        pinRow.style.display = 'none';
+        sayStatus('pin saved!! click the title to play!!', 6);
+        if (net.id) { net.id = null; joinOnline(); } // retry a join that needed the pin
+      } else {
+        sayStatus(out.reason || 'pin not saved!!', 5);
+      }
+    }
+    document.getElementById('pinBtn').addEventListener('click', savePin);
+    pinBox.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      const name = (nameBox.value.trim() || 'friend').slice(0, 16);
-      net.pendingName = name;
-      nameBox.blur();
-      joinOnline(name);
+      pinBox.blur();
+      savePin();
+    });
+    buyMaliceBtn.addEventListener('click', async () => {
+      if (!net.id) return;
+      buyMaliceBtn.disabled = true;
+      const res = await fetch('/api/malice/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: net.id }),
+      });
+      const out = await res.json();
+      sayStatus(out.ok ? `bought malice!! you have ${out.malice}!!` : (out.reason || 'could not buy!!'), 5);
     });
     const midBox = document.getElementById('midBox');
     let midShown = false;
     midBox.addEventListener('click', () => {
       midShown = !midShown;
-      midBox.textContent = midShown ? myMID() : 'show my id';
+      midBox.textContent = midShown ? (net.mid || '?') : 'show my id';
     });
     // afk button
     // canvas corner
@@ -597,7 +623,7 @@ function loadImg(src) {
     }
     window.addEventListener('keydown', (e) => {
       if (selectOpen) return; // select eats keys
-      const typing = document.activeElement === chatBox || document.activeElement === nameBox;
+      const typing = document.activeElement === chatBox || document.activeElement === pinBox;
       if (quickOpen) {
         if (e.key === 'Escape' || e.key === 'Enter') {
           e.preventDefault();
@@ -1046,7 +1072,7 @@ function loadImg(src) {
     game.onSpring = () => {
       if (net.phase === 'round') fileSfx(SFX + 'spring.wav', {});
     };
-    async function joinOnline(name) {
+    async function joinOnline() {
       // rejoin first
       if (net.id) {
         try {
@@ -1063,18 +1089,27 @@ function loadImg(src) {
         const res = await fetch('/api/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, mid: myMID(), tab: tabId }),
+          body: JSON.stringify({ tab: tabId }),
         });
+        if (res.status === 401) {
+          // not logged in, or no pin yet
+          const e = await res.json().catch(() => ({}));
+          if (e.login) { location.href = '/login'; return; }
+          pinRow.style.display = 'block';
+          sayStatus(e.error || 'enter your digipog pin!!', 8);
+          return;
+        }
         if (res.status === 403) {
           // still knocking
           let msg = 'match running - waiting to sneak in!!';
           try {
             const e = await res.json();
             if (e && /locked/.test(e.error || '')) msg = 'match locked - waiting for next one!!';
+            if (e && /tab/.test(e.error || '')) msg = e.error;
           } catch (e2) { /* plain 403!! */ }
           netStatus.textContent = msg;
           clearTimeout(net.retry);
-          net.retry = setTimeout(() => joinOnline(name), 3000);
+          net.retry = setTimeout(() => joinOnline(), 3000);
           return;
         }
         if (!res.ok) throw new Error('nope');
@@ -1092,11 +1127,9 @@ function loadImg(src) {
         clearTimeout(net.retry);
         net.mod = !!joined.mod;
         net.everOnline = true; // stay joined
-        sayStatus(`online as ${joined.name || name}!! friends can see you!! :D`, 4);
+        net.mid = joined.mid;
+        sayStatus(`online as ${joined.name}!! friends can see you!! :D`, 4);
         if (window.__wantDebug && joined.mod) openModMenu();
-        if (joined.mid) {
-          try { sessionStorage.setItem('pch_mid', joined.mid); } catch (e) { /* oh well!! */ }
-        }
         if (joined.muted > 0) applyMute(joined.muted); // muted stay
         if (!net.timer) {
           // chain ticks
@@ -1114,7 +1147,7 @@ function loadImg(src) {
       } catch (e) {
         netError('cannot reach the server!! retrying...', 10);
         clearTimeout(net.retry);
-        net.retry = setTimeout(() => joinOnline(name), 3000);
+        net.retry = setTimeout(() => joinOnline(), 3000);
       }
     }
     // catch up
@@ -1130,10 +1163,9 @@ function loadImg(src) {
         netError('open this page through the server, not as a file!! (http://127.0.0.1:8000)', 3600);
         return;
       }
-      const params = new URLSearchParams(location.search);
-      const name = (params.get('name') || 'name').slice(0, 16);
-      nameBox.value = name;
-      net.pendingName = name;
+      loadMe().then((me) => {
+        if (me.logged_in) sayStatus(`logged in as ${me.name}!! click the title to play!!`, 0);
+      }).catch(() => {});
     })();
     async function netTick() {
       const p = game.player;
@@ -1178,7 +1210,7 @@ function loadImg(src) {
         if (!others[net.id]) {
           net.id = null;
           game.remotes = [];
-          joinOnline((nameBox.value.trim() || 'friend').slice(0, 16));
+          joinOnline();
           return;
         }
         const prevPhase = net.phase;
@@ -1271,10 +1303,13 @@ function loadImg(src) {
           const t = Math.max(0, data.time_left || 0);
           const r = data.result;
           const who = r && r.winner === 'killer' ? `EVIL ${r.killer_name} WINS!!` : 'SURVIVORS WIN!!';
-          phaseText = `${who} picks open in ${t}s!!`;
+          const fee = net.me && net.me.round_cost ? ` (${net.me.round_cost} digipogs a round)` : '';
+          phaseText = `${who} picks open in ${t}s!!${fee}`;
         } else if (data.phase === 'select') {
           const t = Math.max(0, data.time_left || 0);
-          phaseText = `PICK YOUR CHARACTER!! (${t}s)`;
+          phaseText = you && you.paid === null ? 'paying the round fee...'
+            : you && you.paid === false && net.me && net.me.round_cost ? `NOT PLAYING: ${you.pay_msg || 'round fee failed'}!!`
+            : `PICK YOUR CHARACTER!! (${t}s)`;
         } else if (data.phase === 'round') {
           const t = Math.max(0, data.time_left || 0);
           const mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
@@ -1287,6 +1322,11 @@ function loadImg(src) {
             : (p.evil ? `${mm} - YOU ARE EVIL!! Z = hit!!` : `${mm} - run!! evil: ${data.killer_name || '???'}`);
         }
         if (phaseText !== lastPhaseText) { phaseLine.textContent = phaseText; lastPhaseText = phaseText; }
+        // malice shop
+        malicePanel.style.display = 'block';
+        maliceNum.textContent = you.malice || 0;
+        buyMaliceBtn.disabled = data.phase !== 'intermission';
+        buyMaliceBtn.textContent = net.me ? `buy ${net.me.malice_per_buy} malice (${net.me.malice_price} digipogs)` : 'buy malice';
         // party list
         const showParty = data.phase === 'round' && net.id;
         partyList.style.display = showParty ? 'flex' : 'none';
