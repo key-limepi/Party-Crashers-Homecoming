@@ -4,6 +4,7 @@ python server.py -> http://localhost:8000
 python server.py 8080 -> http://localhost:8080
 """
 import hashlib
+import hmac
 import json
 import os
 import random
@@ -92,6 +93,7 @@ QUICK_CHAT = (
     "good luck!!", "killer here!!", "split up!!", "gg!!",
 ) # only these may post
 muted_mids = {} # mute list
+formbar_cache = {} # formbar's public key
 sessions = {} # login cookie -> {"fid", "name", "pin"}
 MALICE_FILE = os.path.join(HERE, "malice.json")
 malice = {} # formbar id -> malice points
@@ -247,28 +249,86 @@ def _player_activity():
 # formbar login, digipogs and malice
 
 
-def jwt_claims(token):
-    """read the payload of a formbar token (formbar itself is asked to verify it)"""
-    try:
-        part = token.split(".")[1]
-        return json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
-    except (IndexError, ValueError):
-        return {}
+def b64url(text):
+    return base64.urlsafe_b64decode(text + "=" * (-len(text) % 4))
+
+
+def der_item(data, pos=0):
+    """read one der item, returns (content, position after it)"""
+    length = data[pos + 1]
+    pos += 2
+    if length & 0x80:
+        size = length & 0x7F
+        length = int.from_bytes(data[pos:pos + size], "big")
+        pos += size
+    return data[pos:pos + length], pos + length
+
+
+def rsa_numbers(pem):
+    """pull the modulus and exponent out of a public key pem"""
+    lines = [l for l in pem.splitlines() if not l.startswith("-----")]
+    der = base64.b64decode("".join(lines))
+    outer, _ = der_item(der)
+    if "RSA PUBLIC KEY" in pem:
+        key = outer # plain rsa key
+    else:
+        _, pos = der_item(outer) # skip the algorithm
+        bits, _ = der_item(outer, pos)
+        key, _ = der_item(bits[1:]) # skip the unused bits byte
+    n, pos = der_item(key)
+    e, _ = der_item(key, pos)
+    return int.from_bytes(n, "big"), int.from_bytes(e, "big")
+
+
+def formbar_public_key():
+    """fetch formbar's signing key once and remember it"""
+    if "key" not in formbar_cache:
+        for path in ("/api/v1/certs", "/api/certs", "/certs"):
+            try:
+                with urllib.request.urlopen(f"{FORMBAR_ADDRESS}{path}", timeout=10) as r:
+                    body = json.load(r)
+                pem = (body.get("data") or body).get("publicKey")
+                if pem:
+                    formbar_cache["key"] = rsa_numbers(pem)
+                    break
+            except (OSError, ValueError, IndexError) as err:
+                print(f"!! could not get formbar key at {path}: {err}", flush=True)
+    return formbar_cache.get("key")
+
+
+def token_is_real(token):
+    """check the rs256 signature against formbar's public key"""
+    key = formbar_public_key()
+    if not key:
+        return False
+    n, e = key
+    head, body, sig = token.split(".")
+    if json.loads(b64url(head)).get("alg") != "RS256":
+        return False
+    size = (n.bit_length() + 7) // 8
+    got = pow(int.from_bytes(b64url(sig), "big"), e, n).to_bytes(size, "big")
+    # sha256 prefix, then the padding rules from pkcs1 v1.5
+    info = bytes.fromhex("3031300d060960864801650304020105000420")
+    info += hashlib.sha256(f"{head}.{body}".encode()).digest()
+    want = b"\x00\x01" + b"\xff" * (size - len(info) - 3) + b"\x00" + info
+    return hmac.compare_digest(got, want)
 
 
 def formbar_user(token):
-    """ask formbar who this token belongs to, returns (id, display name) or (None, None)"""
-    req = urllib.request.Request(f"{FORMBAR_ADDRESS}/api/v1/user/me",
-                                 headers={"Authorization": f"Bearer {token}"})
+    """check a formbar token and return (id, display name), or (None, None)"""
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
-            data = json.load(r).get("data") or {}
-    except (OSError, ValueError):
+        if not token_is_real(token):
+            print("!! login token was not signed by formbar", flush=True)
+            return None, None
+        claims = json.loads(b64url(token.split(".")[1]))
+    except (ValueError, IndexError) as err:
+        print(f"!! login token is broken: {err}", flush=True)
         return None, None
-    claims = jwt_claims(token)
-    fid = data.get("id") or claims.get("id")
-    name = data.get("displayName") or data.get("username") or claims.get("displayName")
-    return (str(fid), str(name)[:24]) if fid and name else (None, None)
+    fid, name = claims.get("id"), claims.get("displayName")
+    if not (fid and name):
+        print(f"!! login token had no id or name, keys: {list(claims)}", flush=True)
+        return None, None
+    return str(fid), str(name)[:24]
 
 
 def formbar_transfer(fid, pin, amount, reason):
