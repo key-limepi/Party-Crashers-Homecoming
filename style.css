@@ -434,6 +434,18 @@
       z-index: 997;
     }
 
+    /* pos readout */
+    #posdbg {
+      position: fixed;
+      right: 10px;
+      top: 10px;
+      background: #fff3b0;
+      border: 3px solid #5b4b8a;
+      padding: 4px 10px;
+      font-size: 14px;
+      z-index: 997;
+    }
+
     /* big errors */
     #errScreen {
       display: none;
@@ -550,4 +562,38 @@
       border: 3px solid #5b4b8a;
       background: #fff;
       color: #5b4b8a;
+      cursor: pointer;
+    }
+    /* changelog */
+    #logModal {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 280px;
+      max-height: 70%;
+      overflow-y: auto;
+      background: rgba(255, 255, 255, 0.97);
+      border: 3px solid #5b4b8a;
+      padding: 8px 10px;
+      font-size: 13px;
+      text-align: left;
+      z-index: 80;
+      line-height: normal;
+      white-space: pre-wrap;
+    }
+    /* quick shouts */
+    #quickPanel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      margin-top: 6px;
+    }
+    #quickPanel .quickBtn {
+      font-size: 14px;
+      padding: 4px 8px;
+      background: #fff3b0;
+      border: 3px solid #5b4b8a;
+      color: #5b4b8a;
+      cursor: pointer;
+      text-align: left;
     }

@@ -52,6 +52,11 @@ chat_seq = 0
 CHAT_LIFE = 12 # chat life
 CHAT_COOLDOWN = 1.5
 MUTE_TIME = 600 # mute time
+QUICK_CHAT = (
+    "OK!", "what a save!", "run away!!!", "help me!!",
+    "thanks!!", "sorry!!", "nice!!", "wow!!",
+    "good luck!!", "killer here!!", "split up!!", "gg!!",
+) # only these may post
 muted_mids = {} # mute list
 
 
@@ -703,7 +708,9 @@ class Handler(SimpleHTTPRequestHandler):
                 text = str(data.get("text", ""))[:60].strip()
                 now = time.time()
                 if me and text and now - last_chat.get(data.get("id"), 0) >= CHAT_COOLDOWN:
-                    if not is_clean(text):
+                    if text not in QUICK_CHAT:
+                        self._send_json({"ok": False, "reason": "blocked"})
+                    elif not is_clean(text):
                         muted_mids[me.get("mid") or ip] = now + MUTE_TIME
                         print(f"!! {me['name']} muted 10 min!!", flush=True)
                         self._send_json({"ok": False, "reason": "muted", "left": MUTE_TIME})

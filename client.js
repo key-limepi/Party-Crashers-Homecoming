@@ -95,13 +95,24 @@ function loadImg(src) {
     game.alertArrow = loadImg("./Assets/Images/UI/CharacterSelect/left.png"); // ping arrow
     game.spikeImg = loadImg("./Assets/Images/Characters/Killers/Evil Lux/spikes.png");
 
-    // big map: traced from the hitbox png (see tools/build_level.py)
+    // big map
     const LV_SPAWN = { x: 100, y: 880 }; // west pillar-side ground
     const LV_EXIT = { x: 2575, y: 1787, w: 60, h: 100 }; // far east floor
-    game.loadLevel(LEVEL_ROUGH_DRAFT, loadImg('./Assets/Images/Levels/RoughDraft.png'), { background: '#3b2a2a', backdrop: loadImg('./Assets/Images/Levels/RoughDraft_bg.jpg') }); // Rough Draft
+    game.loadLevel(LEVEL_ROUGH_DRAFT, loadImg('./Assets/Images/Levels/RoughDraft.png'), { background: '#3b2a2a', backdrop: loadImg('./Assets/Images/Levels/RoughDraft_bg.jpg') }); // rough draft
     game.mapBg.inter = '#bfe9ff';
     game.spawn = { x: LV_SPAWN.x, y: LV_SPAWN.y };
     game.evilSpawn = { x: LV_EXIT.x, y: LV_EXIT.y - 120 };
+    // spring pads
+    const SPR = './Assets/Images/Objects/';
+    game.addSpring(927, 652, 1200, loadImg(SPR + 'spring_orange.png'));
+    game.addSpring(1245, 480, 1200, loadImg(SPR + 'spring_orange.png'));
+    game.addSpring(18, 1244, 1200, loadImg(SPR + 'spring_orange.png'));
+    game.addSpring(2506, 1545, 1500, loadImg(SPR + 'spring_red.png'));
+    game.addSpring(2473, 1036, 950, loadImg(SPR + 'spring_yellow.png'));
+    game.addSpring(1777, 1267, 1500, loadImg(SPR + 'spring_red.png'));
+    game.addSpring(2633, 887, 950, loadImg(SPR + 'spring_yellow.png'));
+    game.addSpring(1560, 757, 1500, loadImg(SPR + 'spring_red.png'));
+    game.addSpring(305, 1089, 1500, loadImg(SPR + 'spring_red.png'));
     game.respawn();
 
     // rest island
@@ -111,6 +122,10 @@ function loadImg(src) {
     game.addPlatform(6200, 280, 140, 22, '#ff9f1c', 'inter');
     game.addPlatform(6480, 200, 140, 22, '#ff9f1c', 'inter');
     game.addPlatform(6340, 120, 120, 22, '#ff9f1c', 'inter');
+    // lobby springs
+    game.addSpring(6080, 354, 1500, loadImg(SPR + 'spring_red.png'), 'inter');
+    game.addSpring(6232, 254, 1200, loadImg(SPR + 'spring_orange.png'), 'inter');
+    game.addSpring(6620, 354, 950, loadImg(SPR + 'spring_yellow.png'), 'inter');
 
     game.start();
 
@@ -305,6 +320,14 @@ function loadImg(src) {
     let lastPhaseText = '';
     let roleTimer = null;
     const statsBox = document.getElementById('stats');
+    const posdbg = document.getElementById('posdbg');
+    // pos overlay
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        posdbg.style.display = posdbg.style.display === 'none' ? 'block' : 'none';
+      }
+    });
     const vignette = document.getElementById('vignette');
     const chatLog = document.getElementById('chatLog');
     let specId = null; // spectate target
@@ -442,7 +465,7 @@ function loadImg(src) {
     function lockPick() {
       if (net.phase !== 'select') return; // select only
       if (game.player && game.player.evil) return; // killers skip
-      if (net.amKillerElect) return; // evil skips
+      if (net.amKillnrElect) return; // evil skips
       const cur = ROSTER[selIdx];
       fetch('/api/pick', {
         method: 'POST',
@@ -479,11 +502,83 @@ function loadImg(src) {
     }, 180);
     // chat box
     const chatBox = document.getElementById('chatBox');
+    // readonly box
+    const openFromBox = (e) => {
+      e.preventDefault();
+      chatBox.blur();
+      if (selectOpen) return;
+      if (chatBox.disabled) {
+        sayStatus('muted!!', 3);
+        fileSfx(SFX + 'denied.wav', {});
+        return;
+      }
+      game.input.left = game.input.right = game.input.jump = false; // stop moving
+      openQuick();
+    };
+    chatBox.addEventListener('click', openFromBox);
+    chatBox.addEventListener('focus', openFromBox);
+    // changelog
+    const logBtn = document.getElementById('logBtn');
+    const logModal = document.getElementById('logModal');
+    logBtn.addEventListener('click', () => {
+      if (logModal.style.display !== 'none') {
+        logModal.style.display = 'none';
+        return;
+      }
+      fetch('./changelog.md').then((r) => r.text()).then((t) => {
+        logModal.textContent = t;
+        logModal.style.display = 'block';
+      }).catch(() => {});
+    });
+    // quick shouts
+    const QUICK = [
+      'OK!', 'what a save!', 'run away!!!', 'help me!!',
+      'thanks!!', 'sorry!!', 'nice!!', 'wow!!',
+      'good luck!!', 'killer here!!', 'split up!!', 'gg!!',
+    ];
+    const QUICK_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', 'q', 'w'];
+    let quickOpen = false;
+    const quickPanel = document.getElementById('quickPanel');
+    QUICK.forEach((text, i) => {
+      const b = document.createElement('button');
+      b.className = 'quickBtn';
+      b.textContent = `${QUICK_KEYS[i]} ${text}`;
+      b.addEventListener('click', () => { sendQuick(text); closeQuick(); });
+      quickPanel.appendChild(b);
+    });
+    function openQuick() { quickOpen = true; quickPanel.style.display = 'grid'; }
+    function closeQuick() { quickOpen = false; quickPanel.style.display = 'none'; }
+    function sendQuick(text) {
+      if (!text) return;
+      if (net.mutedUntil && Date.now() < net.mutedUntil) {
+        sayStatus('muted!!', 3);
+        fileSfx(SFX + 'denied.wav', {});
+        return;
+      }
+      if (!net.id) {
+        sayStatus('not connected!!', 2);
+        fileSfx(SFX + 'denied.wav', {});
+        return;
+      }
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: net.id, text }),
+      }).then((r) => r.json()).then((d) => {
+        if (d && d.ok === false && d.reason === 'blocked') {
+          sayStatus('yikes!! blocked!!', 2);
+          fileSfx(SFX + 'denied.wav', {});
+        } else if (d && d.ok === false && d.reason === 'muted') {
+          applyMute(d.left || 600);
+        }
+      }).catch(() => {});
+    }
     const seenChat = new Set();
     let muteTimer = null;
     function applyMute(secs) {
       // mute lock
       chatBox.disabled = true;
+      net.mutedUntil = Date.now() + secs * 1000;
       clearInterval(muteTimer);
       let left = secs;
       const show = () => {
@@ -495,54 +590,32 @@ function loadImg(src) {
         if (left <= 0) {
           clearInterval(muteTimer);
           chatBox.disabled = false;
+          net.mutedUntil = 0;
           chatBox.placeholder = 'say something!! (enter)';
         } else show();
       }, 5000);
     }
-    function sendChat() {
-      const text = chatBox.value.trim().slice(0, 60);
-      chatBox.value = '';
-      chatBox.blur();
-      if (!text) return;
-      // chat filter
-      if (typeof isMessageClean === 'function' && !isMessageClean(text)) {
-        chatBox.placeholder = 'yikes!! blocked!!';
-        fileSfx(SFX + 'denied.wav', {});
-        setTimeout(() => { chatBox.placeholder = 'say something!! (enter)'; }, 2000);
-        return;
-      }
-      if (!net.id) {
-        chatBox.placeholder = 'not connected!!';
-        fileSfx(SFX + 'denied.wav', {});
-        setTimeout(() => { chatBox.placeholder = 'say something!! (enter)'; }, 2000);
-        return;
-      }
-      fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: net.id, text }),
-      }).then((r) => r.json()).then((d) => {
-        if (d && d.ok === false && d.reason === 'blocked') {
-          chatBox.placeholder = 'yikes!! blocked!!';
-          fileSfx(SFX + 'denied.wav', {});
-          setTimeout(() => { chatBox.placeholder = 'say something!! (enter)'; }, 2000);
-        } else if (d && d.ok === false && d.reason === 'muted') {
-          applyMute(d.left || 600);
-        }
-      }).catch(() => {});
-    }
     window.addEventListener('keydown', (e) => {
       if (selectOpen) return; // select eats keys
       const typing = document.activeElement === chatBox || document.activeElement === nameBox;
+      if (quickOpen) {
+        if (e.key === 'Escape' || e.key === 'Enter') {
+          e.preventDefault();
+          closeQuick();
+        } else if (!typing && !e.repeat) {
+          const i = QUICK_KEYS.indexOf(e.key.toLowerCase());
+          if (i >= 0 && i < QUICK.length) {
+            e.preventDefault();
+            sendQuick(QUICK[i]);
+            closeQuick();
+          }
+        }
+        return;
+      }
       if (e.key === 'Enter' && !typing) {
         e.preventDefault();
         game.input.left = game.input.right = game.input.jump = false; // stop moving
-        chatBox.focus();
-      } else if (e.key === 'Enter' && document.activeElement === chatBox) {
-        sendChat();
-      } else if (e.key === 'Escape' && document.activeElement === chatBox) {
-        chatBox.value = '';
-        chatBox.blur();
+        openQuick();
       }
     });
     setInterval(() => {
@@ -924,6 +997,9 @@ function loadImg(src) {
       statsBox.textContent = `fps: ${game.fps || '--'} | ping: ${ping}${solo}`;
       // tired overlay
       vignette.style.opacity = game.player ? Math.min(1, game.player.fatigue || 0).toFixed(2) : 0;
+      if (posdbg.style.display !== 'none' && game.player) {
+        posdbg.textContent = `x: ${Math.round(game.player.pos.x)} y: ${Math.round(game.player.pos.y)}`;
+      }
     }, 100);
     // death fx
     const deathStatic = document.getElementById('deathStatic');
@@ -960,6 +1036,10 @@ function loadImg(src) {
           body: JSON.stringify({ id: net.id, action: 'trip', spike: sp.id }),
         }).catch(() => {});
       }
+    };
+    // spring boing
+    game.onSpring = () => {
+      if (net.phase === 'round') fileSfx(SFX + 'spring.wav', {});
     };
     async function joinOnline(name) {
       // rejoin first
@@ -1681,7 +1761,7 @@ function loadImg(src) {
                 fetch('/api/hit', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: net.id, victim: r.id, dmg: 50, stun: 3 }),
+                  body: JSON.stringify({ id: net.id, victim: r.id, dmg: 75, stun: 0 }),
                 }).catch(() => {});
                 fileSfx(SFX + 'm1_hit.wav', { rate: 0.7 }); // slam sound
                 p.stunT = 3;
