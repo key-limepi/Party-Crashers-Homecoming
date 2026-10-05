@@ -1,9 +1,9 @@
 # PARTY CRASHERS HOMECOMING
 
-A revival of **Parter Crashers**: a browser-based, multiplayer 2D platformer asym-horror inspired game 
+A revival of **Party Crashers**: a browser-based, multiplayer 2D platformer asym-horror inspired game 
 where one player becomes the killer ("Evil Lux") and everyone else has to survive long enough to escape.
 
-Sad about the death of hit game Parter Crashers in uh... 2025 (You don't exist by the way. Parter Crashers had NO fans.
+Sad about the death of hit game Party Crashers in uh... 2025 (You don't exist by the way. Party Crashers had NO fans.
 I know because I was a dev) Wish it had a revival project that was 500 times better? **YOU ARE IN THE RIGHT PLACE!**
 
 We are remaking the whole game from the ground up in Javascript.
