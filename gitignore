@@ -51,3 +51,6 @@ tmp/
 
 # Local server config (uncomment to keep your own admin IDs out of the repo)
 # admins.txt
+
+# Player malice (saved by the server)
+malice.json

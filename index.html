@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>party crashers homecoming</title>
-  <link rel="stylesheet" href="./style.css?v=2">
+  <link rel="stylesheet" href="./style.css?v=3">
 </head>
 
 <body>
@@ -51,7 +51,7 @@
         <div id="splash"><span>WARNING!!<br><br>Do not play this game if you are photosensitive or epileptic.<br>This
             game contains flashing lights.</span></div>
         <div id="titleScreen" style="display:none"><span>PARTY CRASHERS<br>HOMECOMING<br><br>(temporary title!! click to
-            play!!)</span></div>
+            play!!)<br>formbar login needed!!</span></div>
         <div id="deathStatic" style="display:none"></div>
         <div id="partyList" style="display:none"></div>
       </div>
@@ -66,8 +66,17 @@
     <button id="logBtn">changelog!!</button>
     <div id="logModal" style="display:none"></div>
     <div id="net">
-      <input id="nameBox" maxlength="16" placeholder="your name!!">
+      <div id="pinRow" style="display:none">
+        <input id="pinBox" type="password" inputmode="numeric" maxlength="8" placeholder="digipog pin!!">
+        <button id="pinBtn">save pin</button>
+      </div>
+      <div id="malicePanel" style="display:none">
+        malice: <b id="maliceNum">0</b>
+        <button id="buyMaliceBtn" disabled>buy malice</button>
+        <span>(most malice becomes evil next round!!)</span>
+      </div>
       <span id="netStatus"></span>
+      <a id="logoutLink" href="/logout">log out</a>
       <span id="midBox" title="click to show!!">show my id</span>
     </div>
   </div>
@@ -95,7 +104,7 @@
   <script src="./platformer-engine.js?v=60"></script>
   <script src="./blacklist/filter-words.js?v=1"></script>
   <script src="./level_rough_draft.js?v=2"></script>
-  <script src="./client.js?v=8"></script>
+  <script src="./client.js?v=9"></script>
 </body>
 
 </html>

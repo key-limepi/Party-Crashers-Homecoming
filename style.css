@@ -75,7 +75,7 @@
     #readout { white-space: pre; margin: 4px 0 0; font-size: 11px; }
 
     #net { margin-top: 8px; }
-    #nameBox { font-size: 16px; padding: 6px 10px; border: 3px solid #5b4b8a; background: #fff; color: #5b4b8a; width: 160px; }
+    #pinBox, #nameBox { font-size: 16px; padding: 6px 10px; border: 3px solid #5b4b8a; background: #fff; color: #5b4b8a; width: 160px; }
     #netStatus { display: block; margin-top: 4px; font-size: 14px; }
     #midBox { display: block; margin-top: 2px; font-size: 13px; color: #ff6fb5; cursor: pointer; text-decoration: underline; }
 
@@ -597,3 +597,6 @@
       cursor: pointer;
       text-align: left;
     }
+
+#malicePanel { margin-top: 6px; font-size: 14px; }
+#logoutLink { font-size: 13px; color: #ff6fb5; }

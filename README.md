@@ -20,6 +20,9 @@ We are remaking the whole game from the ground up in Javascript.
 - **Playable charaters:** surviors **Lux** and **Toko**, and the killer **Evil Lux**. each has their own abilities.
 - **Dynamic timer:** 120s base plus 30s per player, capped at 10 minutes.
 - **Escape zone:** survivors can reach the safe exit to win. similar to the ring exit in Outcome Memories and The Disaster.
+- **Formbar login:** names come from your Formbar account, no more typing a username.
+- **Digipogs:** every round costs 25 digipogs (set `ROUND_COST` in `.env`), paid into a Formbar pool.
+- **Killer malice:** everyone who plays a round gains malice, and the player with the most malice becomes the killer next round (the killer's malice resets). Malice can be bought with digipogs during intermission.
 - **In-game chat:** with a profanity and word filter that handles leetspeak and other bypasses, a spam cooldown, and temporary mutes.
 - **AFK handling:**, spectating and a built-in **mod menu** for admins.
 - **Dynamic music & sfx:** chase and terror radius themes.
@@ -28,6 +31,14 @@ We are remaking the whole game from the ground up in Javascript.
 * **RAM**: One Billion Gazillion Gigabytes DDR8
 * **CPU**: Intel i99 700000 MT/s
 * dude its just a web browser game
+
+## Setup
+
+1. Copy `.env-template` to `.env` and fill in `FORMBAR_ADDRESS`, `URL` and `POOL_ID`.
+2. Add your Formbar user ID to `admins.txt` if you want the mod menu.
+3. Players log in with Formbar and enter their digipog PIN once. The PIN is kept in server memory only.
+
+Costs and malice settings (all in `.env`): `ROUND_COST` (25), `MALICE_PRICE` (10), `MALICE_PER_BUY` (1), `MALICE_PER_ROUND` (1). Set `ROUND_COST=0` for free rounds.
 
 ## Quick start
 

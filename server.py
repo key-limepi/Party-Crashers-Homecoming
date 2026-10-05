@@ -13,10 +13,43 @@ import socket
 import sys
 import time
 import threading
+import base64
+import urllib.error
+import urllib.request
+import urllib.parse
+from http.cookies import SimpleCookie
 from fnmatch import fnmatchcase
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8000
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def load_env():
+    """read .env into os.environ (real env vars win)"""
+    try:
+        with open(os.path.join(HERE, ".env"), encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    os.environ.setdefault(key.strip(), val.strip().strip('"\''))
+    except OSError:
+        pass
+
+
+load_env()
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", 8000))
+
+# formbar + digipog settings (all can be changed in .env)
+FORMBAR_ADDRESS = os.environ.get("FORMBAR_ADDRESS", "").rstrip("/")
+FORMBAR_CLIENT_URL = os.environ.get("FORMBAR_CLIENT_URL", FORMBAR_ADDRESS).rstrip("/")
+APP_URL = os.environ.get("URL", f"http://localhost:{PORT}").rstrip("/")
+POOL_ID = int(os.environ.get("POOL_ID", 0) or 0) # pool that receives the digipogs
+ROUND_COST = int(os.environ.get("ROUND_COST", 25)) # digipogs per round, 0 = free
+MALICE_PER_ROUND = int(os.environ.get("MALICE_PER_ROUND", 1)) # malice earned for playing a round
+MALICE_PRICE = int(os.environ.get("MALICE_PRICE", 10)) # digipogs per malice purchase
+MALICE_PER_BUY = int(os.environ.get("MALICE_PER_BUY", 1)) # malice gained per purchase
+DIGIPOGS_ON = ROUND_COST > 0 or MALICE_PRICE > 0 # players need a pin when money is involved
 TIMEOUT = 25 # patient timeouts
 ROUND_BASE = 120 # base time
 ROUND_PER_PLAYER = 30 # per player
@@ -59,6 +92,9 @@ QUICK_CHAT = (
     "good luck!!", "killer here!!", "split up!!", "gg!!",
 ) # only these may post
 muted_mids = {} # mute list
+sessions = {} # login cookie -> {"fid", "name", "pin"}
+MALICE_FILE = os.path.join(HERE, "malice.json")
+malice = {} # formbar id -> malice points
 
 
 def load_admins():
@@ -79,7 +115,6 @@ EXTRA_FILTER = [
      "tags": ["general"], "severity": 1},
 ]
 SEP = r"[\W_]*" # split letters
-HERE = os.path.dirname(os.path.abspath(__file__))
 # list files
 FILTER_WORDS = set()
 FILTER_BLOBS = set()
@@ -209,6 +244,105 @@ def _player_activity():
     ) or "none"
 
 
+# formbar login, digipogs and malice
+
+
+def jwt_claims(token):
+    """read the payload of a formbar token (formbar itself is asked to verify it)"""
+    try:
+        part = token.split(".")[1]
+        return json.loads(base64.urlsafe_b64decode(part + "=" * (-len(part) % 4)))
+    except (IndexError, ValueError):
+        return {}
+
+
+def formbar_user(token):
+    """ask formbar who this token belongs to, returns (id, display name) or (None, None)"""
+    req = urllib.request.Request(f"{FORMBAR_ADDRESS}/api/v1/user/me",
+                                 headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.load(r).get("data") or {}
+    except (OSError, ValueError):
+        return None, None
+    claims = jwt_claims(token)
+    fid = data.get("id") or claims.get("id")
+    name = data.get("displayName") or data.get("username") or claims.get("displayName")
+    return (str(fid), str(name)[:24]) if fid and name else (None, None)
+
+
+def formbar_transfer(fid, pin, amount, reason):
+    """send digipogs from a player to the pool, returns (ok, message)"""
+    payload = {"from": int(fid), "to": POOL_ID, "amount": amount,
+               "pin": int(pin), "reason": reason, "pool": True}
+    req = urllib.request.Request(f"{FORMBAR_ADDRESS}/api/v1/digipogs/transfer",
+                                 data=json.dumps(payload).encode(),
+                                 headers={"Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=10) as r:
+            body = json.load(r)
+    except urllib.error.HTTPError as err:
+        try:
+            body = json.load(err)
+        except ValueError:
+            body = {}
+    except (OSError, ValueError):
+        return False, "could not reach formbar"
+    inner = body.get("data") if isinstance(body.get("data"), dict) else body
+    ok = bool(body.get("success")) and inner.get("success", True) is not False
+    msg = inner.get("message") or body.get("message") or body.get("error") or ""
+    return ok, str(msg)[:80]
+
+
+def charge_player(pid):
+    """take the round fee from one player, runs in its own thread so the game never waits"""
+    with lock:
+        pl = players.get(pid)
+        if not pl:
+            return
+        fid = pl["fid"]
+        pin = sessions.get(pl["sid"], {}).get("pin")
+        round_no = current_round + 1
+    if pin:
+        ok, msg = formbar_transfer(fid, pin, ROUND_COST, f"party crashers round {round_no}")
+    else:
+        ok, msg = False, "no pin set"
+    with lock:
+        pl = players.get(pid)
+        if pl:
+            pl["paid"] = ok
+            pl["pay_msg"] = "" if ok else (msg or "payment failed")
+    print(f"[PAY] {fid} round fee {'paid' if ok else 'failed: ' + msg}", flush=True)
+
+
+def load_malice():
+    try:
+        with open(MALICE_FILE, encoding="utf-8") as f:
+            malice.update(json.load(f))
+    except (OSError, ValueError):
+        pass
+
+
+def set_malice(fid, amount):
+    malice[fid] = max(0, amount)
+    try:
+        with open(MALICE_FILE, "w", encoding="utf-8") as f:
+            json.dump(malice, f)
+    except OSError:
+        print("!! could not save malice.json", flush=True)
+
+
+def add_malice(fid, amount):
+    set_malice(fid, malice.get(fid, 0) + amount)
+
+
+def pick_killer(candidates):
+    """the player with the most malice becomes the killer, ties are random"""
+    best = max(malice.get(pl["fid"], 0) for pl in candidates.values())
+    top = [pid for pid, pl in candidates.items() if malice.get(pl["fid"], 0) == best]
+    return random.choice(top)
+
+
 def start_intermission():
     # break once
     global phase, phase_end
@@ -228,9 +362,16 @@ def start_select():
         return
     for pl in players.values():
         pl["char"] = None # fresh picks
-    killer_id = None
-    killer_id = random.choice(list(here.keys()))
-    print(f"[GAME] preselected evil: {players[killer_id]['name']}", flush=True)
+        pl["paid"] = False
+    for pid, pl in here.items():
+        # none means we are still waiting on formbar
+        pl["paid"] = None if ROUND_COST > 0 else True
+        pl["pay_msg"] = ""
+        if ROUND_COST > 0:
+            threading.Thread(target=charge_player, args=(pid,), daemon=True).start()
+    killer_id = pick_killer(here)
+    print(f"[GAME] preselected evil: {players[killer_id]['name']} "
+          f"(malice {malice.get(players[killer_id]['fid'], 0)})", flush=True)
     phase = "select"
     phase_end = time.time() + SELECT_TIME
     print("[GAME] State: CHARACTER_SELECT (30s)", flush=True)
@@ -243,7 +384,8 @@ def start_round():
     pending_end = 0
     lms_set = False
     lms_notice_until = 0.0
-    eligible = _here_players()
+    # only players who paid the round fee can play
+    eligible = {pid: pl for pid, pl in _here_players().items() if pl.get("paid")}
     if len(eligible) < 2:
         round_players.clear()
         killer_id = None
@@ -266,8 +408,9 @@ def start_round():
     last_hit.clear()
     # find killer
     if killer_id not in round_players:
-        killer_id = random.choice(list(round_players))
+        killer_id = pick_killer({pid: players[pid] for pid in round_players})
         print(f"!! fallback - {players[killer_id]['name']} is EVIL LUX!!", flush=True)
+    set_malice(players[killer_id]["fid"], 0) # killer starts over
     current_round += 1
     phase = "round"
     round_start = time.time()
@@ -292,6 +435,10 @@ def end_round(winner):
     last_hit.clear()
     name = players.get(killer_id, {}).get("name", "???") if killer_id else "???"
     result = {"winner": winner, "killer_name": name}
+    for pid in round_players:
+        # everyone who played (except the killer) gains malice
+        if pid in players and pid != killer_id:
+            add_malice(players[pid]["fid"], MALICE_PER_ROUND)
     killer_id = None # drop evil
     round_players.clear()
     phase = "intermission"
@@ -348,7 +495,9 @@ def game_tick():
                         phase = "lobby"
                         killer_id = None
                         print("!! not enough players - back to lobby!!", flush=True)
-                    elif all(pl.get("char") for pid, pl in here.items() if pid != killer_id):
+                    elif (all(pl.get("char") for pid, pl in here.items()
+                              if pid != killer_id and pl.get("paid") is not False)
+                          and not any(pl.get("paid") is None for pl in here.values())):
                         # quick start
                         print("[GAME] everyone picked - starting early!!", flush=True)
                         start_round()
@@ -439,6 +588,20 @@ class Handler(SimpleHTTPRequestHandler):
             ip = ip[7:]
         return ip
 
+    def _session(self):
+        """the logged in formbar user for this browser, or None"""
+        cookie = SimpleCookie(self.headers.get("Cookie", ""))
+        morsel = cookie.get("pch_sid")
+        sess = sessions.get(morsel.value) if morsel else None
+        return sess
+
+    def _redirect(self, url, cookie=None):
+        self.send_response(302)
+        self.send_header("Location", url)
+        if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+
     def _send_json(self, obj, code=200):
         body = json.dumps(obj).encode()
         try:
@@ -464,39 +627,56 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         global killer_id
+        if self.path == "/api/pin":
+            # the pin stays in server memory only and is never sent back
+            sess = self._session()
+            pin = str(self._read_json().get("pin", "")).strip()
+            if not sess:
+                self._send_json({"ok": False, "reason": "log in first!!"}, 401)
+            elif not (pin.isdigit() and 4 <= len(pin) <= 8):
+                self._send_json({"ok": False, "reason": "pin should be 4 to 8 digits!!"})
+            else:
+                sess["pin"] = pin
+                self._send_json({"ok": True})
+            return
+
         if self.path == "/api/join":
             data = self._read_json()
+            sess = self._session()
+            if not sess:
+                self._send_json({"error": "log in with formbar!!", "login": True}, 401)
+                return
+            if DIGIPOGS_ON and not sess.get("pin"):
+                self._send_json({"error": "enter your digipog pin!!", "pin": True}, 401)
+                return
             with lock:
                 if phase == "round":
                     # locked match
                     self._send_json({"error": "match running!!"}, 403)
                     return
                 pid = secrets.token_hex(4)
-                # stays forever
-                # name numbers
-                mid = str(data.get("mid") or "")[:32] or secrets.token_hex(8)
-                # drop ghosts
+                # the formbar id is the machine id, so mods and mutes follow the account
+                mid = sess["fid"]
                 tab = str(data.get("tab") or "")[:16]
-                for _old in [p for p, pl in players.items()
-                             if tab and pl.get("tab") == tab]:
-                    del players[_old]
-                # take over
-                for _old in [p for p, pl in players.items()
-                             if pl.get("mid") == mid and time.time() - pl.get("last", 0) > 10]:
+                # one tab per account
+                for pl in players.values():
+                    if pl.get("mid") == mid and pl.get("tab") != tab and time.time() - pl.get("last", 0) <= 10:
+                        self._send_json({"error": "already online in another tab!!"}, 403)
+                        return
+                for _old in [p for p, pl in players.items() if pl.get("mid") == mid]:
                     if killer_id == _old:
                         killer_id = pid
                     del players[_old]
-                # tab numbers
-                disc = int(hashlib.sha1(f"{mid}:{tab}".encode()).hexdigest(), 16) % 10000
-                raw_name = str(data.get("name", "friend"))[:16] or "friend"
-                if not is_clean(raw_name):
-                    raw_name = "friend"
                 players[pid] = {
                     "mid": mid,
+                    "fid": sess["fid"],
+                    "sid": sess["sid"],
                     "tab": tab,
                     "char": None, # pick spot
                     "maxhp": 100, # told maxhp
-                    "name": f"{raw_name}#{disc:04d}",
+                    "name": sess["name"],
+                    "paid": False,
+                    "pay_msg": "",
                     "x": 60, "y": 100, "facing": 1,
                     "hp": 100, "moving": False, "onGround": False,
                     "alive": True, "invis": False, "m1": True,
@@ -508,6 +688,33 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json({"id": pid, "mid": mid, "name": players[pid]["name"],
                              "mod": mid in load_admins(),
                              "muted": max(0, int(muted_mids.get(mid, 0) - time.time()))})
+            return
+
+        if self.path == "/api/malice/buy":
+            # buying only works in intermission, the formbar call happens outside the lock
+            data = self._read_json()
+            with lock:
+                me = players.get(data.get("id"))
+                if not me or phase != "intermission":
+                    self._send_json({"ok": False, "reason": "malice is sold during intermission only!!"})
+                    return
+                if MALICE_PRICE <= 0:
+                    self._send_json({"ok": False, "reason": "malice is not for sale!!"})
+                    return
+                fid = me["fid"]
+                pin = sessions.get(me["sid"], {}).get("pin")
+            if not pin:
+                self._send_json({"ok": False, "reason": "enter your digipog pin first!!"})
+                return
+            ok, msg = formbar_transfer(fid, pin, MALICE_PRICE, "party crashers malice")
+            if not ok:
+                self._send_json({"ok": False, "reason": msg or "payment failed!!"})
+                return
+            with lock:
+                add_malice(fid, MALICE_PER_BUY)
+                total = malice.get(fid, 0)
+            print(f"!! {me['name']} bought malice ({total})", flush=True)
+            self._send_json({"ok": True, "malice": total})
             return
 
         if self.path == "/api/state":
@@ -764,6 +971,8 @@ class Handler(SimpleHTTPRequestHandler):
                     print(f"!! mod skipped the wait!!", flush=True)
                 elif action == "forcestart":
                     if len(_here_players()) >= 2:
+                        for pl in _here_players().values():
+                            pl["paid"] = True # mod matches are free
                         start_round()
                         print(f"!! mod forced a match!!", flush=True)
                     else:
@@ -811,6 +1020,41 @@ class Handler(SimpleHTTPRequestHandler):
         self._send_json({"error": "nope!!"}, 404)
 
     def do_GET(self):
+        url = urllib.parse.urlparse(self.path)
+        if url.path == "/login":
+            # formbar sends the browser back here with ?token=
+            token = urllib.parse.parse_qs(url.query).get("token", [""])[0]
+            if not token:
+                back = urllib.parse.quote(f"{APP_URL}/login", safe="")
+                self._redirect(f"{FORMBAR_CLIENT_URL}/oauth?redirectURL={back}")
+                return
+            fid, name = formbar_user(token)
+            if not fid:
+                self._send_json({"error": "formbar login failed!!"}, 401)
+                return
+            sid = secrets.token_hex(16)
+            sessions[sid] = {"sid": sid, "fid": fid, "name": name, "pin": None}
+            secure = "; Secure" if APP_URL.startswith("https") else ""
+            self._redirect("/", f"pch_sid={sid}; Path=/; HttpOnly; SameSite=Lax{secure}")
+            return
+        if url.path == "/logout":
+            sess = self._session()
+            if sess:
+                sessions.pop(sess["sid"], None)
+            self._redirect("/", "pch_sid=; Path=/; Max-Age=0")
+            return
+        if self.path == "/api/me":
+            sess = self._session()
+            self._send_json({
+                "logged_in": bool(sess),
+                "name": sess["name"] if sess else None,
+                "has_pin": bool(sess and sess.get("pin")),
+                "needs_pin": DIGIPOGS_ON,
+                "round_cost": ROUND_COST,
+                "malice_price": MALICE_PRICE,
+                "malice_per_buy": MALICE_PER_BUY,
+            })
+            return
         if self.path == "/api/players":
             now = time.time()
             with lock:
@@ -837,6 +1081,9 @@ class Handler(SimpleHTTPRequestHandler):
                         d["kb"] = None
                     d["idle"] = round(now - pl.get("last", now), 1)
                     d["char"] = pl.get("char")
+                    d["malice"] = malice.get(pl["fid"], 0)
+                    d["paid"] = pl.get("paid")
+                    d["pay_msg"] = pl.get("pay_msg", "")
                     snapshot[pid] = d
                 taken = {pl.get("char") for pl in players.values() if pl.get("char")}
                 self._send_json({
@@ -865,6 +1112,9 @@ class Handler(SimpleHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    load_malice()
+    if not FORMBAR_ADDRESS:
+        print("!! FORMBAR_ADDRESS is not set in .env, nobody can log in!!", flush=True)
     threading.Thread(target=game_tick, daemon=True).start()
     try:
         server = DualStackServer(("::", PORT, 0, 0), Handler)
