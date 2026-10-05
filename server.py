@@ -25,6 +25,7 @@ ROUND_TIME = 300 # backup time
 INTER_TIME = 30 # break time
 SELECT_TIME = 30 # pick time
 GRACE_TIME = 5 # safe start
+LMS_DURATIONS = {"lux": 209.712, "sonic": 266.904} # anthem lengths; default track is 105.091s
 TOUCH_DIST = 55 # touch range
 TOUCH_DMG = 25 # hit damage
 TOUCH_COOLDOWN = 1.0
@@ -385,7 +386,7 @@ def game_tick():
                                 end_round("survivors")
                         elif not k.get("alive", True) or k.get("hp", 100) <= 0:
                             end_round("survivors") # killer died
-                        elif now >= phase_end and not lms_set:
+                        elif now >= phase_end:
                             end_round("survivors") # slow survivors
                         else:
                             alive = _alive_players()
@@ -397,6 +398,7 @@ def game_tick():
                                     # death duel
                                     lms_set = True
                                     _lc = players.get(survs[0], {}).get("char")
+                                    phase_end = now + LMS_DURATIONS.get(_lc, 105.091)
                                     lms_notice_until = now + 5
                                     print(f"!! LMS ({_lc} vs evil) - fight!!", flush=True)
                             # manual swings
@@ -614,9 +616,9 @@ class Handler(SimpleHTTPRequestHandler):
                         dmg = max(0, min(100, int(data.get("dmg", 0))))
                     except (ValueError, TypeError):
                         dmg = 0
-                    # half damage
+                    # 25% damage reduction
                     if lms_set and not vic_evil:
-                        dmg = (dmg + 1) // 2
+                        dmg = (dmg * 3 + 3) // 4
                     try:
                         stun = max(0, min(5, float(data.get("stun", 0))))
                     except (ValueError, TypeError):

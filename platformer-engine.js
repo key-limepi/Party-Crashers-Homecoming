@@ -191,7 +191,7 @@ class PlatformerEngine {
     const p = this.player;
     if (!p || p.alive === false) return;
     // soften hits
-    if (source !== 'killer' && this.lmsResist && !p.evil) n = Math.ceil(n / 2);
+    if (source !== 'killer' && this.lmsResist && !p.evil) n = Math.ceil(n * 0.75);
     if (source === 'killer' && (p.cowerT ?? 0) > 0) {
       p.cowerT = 0;
       p.cowering = false;
