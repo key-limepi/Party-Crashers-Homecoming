@@ -71,6 +71,7 @@ SPIKE_DMG = 30
 players = {} # player list
 spikes = {} # trap list
 bombs = {} # tails traps
+bomb_tosses = {} # airborne tails bomb throws
 alerts = [] # ping list
 # pick pair
 CHARACTERS = [
@@ -205,6 +206,7 @@ def is_clean(text):
     return True
 spike_seq = 0
 bomb_seq = 0
+bomb_toss_seq = 0
 lock = threading.Lock()
 
 phase = "lobby" # phase flow
@@ -868,11 +870,32 @@ class Handler(SimpleHTTPRequestHandler):
             return
 
         if self.path == "/api/bomb":
-            # tails traps
-            global bomb_seq
+            # tails traps and airborne throws
+            global bomb_seq, bomb_toss_seq
             data = self._read_json()
             with lock:
                 me = players.get(data.get("id"))
+                if (data.get("action") == "throw" and me and phase == "round"
+                        and me.get("char") == "tails" and not me.get("evil")):
+                    try:
+                        x, y = float(data.get("x", 0)), float(data.get("y", 0))
+                        vx, vy = float(data.get("vx", 0)), float(data.get("vy", 0))
+                    except (ValueError, TypeError):
+                        self._send_json({"ok": False, "reason": "bad throw"})
+                        return
+                    if not (x == x and y == y and vx == vx and vy == vy):
+                        self._send_json({"ok": False, "reason": "bad throw"})
+                        return
+                    while len(bomb_tosses) >= 50:
+                        oldest = min(bomb_tosses, key=lambda s: bomb_tosses[s]["at"])
+                        del bomb_tosses[oldest]
+                    bomb_toss_seq += 1
+                    tid = f"t{bomb_toss_seq}"
+                    toss = {"id": tid, "x": x, "y": y, "vx": vx, "vy": vy,
+                            "by": me["name"], "at": time.time()}
+                    bomb_tosses[tid] = toss
+                    self._send_json({"ok": True, "toss": toss})
+                    return
                 if (data.get("action") == "place" and me and phase == "round"
                         and me.get("char") == "tails" and not me.get("evil")):
                     try:
@@ -1236,6 +1259,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "result": result,
                     "spikes": [dict(s, id=sid) for sid, s in spikes.items()],
                     "bombs": [dict(s, id=bid) for bid, s in bombs.items()],
+                    "tosses": [dict(s) for s in bomb_tosses.values()],
                     "alerts": list(alerts),
                     "chat": [dict(m) for m in chat_log],
                     "chars": [dict(c, taken=c["id"] in taken) for c in CHARACTERS],
