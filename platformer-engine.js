@@ -116,6 +116,7 @@ class PlatformerEngine {
     this.moveSpeed = opts.moveSpeed ?? 260; // walk speed
     this.jumpSpeed = opts.jumpSpeed ?? 780; // jump speed
     this.airControl = opts.airControl ?? 0.7;
+    this.tossGravity = opts.tossGravity ?? 2300; // clearer bomb arcs
 
     this.bodies = [];
     this.statics = [];
@@ -272,11 +273,11 @@ class PlatformerEngine {
   }
 
   // bomb toss arc
-  addToss(x, y, vx, vy, img) {
+  addToss(x, y, vx, vy, img, id = null) {
     // real body, so walls and floors stop it
     const b = new Body(x - BOMB_R, y - BOMB_R, BOMB_R * 2, BOMB_R * 2, { color: '#333' });
     b.vel.x = vx; b.vel.y = vy;
-    const t = { body: b, x, y, age: 0, landed: false, spin: 0, img };
+    const t = { body: b, x, y, age: 0, landed: false, spin: 0, img, id };
     this.tosses.push(t);
     if (this.tosses.length > 8) this.tosses.shift();
     return t;
@@ -288,7 +289,7 @@ class PlatformerEngine {
       t.age += dt;
       if (t.landed) continue;
       const b = t.body;
-      b.vel.y += this.gravity * dt; // same gravity as everyone
+      b.vel.y += this.tossGravity * dt;
       b.onGround = false;
       this.moveBody(b, dt, this.statics); // walls and floors
       t.x = b.pos.x + b.w / 2;

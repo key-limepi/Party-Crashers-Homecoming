@@ -1150,6 +1150,7 @@ function loadImg(src) {
     };
     // bomb boom
     const boomedIds = new Set(); // already popped
+    const seenTosses = new Set(); // synchronized throws already rendered
     game.onBombTrip = (bb) => {
       const me = game.player;
       if (!me || !me.evil) return;
@@ -1726,6 +1727,12 @@ function loadImg(src) {
           }
         }
         game.bombs = data.bombs || [];
+        for (const toss of (data.tosses || [])) {
+          if (!seenTosses.has(toss.id)) {
+            seenTosses.add(toss.id);
+            game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id);
+          }
+        }
         game.alerts = data.alerts || [];
         // chat log
         for (const m of (data.chat || [])) {
@@ -1813,7 +1820,18 @@ function loadImg(src) {
                   TW.throwUntil = now + 300;
                   setPose('throw', 300);
                   // lob it, gravity does the rest
-                  game.addToss(p.pos.x + p.w / 2 + dir * 16, p.pos.y + 8, dir * 620, -520);
+                  const throwX = p.pos.x + p.w / 2 + dir * 16;
+                  const throwY = p.pos.y + 8;
+                  const throwVx = dir * 620;
+                  const throwVy = -620;
+                  game.addToss(throwX, throwY, throwVx, throwVy, game.bombImg);
+                  fetch('/api/bomb', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: net.id, action: 'throw', x: throwX, y: throwY, vx: throwVx, vy: throwVy }),
+                  }).then((response) => response.json()).then((payload) => {
+                    if (payload.toss?.id) seenTosses.add(payload.toss.id);
+                  }).catch(() => {});
                   fileSfx(SFX + 'spike_place.wav', {});
                 }
               } else if (ab === 'C' && now >= TW.whipCD && !TW.whipUntil && !TW.flying) {
