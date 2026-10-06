@@ -28,6 +28,7 @@ function loadImg(src) {
       { id: 'lux', name: 'LUX', nameImg: CS + 'luxname.png' },
       { id: 'toko', name: 'TOKO', nameImg: CS + 'tokoname.png' },
       { id: 'sonic', name: 'SONIC', nameImg: CS + 'sonicname.png' },
+      { id: 'tails', name: 'TAILS', nameImg: CS + 'tailsname.png' },
     ];
     const TOKO = "./Assets/Images/Characters/Survivors/Toko/";
     const tokoSprites = {
@@ -58,12 +59,31 @@ function loadImg(src) {
       spin: [loadImg(SONIC + "sonic_spindash1.png"), loadImg(SONIC + "sonic_spindash2.png"), loadImg(SONIC + "sonic_spindash3.png")],
       charge: loadImg(SONIC + "sonic_peeloutcharge.png"),
     };
-    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, evil: null }; // evil later
+    const TAILS = "./Assets/Images/Characters/Survivors/Tails/";
+    const tailsSprites = {
+      idle: [loadImg(TAILS + "idle.png"), loadImg(TAILS + "idle.png"), loadImg(TAILS + "idle.png"), loadImg(TAILS + "idle_blink1.png"), loadImg(TAILS + "idle_blink2.png")],
+      walk: [loadImg(TAILS + "walk1.png"), loadImg(TAILS + "walk2.png"), loadImg(TAILS + "walk3.png"), loadImg(TAILS + "walk4.png"), loadImg(TAILS + "walk5.png"), loadImg(TAILS + "walk6.png")],
+      run: [loadImg(TAILS + "run1.png"), loadImg(TAILS + "run2.png"), loadImg(TAILS + "run3.png"), loadImg(TAILS + "run4.png"), loadImg(TAILS + "run5.png"), loadImg(TAILS + "run6.png")],
+      jump: loadImg(TAILS + "jump.png"),
+      fall: loadImg(TAILS + "fall.png"),
+      fly: [loadImg(TAILS + "fly.png"), loadImg(TAILS + "fly2.png"), loadImg(TAILS + "fly3.png")],
+      stun: loadImg(TAILS + "fall.png"),
+      struggle: [loadImg(TAILS + "fall.png")],
+      cower: loadImg(TAILS + "idle_blink2.png"),
+      dash: loadImg(TAILS + "run1.png"),
+      whip: [loadImg(TAILS + "tailwhip.png"), loadImg(TAILS + "tailwhip2.png"), loadImg(TAILS + "tailwhip3.png"), loadImg(TAILS + "tailwhip4.png"), loadImg(TAILS + "tailwhip5.png"), loadImg(TAILS + "tailwhip6.png"), loadImg(TAILS + "tailwhip7.png")],
+      throw: loadImg(TAILS + "throw.png"),
+      throw2: loadImg(TAILS + "throw2.png"),
+      airthrow: loadImg(TAILS + "airthrow.png"),
+      airthrow2: loadImg(TAILS + "airthrow2.png"),
+      bomb: loadImg(TAILS + "bomb.png"),
+    };
+    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, tails: tailsSprites, evil: null }; // evil later
     function wearChar(id) {
       game.setPlayerSprites(charSprites[id] || luxSprites);
       // true size
       game.player.drawW = 50;
-      game.player.drawH = id === 'sonic' ? 64 : 70;
+      game.player.drawH = (id === 'sonic' || id === 'tails') ? 64 : 70;
     }
     game.setPlayerSprites(luxSprites);
 
@@ -88,20 +108,19 @@ function loadImg(src) {
       m1: null, // random swing
     };
 
-    // exit door
-    game.exitZone = { x: 2575, y: 1787, w: 60, h: 100 };
-    const EXIT_X = 2605, EXIT_SAFE = 150;
     game.chatBubbleImg = loadImg("./Assets/Images/UI/chatbub.png");
     game.alertArrow = loadImg("./Assets/Images/UI/CharacterSelect/left.png"); // ping arrow
     game.spikeImg = loadImg("./Assets/Images/Characters/Killers/Evil Lux/spikes.png");
+    game.bombImg = loadImg(TAILS + "bomb.png");
+    game.boomImg = loadImg("./Assets/Images/Objects/explosion.gif");
 
     // big map
     const LV_SPAWN = { x: 100, y: 880 }; // west pillar-side ground
-    const LV_EXIT = { x: 2575, y: 1787, w: 60, h: 100 }; // far east floor
+    const LV_EAST = { x: 2575, y: 1787 }; // far east floor
     game.loadLevel(LEVEL_ROUGH_DRAFT, loadImg('./Assets/Images/Levels/RoughDraft.png'), { background: '#3b2a2a', backdrop: loadImg('./Assets/Images/Levels/RoughDraft_bg.jpg') }); // rough draft
     game.mapBg.inter = '#bfe9ff';
     game.spawn = { x: LV_SPAWN.x, y: LV_SPAWN.y };
-    game.evilSpawn = { x: LV_EXIT.x, y: LV_EXIT.y - 120 };
+    game.evilSpawn = { x: LV_EAST.x, y: LV_EAST.y - 120 };
     // spring pads
     const SPR = './Assets/Images/Objects/';
     game.addSpring(927, 652, 1200, loadImg(SPR + 'spring_orange.png'));
@@ -158,7 +177,7 @@ function loadImg(src) {
           game.debug = !game.debug;
           debugBox.style.display = game.debug ? 'block' : 'none';
         } else {
-          sayStatus(`mods only!! click 'show my id' below, paste it in admins.txt!!`, 5);
+          sayStatus(`mods only!! click 'show my id' below, paste the formbar id in admins.txt!!`, 5);
         }
       }
     });
@@ -183,6 +202,24 @@ function loadImg(src) {
     document.getElementById('meEvilBtn').addEventListener('click', () => mod('makekiller', { target: net.id }));
     document.getElementById('randEvilBtn').addEventListener('click', () => mod('makekiller', { target: 'random' }));
     document.getElementById('clearSpikesBtn').addEventListener('click', () => mod('clearspikes'));
+    const flyBtn = document.getElementById('flyBtn');
+    const noclipBtn = document.getElementById('noclipBtn');
+    const hpBox = document.getElementById('hpBox');
+    const devBox = document.getElementById('devBox');
+    flyBtn.addEventListener('click', () => {
+      if (!net.mod) return;
+      game.fly = !game.fly;
+      flyBtn.textContent = game.fly ? 'fly: on' : 'fly: off';
+    });
+    noclipBtn.addEventListener('click', () => {
+      if (!net.mod) return;
+      game.noclip = !game.noclip;
+      noclipBtn.textContent = game.noclip ? 'noclip: on' : 'noclip: off';
+    });
+    document.getElementById('hpMeBtn').addEventListener('click', () => mod('sethealth', { target: 'me', hp: hpBox.value }));
+    document.getElementById('hpAllBtn').addEventListener('click', () => mod('sethealth', { target: 'all', hp: hpBox.value }));
+    document.getElementById('devOnBtn').addEventListener('click', () => mod('makedev', { char: devBox.value.trim().toLowerCase() }));
+    document.getElementById('devOffBtn').addEventListener('click', () => mod('unmakedev', { char: devBox.value.trim().toLowerCase() }));
     if (new URLSearchParams(location.search).has('debug')) {
       // mod check
       window.__wantDebug = true;
@@ -196,7 +233,7 @@ function loadImg(src) {
         `vel: ${Math.round(p.vel.x)}, ${Math.round(p.vel.y)}\n` +
         `ground: ${p.onGround ? 'yep!!' : 'nope!!'}\n` +
         `phase: ${net.phase}\n` +
-        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
+        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} lmstails=${beds.lmstails.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
     }, 100);
 
     // needs server
@@ -249,6 +286,7 @@ function loadImg(src) {
         if (!me.logged_in) { location.href = '/login'; return; } // formbar login
         if (me.needs_pin && !me.has_pin) {
           pinRow.style.display = 'block';
+          pinBanner.style.display = 'flex';
           sayStatus('enter your digipog pin, then click again!!', 8);
           titleClicked = false;
           return;
@@ -271,8 +309,9 @@ function loadImg(src) {
     window.addEventListener('unhandledrejection', () => {
       try { netError('uh oh!! a request failed, refresh if stuck!!', 10); } catch (_) { /* too broken!! */ }
     });
-    // formbar account, digipog pin and malice shop
+    // account shop
     const pinRow = document.getElementById('pinRow');
+    const pinBanner = document.getElementById('pinBanner');
     const pinBox = document.getElementById('pinBox');
     const malicePanel = document.getElementById('malicePanel');
     const maliceNum = document.getElementById('maliceNum');
@@ -291,8 +330,9 @@ function loadImg(src) {
       if (out.ok) {
         pinBox.value = '';
         pinRow.style.display = 'none';
+        pinBanner.style.display = 'none';
         sayStatus('pin saved!! click the title to play!!', 6);
-        if (net.id) { net.id = null; joinOnline(); } // retry a join that needed the pin
+        if (net.id) { net.id = null; joinOnline(); } // retry join
       } else {
         sayStatus(out.reason || 'pin not saved!!', 5);
       }
@@ -319,7 +359,7 @@ function loadImg(src) {
     let midShown = false;
     midBox.addEventListener('click', () => {
       midShown = !midShown;
-      midBox.textContent = midShown ? (net.mid || '?') : 'show my id';
+      midBox.textContent = midShown ? (net.fid || '?') : 'show my id';
     });
     // afk button
     // canvas corner
@@ -371,6 +411,12 @@ function loadImg(src) {
     const EVIL_RUN = ['./Assets/Images/Characters/Killers/Evil Lux/run1.png',
                       './Assets/Images/Characters/Killers/Evil Lux/run2.png'];
     let selIdx = 0, selectOpen = false, takenMap = {}, csFrame = 0;
+    // dev roster
+    let devChars = {};
+    function visRoster() {
+      const list = ROSTER.filter((c) => net.mod || !devChars[c.id]);
+      return list.length ? list : ROSTER.slice(0, 1);
+    }
     let revealUntil = 0; // reveal timer
     let selectClosedAt = 0, closeToken = 0;
     let openStreak = 0, closeStreak = 0, revealedRound = null;
@@ -469,7 +515,9 @@ function loadImg(src) {
     }
     function renderSelect() {
       // pick bar
-      const cur = ROSTER[selIdx];
+      const vis = visRoster();
+      selIdx = ((selIdx % vis.length) + vis.length) % vis.length;
+      const cur = vis[selIdx];
       const csNameText = document.getElementById('csNameText');
       csName.style.display = '';
       csNameText.style.display = 'none';
@@ -485,14 +533,16 @@ function loadImg(src) {
       csName.style.visibility = evilLocked ? 'hidden' : '';
     }
     function browseSelect(dir) {
-      selIdx = (selIdx + dir + ROSTER.length) % ROSTER.length;
+      const vis = visRoster();
+      selIdx = (selIdx + dir + vis.length) % vis.length;
       renderSelect();
     }
     function lockPick() {
       if (net.phase !== 'select') return; // select only
       if (game.player && game.player.evil) return; // killers skip
       if (net.amKillnrElect) return; // evil skips
-      const cur = ROSTER[selIdx];
+      const vis = visRoster();
+      const cur = vis[((selIdx % vis.length) + vis.length) % vis.length];
       fetch('/api/pick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -669,6 +719,7 @@ function loadImg(src) {
       lms: loopTrack(MUS + 'last_man_standing.mp3', false),
       lmslux: loopTrack(MUS + 'lux_lms.mp3', false), // lux anthem
       lmssonic: loopTrack(MUS + 'sonic_lms.mp3', false), // sonic anthem
+      lmstails: loopTrack(MUS + 'tails_lms.mp3', false), // tails anthem
       chase: loopTrack(MUS + 'chase_elux.mp3'),
       terror: loopTrack(MUS + 'terror_radius_elux.mp3'),
       charselect: loopTrack(MUS + 'charselect.mp3'),
@@ -681,12 +732,12 @@ function loadImg(src) {
     // lms rules
     let lmsTrack = null; // track ids
     let lmsEnded = false;
-    for (const key of ['lms', 'lmslux', 'lmssonic']) {
+    for (const key of ['lms', 'lmslux', 'lmssonic', 'lmstails']) {
       beds[key].addEventListener('ended', () => {
         if (lmsTrack === key) lmsEnded = true;
       });
     }
-    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'chase', 'terror', 'charselect'];
+    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'chase', 'terror', 'charselect'];
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.key.toLowerCase() !== 'm') return;
       soloIdx = soloIdx >= soloOrder.length - 1 ? -1 : soloIdx + 1;
@@ -759,6 +810,7 @@ function loadImg(src) {
       windupUntil: 0, chargeUntil: 0, charging: false,
     };
     const trippedIds = new Set(); // used spikes
+    const bombPos = {}; // last seen spots
     const abilBar = document.getElementById('abilities');
     // party list
     const partyList = document.getElementById('partyList');
@@ -766,6 +818,7 @@ function loadImg(src) {
       lux: './Assets/Images/UI/luxicon.png',
       toko: './Assets/Images/UI/tokoicon.png',
       sonic: './Assets/Images/UI/sonicicon.png',
+      tails: './Assets/Images/UI/tailsicon.png',
     };
     function renderParty(self, p, others, killerId) {
       partyList.innerHTML = '';
@@ -856,6 +909,12 @@ function loadImg(src) {
           { key: 'Z', name: 'PEELOUT', icon: null, cd: () => SN.peelCD },
           { key: 'X', name: 'SPINDASH', icon: null, cd: () => SN.spinCD },
         ];
+      } else if (isTails()) {
+        abilDefs = [
+          { key: 'Z', name: 'FLY', icon: null, cd: () => TW.flyCD },
+          { key: 'X', name: 'BOMB', icon: null, cd: () => TW.bombCD },
+          { key: 'C', name: 'WHIP', icon: null, cd: () => TW.whipCD },
+        ];
       } else {
         abilDefs = [
           { key: 'Z', name: 'DASH', icon: ABIL_ICONS.dash, cd: () => S.dashCD },
@@ -911,7 +970,7 @@ function loadImg(src) {
       const now = Date.now();
       const p = game.player;
       if (!p || !net.id) return;
-      const role = p.evil ? 'evil' : (isToko() ? 'toko' : (isSonic() ? 'sonic' : 'lux'));
+      const role = p.evil ? 'evil' : (isToko() ? 'toko' : (isSonic() ? 'sonic' : (isTails() ? 'tails' : 'lux')));
       if (role !== abilRole) {
         abilRole = role;
         buildAbilities();
@@ -949,6 +1008,9 @@ function loadImg(src) {
       } else if (char === 'toko') {
         if (pose === 'kick') return tokoSprites.kick[0];
         if (pose === 'jab') return tokoSprites.jab[0];
+      } else if (char === 'tails') {
+        if (pose === 'whip') return tailsSprites.whip[0];
+        if (pose === 'throw') return tailsSprites.throw2;
       } else {
         if (pose === 'dash') return luxDash;
       }
@@ -963,8 +1025,13 @@ function loadImg(src) {
       T.kickUntil = 0; T.jabUntil = 0;
       SN.windupUntil = 0; SN.peelUntil = 0; SN.peeling = false;
       SN.spinWindup = 0; SN.spinUntil = 0; SN.spinning = false;
+      TW.flying = false; TW.flyLeft = 0; TW.whipUntil = 0; TW.holding = false;
+      p.sneakColor = null;
+      TW.bombCD = 0; TW.flyCD = 0; TW.whipCD = 0; TW.throwUntil = 0;
+      p.taxiFly = false;
+      p.rooted = false;
       p.actionImg = null;
-      game.pullSrc = null; game.peelSrc = null;
+      game.pullSrc = null; game.peelSrc = null; game.liftSrc = null;
     }
     // survivor kit
     // hit or whiff
@@ -979,6 +1046,7 @@ function loadImg(src) {
     };
     const isToko = () => effChar() === 'toko';
     const isSonic = () => effChar() === 'sonic';
+    const isTails = () => effChar() === 'tails';
     // costume counts
     function effChar() {
       if (net.phase === 'intermission' && net.costume) return net.costume;
@@ -989,6 +1057,18 @@ function loadImg(src) {
       peelCD: 0, windupUntil: 0, peelUntil: 0, peeling: false,
       spinCD: 0, spinWindup: 0, spinUntil: 0, spinning: false, spinHits: 0, spinTouching: false, spinHitCD: 0,
     };
+    // tails kit
+    const TW = {
+      flyCD: 0, flyLeft: 0, flying: false,
+      bombCD: 0, holding: false, throwUntil: 0,
+      whipCD: 0, whipUntil: 0, whipHit: false,
+    };
+    const FLY_MAX = 10000; // meter
+    const FLY_DRAIN = 95; // per tick, meter burns fast
+    const FLY_COLOR = '#ff8c1a'; // orange
+    const FLY_CD = 25000; // after flight
+    const BOMB_CD = 15000; // trap wait
+    const WHIP_CD = 15000; // whip wait
     game.onCounter = () => {
       // eat hits
       S.countered = true;
@@ -1068,6 +1148,42 @@ function loadImg(src) {
         }).catch(() => {});
       }
     };
+    // bomb boom
+    const boomedIds = new Set(); // already popped
+    game.onBombTrip = (bb) => {
+      const me = game.player;
+      if (!me || !me.evil) return;
+      boomedIds.add(bb.id);
+      fileSfx(SFX + 'explode.mp3', {});
+      game.addBoom(bb.x, bb.y - 20);
+      me.stunT = Math.max(me.stunT || 0, 5); // long stun
+      me.rooted = true;
+      if (net.id) {
+        const pdx = Math.sign((me.pos.x + me.w / 2) - bb.x) || 1;
+        fetch('/api/bomb', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: net.id, action: 'trip', bomb: bb.id, dx: pdx }),
+        }).catch(() => {});
+      }
+    };
+    // touchdown kills the wings
+    game.onFlyLand = () => {
+      TW.flying = false;
+      TW.flyCD = Date.now() + FLY_CD;
+      if (game.player) game.player.taxiFly = false;
+      sayStatus('landed - wings folded!!', 1.5);
+    };
+    // bomb lands where it fell
+    game.onTossLand = (t) => {
+      if (t.dead || !net.id) return;
+      const bx = Math.round(t.x), by = Math.round(t.groundY ?? t.y);
+      fetch('/api/bomb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: net.id, action: 'place', x: bx, y: by }),
+      }).catch(() => {});
+    };
     // spring boing
     game.onSpring = () => {
       if (net.phase === 'round') fileSfx(SFX + 'spring.wav', {});
@@ -1092,7 +1208,7 @@ function loadImg(src) {
           body: JSON.stringify({ tab: tabId }),
         });
         if (res.status === 401) {
-          // not logged in, or no pin yet
+          // no login
           const e = await res.json().catch(() => ({}));
           if (e.login) { location.href = '/login'; return; }
           pinRow.style.display = 'block';
@@ -1122,12 +1238,13 @@ function loadImg(src) {
         setTimeout(() => {
           const titleEl = document.getElementById('titleScreen');
           if (titleEl) titleEl.style.display = 'none';
+          pinBanner.style.display = 'none';
           titleLive = false;
         }, Math.max(0, 3000 - held));
         clearTimeout(net.retry);
         net.mod = !!joined.mod;
         net.everOnline = true; // stay joined
-        net.mid = joined.mid;
+        net.fid = joined.fid;
         sayStatus(`online as ${joined.name}!! friends can see you!! :D`, 4);
         if (window.__wantDebug && joined.mod) openModMenu();
         if (joined.muted > 0) applyMute(joined.muted); // muted stay
@@ -1196,6 +1313,7 @@ function loadImg(src) {
             moving: Math.abs(p.vel.x) > 10, onGround: p.onGround,
             alive: p.alive !== false,
             invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true, spinwindup: !!SN.spinWindup,
+            lift: TW.flying === true,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
             cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup || !!K.pullWindup, pullwindup: !!K.pullWindup,
             dashing: !!S.dashing,
@@ -1221,7 +1339,7 @@ function loadImg(src) {
           net.phase = data.phase;
           soloIdx = -1; // reset ears
           lmsTrack = null; lmsEnded = false; // reset lms
-          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.chase.pause(); beds.terror.pause();
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.chase.pause(); beds.terror.pause();
           clearEvil(p);
           trippedIds.clear();
           if (data.phase !== 'round' || you?.in_round) {
@@ -1230,7 +1348,7 @@ function loadImg(src) {
               game.switchMap('inter', 6120, 100); // island map
               if (data.phase === 'intermission' && !p.evil) {
                 // random look
-                const ids = ['lux', 'toko', 'sonic'];
+                const ids = ['lux', 'toko', 'sonic', 'tails'];
                 wearChar(ids[Math.floor(Math.random() * ids.length)]);
               }
             }
@@ -1366,7 +1484,7 @@ function loadImg(src) {
           // true size
           if (r._lastChar !== r.char) { r._baseFrame = null; r._lastChar = r.char; }
           r.drawW = 50;
-          r.drawH = (!r.evil && r.char === 'sonic') ? 64 : 70;
+          r.drawH = (!r.evil && (r.char === 'sonic' || r.char === 'tails')) ? 64 : 70;
           r.invis = !!d.invis;
           r.stunned = !!d.stunned;
           r.pull = !!d.pull;
@@ -1374,6 +1492,7 @@ function loadImg(src) {
           r.spinning = !!d.spinning;
           r.spinwindup = !!d.spinwindup;
           r.pullwindup = !!d.pullwindup;
+          r.lift = !!d.lift;
           r.dashing = !!d.dashing;
           r.away = !!d.away;
           r.inRound = !!d.in_round;
@@ -1415,6 +1534,11 @@ function loadImg(src) {
           }
           if (!r.evil && r.spinning) {
             r.poseImg = sonicSprites.jump[Math.floor(Date.now() / 60) % 8];
+            r.poseUntil = Date.now() + 150;
+          }
+          // fly for all
+          if (!r.evil && r.lift) {
+            r.poseImg = tailsSprites.fly[Math.floor(Date.now() / 120) % 3];
             r.poseUntil = Date.now() + 150;
           }
           if (p.evil && r._lastHp !== undefined && r.hp < r._lastHp) {
@@ -1469,7 +1593,7 @@ function loadImg(src) {
         }
         if (selectOpen) {
           takenMap = {};
-          for (const c of (data.chars || [])) takenMap[c.id] = !!c.taken;
+          for (const c of (data.chars || [])) { takenMap[c.id] = !!c.taken; devChars[c.id] = !!c.dev; }
           renderSelect();
           const revealing = data.phase === 'round';
           renderLobby(data.players || {}, data.killer_id);
@@ -1506,10 +1630,11 @@ function loadImg(src) {
         }
         const luxLMS = isLMS && lmsChar === 'lux';
         const sonicLMS = isLMS && lmsChar === 'sonic';
-        const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : 'lms');
+        const tailsLMS = isLMS && lmsChar === 'tails';
+        const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : (tailsLMS ? 'lmstails' : 'lms'));
         if (isLMS && lmsTrack !== lmsKey) {
           // start anthem
-          for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic']) {
+          for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic', 'lmstails']) {
             beds[k].pause();
             try { beds[k].currentTime = 0; } catch (_) { /* hush!! */ }
           }
@@ -1519,7 +1644,7 @@ function loadImg(src) {
           if (!p.evil && p.alive !== false) {
             // heal up
             p.maxHp = LMS_HP; p.hp = LMS_HP;
-            S.dashCD = 0; S.cowerCD = 0; T.kickCD = 0; T.jabCD = 0;
+            S.dashCD = 0; S.cowerCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0;
             fetch('/api/heal', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -1528,7 +1653,7 @@ function loadImg(src) {
           }
         } else if (!isLMS && lmsTrack) {
           // lms over
-          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause();
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause();
           lmsTrack = null; lmsEnded = false;
           if (!p.evil) { p.maxHp = 100; p.hp = Math.min(p.hp, 100); } // drop buffs
         }
@@ -1538,7 +1663,8 @@ function loadImg(src) {
         const cands = [
           ['lmslux', luxLMS ? 1 : 0, 0.25],
           ['lmssonic', sonicLMS ? 1 : 0, 0.25],
-          ['lms', isLMS && !luxLMS && !sonicLMS ? 1 : 0, 0.25],
+          ['lmstails', tailsLMS ? 1 : 0, 0.25],
+          ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS ? 1 : 0, 0.25],
           ['chase', chaseT, 0.5],
           ['terror', terrorT, 0.5],
           ['inter', data.phase === 'intermission' ? 1 : 0, 0.3],
@@ -1546,7 +1672,7 @@ function loadImg(src) {
           ['map', data.phase === 'round' ? 1 : 0, 0.12],
           ['wait', data.phase === 'lobby' ? 1 : 0, 0.3],
         ];
-        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, chase: 0, terror: 0, charselect: 0 };
+        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, chase: 0, terror: 0, charselect: 0 };
         const win = cands.find((c) => c[1] > 0.05);
         if (win) bedT[win[0]] = win[2] * (win[0] === 'chase' || win[0] === 'terror' ? win[1] : 1);
         if (document.hidden) for (const k in bedT) bedT[k] = 0; // mute hidden
@@ -1586,6 +1712,20 @@ function loadImg(src) {
         // traps pings
         for (const sp of (data.spikes || [])) if (trippedIds.has(sp.id)) sp.tripped = true;
         game.spikes = data.spikes || [];
+        // bomb sync
+        for (const bb of (data.bombs || [])) bombPos[bb.id] = { x: bb.x, y: bb.y };
+        for (const bid of Object.keys(bombPos)) {
+          if (!(data.bombs || []).some((bb) => bb.id === bid)) {
+            const bp = bombPos[bid];
+            if (data.phase === 'round' && !boomedIds.has(bid)) {
+              game.addBoom(bp.x - 28, bp.y - 28);
+              fileSfx(SFX + 'explode.mp3', {});
+            }
+            boomedIds.delete(bid);
+            delete bombPos[bid];
+          }
+        }
+        game.bombs = data.bombs || [];
         game.alerts = data.alerts || [];
         // chat log
         for (const m of (data.chat || [])) {
@@ -1651,6 +1791,40 @@ function loadImg(src) {
               }
               continue;
             }
+            if (isTails()) {
+              // fly
+              if (ab === 'Z') {
+                if (TW.flying) {
+                  TW.flying = false; // drop out
+                  TW.flyCD = now + FLY_CD * (isLMS ? LMS_CD : 1);
+                } else if (now >= TW.flyCD && !TW.whipUntil) {
+                  TW.flying = true;
+                  TW.flyLeft = FLY_MAX; // meter
+                  fileSfx(SFX + 'dash_release.wav', {});
+                }
+              } else if (ab === 'X' && now >= TW.bombCD && !TW.flying && !TW.throwUntil) {
+                // bomb toss
+                const dir = p.facing || 1;
+                if (!TW.holding) {
+                  sayStatus('no bomb to place!!', 2);
+                } else {
+                  TW.holding = false;
+                  TW.bombCD = now + BOMB_CD * (isLMS ? LMS_CD : 1);
+                  TW.throwUntil = now + 300;
+                  setPose('throw', 300);
+                  // lob it, gravity does the rest
+                  game.addToss(p.pos.x + p.w / 2 + dir * 16, p.pos.y + 8, dir * 620, -520);
+                  fileSfx(SFX + 'spike_place.wav', {});
+                }
+              } else if (ab === 'C' && now >= TW.whipCD && !TW.whipUntil && !TW.flying) {
+                // tailwhip
+                TW.whipUntil = now + 400; TW.whipHit = false;
+                p.rooted = true;
+                setPose('whip', 400);
+                fileSfx(SFX + 'jab_hit.wav', {});
+              }
+              continue;
+            }
             if (ab === 'Z' && now >= S.dashCD && !S.windupUntil && !S.dashing) {
               // dash zoom
               S.windupUntil = now + 3000;
@@ -1699,22 +1873,16 @@ function loadImg(src) {
               fileSfx(SFX + 'denied.wav', {});
               continue;
             }
-            // no exit traps
             const sx = Math.round(p.pos.x + p.w / 2), sy = Math.round(p.pos.y + p.h);
-            if (Math.abs(sx - EXIT_X) < EXIT_SAFE) {
-              sayStatus('too close to exit!!', 2);
-              fileSfx(SFX + 'denied.wav', {});
-            } else {
-              K.spikeCD = now + 10000;
-              p.actionImg = evilAct.spike; p.actionT = 0.5;
-              setPose('spike', 500);
-              fileSfx(SFX + 'spike_place.wav', {});
-              fetch('/api/spike', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: net.id, action: 'place', x: sx, y: sy }),
-              }).catch(() => {});
-            }
+            K.spikeCD = now + 10000;
+            p.actionImg = evilAct.spike; p.actionT = 0.5;
+            setPose('spike', 500);
+            fileSfx(SFX + 'spike_place.wav', {});
+            fetch('/api/spike', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: net.id, action: 'place', x: sx, y: sy }),
+            }).catch(() => {});
           } else if (ab === 'C' && now >= K.sneakCD) {
             // ghost mode
             p.invis = true;
@@ -1842,7 +2010,7 @@ function loadImg(src) {
         // fast ghost
         if (p.evil) game.moveSpeed = p.invis ? 430 : 300;
         // lux dash
-        if (!p.evil && !isToko() && !isSonic()) {
+        if (!p.evil && !isToko() && !isSonic() && !isTails()) {
           if (S.windupUntil && now >= S.windupUntil) {
             S.windupUntil = 0;
             S.dashing = true; S.dashUntil = now + 2000; S.dashHit = false;
@@ -2101,6 +2269,71 @@ function loadImg(src) {
             }
           }
         }
+        // tails ticks
+        if (!p.evil && isTails()) {
+          // stunned drops the flight
+          if (TW.flying && ((p.stunT || 0) > 0 || p.alive === false || data.phase !== 'round')) {
+            TW.flying = false;
+            TW.flyCD = now + FLY_CD * (isLMS ? LMS_CD : 1);
+          }
+          // bomb in hand
+          if (!TW.holding && now >= TW.bombCD) TW.holding = true;
+          if (TW.throwUntil) {
+            // winding the toss
+            const air = !p.onGround;
+            const set = air ? [tailsSprites.airthrow, tailsSprites.airthrow2]
+              : [tailsSprites.throw, tailsSprites.throw2];
+            p.actionImg = set[now >= TW.throwUntil - 200 ? 1 : 0];
+            p.actionT = 0.15;
+            if (now >= TW.throwUntil) TW.throwUntil = 0;
+          }
+          // fly meter
+          if (TW.flying) {
+            TW.flyLeft -= FLY_DRAIN; // burns fast
+            p.taxiFly = true;
+            p.sneakFrac = Math.max(0, TW.flyLeft / FLY_MAX);
+            p.sneakColor = FLY_COLOR;
+            const fl = tailsSprites.fly;
+            p.actionImg = fl[Math.floor(now / 110) % fl.length];
+            p.actionT = 0.15;
+            if (TW.flyLeft <= 0) {
+              TW.flying = false;
+              TW.flyCD = now + FLY_CD * (isLMS ? LMS_CD : 1);
+            }
+          } else {
+            p.taxiFly = false;
+            p.sneakColor = FLY_COLOR;
+            if (!TW.holding && !TW.throwUntil) p.sneakFrac = Math.max(0, TW.flyLeft / FLY_MAX);
+            if (!TW.holding && TW.flyLeft <= 0) p.sneakFrac = 0;
+          }
+          // tailwhip
+          if (TW.whipUntil) {
+            p.actionImg = tailsSprites.whip[Math.floor(now / 60) % tailsSprites.whip.length];
+            p.actionT = 0.15;
+            const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
+            if (!TW.whipHit && ek &&
+                Math.abs((ek.pos.x + ek.w / 2) - (p.pos.x + p.w / 2)) < 90 &&
+                Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 80) {
+              TW.whipHit = true;
+              TW.whipUntil = 0;
+              p.rooted = false;
+              TW.whipCD = now + WHIP_CD * (isLMS ? LMS_CD : 1);
+              const away = (p.pos.x + p.w / 2) >= (ek.pos.x + ek.w / 2) ? 1 : -1;
+              p.vel.x = away * 500;
+              fetch('/api/hit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 0, stun: 1.5 }),
+              }).catch(() => {});
+            } else if (now >= TW.whipUntil) {
+              TW.whipUntil = 0;
+              p.rooted = false;
+              TW.whipCD = now + 25000 * (isLMS ? LMS_CD : 1); // slow whiff
+              p.stunT = Math.max(p.stunT || 0, 1);
+              fileSfx(SFX + 'denied.wav', {}); // missed whip
+            }
+          }
+        }
         // shared ropes
         game.pullSrc = null;
         game.pullLinks = [];
@@ -2125,26 +2358,30 @@ function loadImg(src) {
         }
         // sonic taxi
         game.peelSrc = null;
+        game.liftSrc = null;
         if (!p.evil && p.alive !== false && data.phase === 'round') {
           const jumpEdge = game.input.jump && !p._jumpPrev;
           if (p._rideId) {
             // latched on
-            const ride = game.remotes.find((r) => r.id === p._rideId && r.peeling && r.alive && r.hp > 0);
+            const ride = game.remotes.find((r) => r.id === p._rideId && (r.peeling || r.lift) && r.alive && r.hp > 0);
             const far = !ride || Math.hypot((ride.pos.x + ride.w / 2) - (p.pos.x + p.w / 2), (ride.pos.y) - (p.pos.y)) > 400;
             if (!ride || far || jumpEdge) {
               if (jumpEdge && ride) p._dropRideUntil = now + 1000;
               p._rideId = null;
+            } else if (ride.lift) {
+              game.liftSrc = { x: ride.pos.x + ride.w / 2, y: ride.pos.y - 10 };
             } else {
               game.peelSrc = { x: ride.pos.x + ride.w / 2, y: ride.pos.y - 10 };
             }
           } else if (!game.input.jump && !(now < (p._dropRideUntil || 0))) {
             // fresh board
-            const ride = game.remotes.find((r) => r.peeling && r.alive && r.hp > 0 && !r.evil &&
+            const ride = game.remotes.find((r) => (r.peeling || r.lift) && r.alive && r.hp > 0 && !r.evil &&
               Math.abs(r.pos.x - p.pos.x) < 70 &&
               Math.abs((r.pos.y + r.h / 2) - (p.pos.y + p.h / 2)) < 90);
             if (ride) {
               p._rideId = ride.id;
-              game.peelSrc = { x: ride.pos.x + ride.w / 2, y: ride.pos.y - 10 };
+              if (ride.lift) game.liftSrc = { x: ride.pos.x + ride.w / 2, y: ride.pos.y - 10 };
+              else game.peelSrc = { x: ride.pos.x + ride.w / 2, y: ride.pos.y - 10 };
             }
           }
         } else {
