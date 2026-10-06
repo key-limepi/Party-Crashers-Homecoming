@@ -531,11 +531,9 @@
       z-index: 70;
     }
     #pinBanner span {
-      color: #ffd32a;
+      color: #fff3b0;
       font-size: 44px;
       padding: 0 24px;
-      -webkit-text-stroke: 2px #1a1b26;
-      paint-order: stroke fill;
     }
 
     /* death static */
