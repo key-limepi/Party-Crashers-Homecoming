@@ -66,17 +66,18 @@ TOUCH_COOLDOWN = 1.0
 SPIKE_MAX = 5 # trap cap
 SPIKE_LIFE = 45 # trap rot
 SPIKE_DMG = 30
-EXIT_X = 2605 # safe exit
-EXIT_SAFE_R = 150
+
 
 players = {} # player list
 spikes = {} # trap list
+bombs = {} # tails traps
 alerts = [] # ping list
 # pick pair
 CHARACTERS = [
     {"id": "lux", "name": "LUX"},
     {"id": "toko", "name": "TOKO"},
     {"id": "sonic", "name": "SONIC"},
+    {"id": "tails", "name": "TAILS"},
 ]
 chat_log = [] # chat list
 last_chat = {} # spam guard
@@ -92,7 +93,7 @@ QUICK_CHAT = (
     "thanks!!", "sorry!!", "nice!!", "wow!!",
     "good luck!!", "killer here!!", "split up!!", "gg!!",
 ) # only these may post
-muted_mids = {} # mute list
+muted_fids = {} # mute list
 formbar_cache = {} # formbar's public key
 sessions = {} # login cookie -> {"fid", "name", "pin"}
 MALICE_FILE = os.path.join(HERE, "malice.json")
@@ -203,6 +204,7 @@ def is_clean(text):
             return False
     return True
 spike_seq = 0
+bomb_seq = 0
 lock = threading.Lock()
 
 phase = "lobby" # phase flow
@@ -220,7 +222,7 @@ round_players = set() # players eligible for the current round
 
 STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
               "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing",
-              "peeling", "spinning", "spinwindup", "pullwindup")
+              "peeling", "spinning", "spinwindup", "pullwindup", "lift")
 # fresh stamps
 
 
@@ -458,12 +460,14 @@ def start_round():
     # random picks
     for pid, pl in eligible.items():
         if pl.get("char") not in [c["id"] for c in CHARACTERS]:
-            pl["char"] = random.choice(CHARACTERS)["id"]
+            pool = [c for c in CHARACTERS if not c.get("dev") or pl.get("fid") in load_admins()]
+            pl["char"] = random.choice(pool or CHARACTERS)["id"]
     for pl in eligible.values():
         pl["alive"] = True
         pl["hp"] = pl.get("maxhp", 100)
         pl["stun_until"] = 0
     spikes.clear()
+    bombs.clear()
     del alerts[:]
     last_hit.clear()
     # find killer
@@ -491,6 +495,7 @@ def end_round(winner):
         pl["stun_until"] = 0
         pl["char"] = None # fresh picks
     spikes.clear()
+    bombs.clear()
     del alerts[:]
     last_hit.clear()
     name = players.get(killer_id, {}).get("name", "???") if killer_id else "???"
@@ -525,6 +530,7 @@ def game_tick():
                     last_hit.pop(pid, None)
                 for sid in [s for s in spikes if now - spikes[s]["at"] > SPIKE_LIFE]:
                     del spikes[sid] # old traps
+                
                 while alerts and now - alerts[0]["at"] > 5:
                     alerts.pop(0)
                 while chat_log and now - chat_log[0]["at"] > CHAT_LIFE:
@@ -715,20 +721,19 @@ class Handler(SimpleHTTPRequestHandler):
                     self._send_json({"error": "match running!!"}, 403)
                     return
                 pid = secrets.token_hex(4)
-                # the formbar id is the machine id, so mods and mutes follow the account
-                mid = sess["fid"]
+                # formbar id is the identity, mods and mutes follow the account
+                fid = sess["fid"]
                 tab = str(data.get("tab") or "")[:16]
                 # one tab per account
                 for pl in players.values():
-                    if pl.get("mid") == mid and pl.get("tab") != tab and time.time() - pl.get("last", 0) <= 10:
+                    if pl.get("fid") == fid and pl.get("tab") != tab and time.time() - pl.get("last", 0) <= 10:
                         self._send_json({"error": "already online in another tab!!"}, 403)
                         return
-                for _old in [p for p, pl in players.items() if pl.get("mid") == mid]:
+                for _old in [p for p, pl in players.items() if pl.get("fid") == fid]:
                     if killer_id == _old:
                         killer_id = pid
                     del players[_old]
                 players[pid] = {
-                    "mid": mid,
                     "fid": sess["fid"],
                     "sid": sess["sid"],
                     "tab": tab,
@@ -745,9 +750,9 @@ class Handler(SimpleHTTPRequestHandler):
                     "last": time.time(),
                 }
             print(f"!! {players[pid]['name']} joined ({pid})", flush=True)
-            self._send_json({"id": pid, "mid": mid, "name": players[pid]["name"],
-                             "mod": mid in load_admins(),
-                             "muted": max(0, int(muted_mids.get(mid, 0) - time.time()))})
+            self._send_json({"id": pid, "fid": fid, "name": players[pid]["name"],
+                             "mod": fid in load_admins(),
+                             "muted": max(0, int(muted_fids.get(fid, 0) - time.time()))})
             return
 
         if self.path == "/api/malice/buy":
@@ -844,9 +849,7 @@ class Handler(SimpleHTTPRequestHandler):
                     except (ValueError, TypeError):
                         self._send_json({"ok": False, "reason": "bad spot"})
                         return
-                    if abs(x - EXIT_X) < EXIT_SAFE_R:
-                        self._send_json({"ok": False, "reason": "too close to exit!!"})
-                        return
+                    
                     while len(spikes) >= SPIKE_MAX:
                         oldest = min(spikes, key=lambda s: spikes[s]["at"])
                         del spikes[oldest]
@@ -859,6 +862,50 @@ class Handler(SimpleHTTPRequestHandler):
                     sp = spikes.pop(data["spike"])
                     alerts.append({"x": sp["x"], "y": sp["y"], "at": time.time()})
                     print(f"!! {me['name'] if me else '???'} tripped a spike!!", flush=True)
+                    self._send_json({"ok": True})
+                    return
+            self._send_json({"ok": False})
+            return
+
+        if self.path == "/api/bomb":
+            # tails traps
+            global bomb_seq
+            data = self._read_json()
+            with lock:
+                me = players.get(data.get("id"))
+                if (data.get("action") == "place" and me and phase == "round"
+                        and me.get("char") == "tails" and not me.get("evil")):
+                    try:
+                        x, y = float(data.get("x", 0)), float(data.get("y", 0))
+                    except (ValueError, TypeError):
+                        self._send_json({"ok": False, "reason": "bad spot"})
+                        return
+                    # off the map
+                    if x < -400 or x > 3300 or y < -2000 or y > 2600:
+                        self._send_json({"ok": False, "reason": "bad spot"})
+                        return
+                    while len(bombs) >= 5:
+                        oldest = min(bombs, key=lambda s: bombs[s]["at"])
+                        del bombs[oldest]
+                    bomb_seq += 1
+                    bid = f"b{bomb_seq}"
+                    bombs[bid] = {"x": x, "y": y, "by": me["name"], "at": time.time()}
+                    self._send_json({"ok": True, "bomb": dict(bombs[bid], id=bid)})
+                    return
+                if data.get("action") == "trip" and data.get("bomb") in bombs:
+                    bb = bombs.pop(data["bomb"])
+                    if data.get("id") == killer_id and me:
+                        me["hp"] = max(0, me.get("hp", 250) - 30)
+                        me["stun_until"] = max(me.get("stun_until", 0), time.time() + 5)
+                        try:
+                            push = float(data.get("dx", 0) or 0)
+                        except (ValueError, TypeError):
+                            push = 0
+                        me["kb"] = {"x": -push, "y": -0.4,
+                                    "at": time.time(), "s": 2}
+                        if me["hp"] <= 0:
+                            me["alive"] = False
+                        print(f"!! {me['name']} ate a bomb!!", flush=True)
                     self._send_json({"ok": True})
                     return
             self._send_json({"ok": False})
@@ -951,7 +998,8 @@ class Handler(SimpleHTTPRequestHandler):
                 me = players.get(data.get("id"))
                 want = data.get("char")
                 ids = [c["id"] for c in CHARACTERS]
-                if me and data.get("id") in _here_players() and phase == "select" and want in ids:
+                dev = next((c.get("dev", False) for c in CHARACTERS if c["id"] == want), False)
+                if me and data.get("id") in _here_players() and phase == "select" and want in ids and (not dev or me.get("fid") in load_admins()):
                     me["char"] = want
                     print(f"!! {me['name']} picked {want}!!", flush=True)
                     self._send_json({"ok": True, "char": want})
@@ -967,10 +1015,10 @@ class Handler(SimpleHTTPRequestHandler):
             ip = self._ip()
             now = time.time()
             me_preview = players.get(data.get("id"))
-            mkey = (me_preview.get("mid") if me_preview else None) or ip
-            if now < muted_mids.get(mkey, 0):
+            mkey = (me_preview.get("fid") if me_preview else None) or ip
+            if now < muted_fids.get(mkey, 0):
                 self._send_json({"ok": False, "reason": "muted",
-                                 "left": int(muted_mids[mkey] - now)})
+                                 "left": int(muted_fids[mkey] - now)})
                 return
             with lock:
                 me = players.get(data.get("id"))
@@ -980,7 +1028,7 @@ class Handler(SimpleHTTPRequestHandler):
                     if text not in QUICK_CHAT:
                         self._send_json({"ok": False, "reason": "blocked"})
                     elif not is_clean(text):
-                        muted_mids[me.get("mid") or ip] = now + MUTE_TIME
+                        muted_fids[me.get("fid") or ip] = now + MUTE_TIME
                         print(f"!! {me['name']} muted 10 min!!", flush=True)
                         self._send_json({"ok": False, "reason": "muted", "left": MUTE_TIME})
                     else:
@@ -1002,7 +1050,7 @@ class Handler(SimpleHTTPRequestHandler):
             data = self._read_json()
             with lock:
                 me = players.get(data.get("id"))
-                if not me or me.get("mid") not in load_admins():
+                if not me or me.get("fid") not in load_admins():
                     self._send_json({"ok": False, "reason": "mods only!!"})
                     return
                 action = data.get("action")
@@ -1050,6 +1098,34 @@ class Handler(SimpleHTTPRequestHandler):
                         print(f"!! mod made {players[killer_id]['name']} EVIL!!", flush=True)
                 elif action == "clearspikes":
                     spikes.clear()
+                    bombs.clear()
+                elif action == "sethealth":
+                    try:
+                        hp = max(0, min(1000, int(data.get("hp", 100))))
+                    except (ValueError, TypeError):
+                        hp = 100
+                    targets = []
+                    if data.get("target") == "all":
+                        targets = list(players.values())
+                    elif me:
+                        targets = [me]
+                    for pl in targets:
+                        if hp > pl.get("maxhp", 100):
+                            pl["maxhp"] = hp
+                        pl["hp"] = hp
+                        if hp > 0:
+                            pl["alive"] = True
+                    print(f"!! mod set hp to {hp}!!", flush=True)
+                elif action == "makedev":
+                    for c in CHARACTERS:
+                        if c["id"] == data.get("char"):
+                            c["dev"] = True
+                            print(f"!! {c['id']} is dev now!!", flush=True)
+                elif action == "unmakedev":
+                    for c in CHARACTERS:
+                        if c["id"] == data.get("char"):
+                            c["dev"] = False
+                            print(f"!! {c['id']} is public now!!", flush=True)
                 else:
                     self._send_json({"ok": False, "reason": "huh?"})
                     return
@@ -1159,6 +1235,7 @@ class Handler(SimpleHTTPRequestHandler):
                                     else (max(0, int(lms_notice_until - now)) if lms_notice_until > now and phase == "round" else 0)),
                     "result": result,
                     "spikes": [dict(s, id=sid) for sid, s in spikes.items()],
+                    "bombs": [dict(s, id=bid) for bid, s in bombs.items()],
                     "alerts": list(alerts),
                     "chat": [dict(m) for m in chat_log],
                     "chars": [dict(c, taken=c["id"] in taken) for c in CHARACTERS],

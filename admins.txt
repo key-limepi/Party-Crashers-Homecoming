@@ -1,10 +1,5 @@
-# MOD MENU access!! One formbar user ID per line!!
-# Click "show my id" under the game (when NOT a mod) to see your formbar ID.
-# Paste it below, save, and rejoin ; F12 becomes your mod menu!!
-# Lines starting with # are ignored!!
-
-837b6ad0657b4212bd28a13e51483304
-
-
-
-20c45e004d3d49069244f751e8f9b7a6
+# admins are formbar user ids, one per line
+# in game click 'show my id', paste it below, save, rejoin
+# lines starting with # are ignored!!
+90
+91
