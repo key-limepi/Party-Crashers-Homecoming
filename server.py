@@ -44,7 +44,20 @@ PORT = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", 800
 # formbar + digipog settings (all can be changed in .env)
 FORMBAR_ADDRESS = os.environ.get("FORMBAR_ADDRESS", "").rstrip("/")
 FORMBAR_CLIENT_URL = os.environ.get("FORMBAR_CLIENT_URL", FORMBAR_ADDRESS).rstrip("/")
-APP_URL = os.environ.get("URL", f"http://localhost:{PORT}").rstrip("/")
+APP_URL = os.environ.get("URL", "").rstrip("/")
+
+
+def app_url(headers):
+    """Return the public application URL for a request, or its Host header."""
+    if APP_URL:
+        return APP_URL
+    protocol = headers.get("X-Forwarded-Proto", "http")
+    if "," in protocol:
+        protocol = protocol.split(",", 1)[0].strip()
+    host = headers.get("Host", "localhost")
+    return f"{protocol}://{host}"
+
+
 POOL_ID = int(os.environ.get("POOL_ID", 0) or 0) # pool that receives the digipogs
 ROUND_COST = int(os.environ.get("ROUND_COST", 25)) # digipogs per round, 0 = free
 MALICE_PER_ROUND = int(os.environ.get("MALICE_PER_ROUND", 1)) # malice earned for playing a round
@@ -1184,7 +1197,8 @@ class Handler(SimpleHTTPRequestHandler):
             # formbar sends the browser back here with ?token=
             token = urllib.parse.parse_qs(url.query).get("token", [""])[0]
             if not token:
-                back = urllib.parse.quote(f"{APP_URL}/login", safe="")
+                current_url = app_url(self.headers)
+                back = urllib.parse.quote(f"{current_url}/login", safe="")
                 self._redirect(f"{FORMBAR_CLIENT_URL}/oauth?redirectURL={back}")
                 return
             fid, name = formbar_user(token)
@@ -1193,7 +1207,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return
             sid = secrets.token_hex(16)
             sessions[sid] = {"sid": sid, "fid": fid, "name": name, "pin": None}
-            secure = "; Secure" if APP_URL.startswith("https") else ""
+            secure = "; Secure" if app_url(self.headers).startswith("https") else ""
             self._redirect("/", f"pch_sid={sid}; Path=/; HttpOnly; SameSite=Lax{secure}")
             return
         if url.path == "/logout":

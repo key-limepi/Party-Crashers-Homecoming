@@ -1278,7 +1278,7 @@ function loadImg(src) {
     // deferred join
     (function autoJoin() {
       if (location.protocol === 'file:') {
-        netError('open this page through the server, not as a file!! (http://127.0.0.1:8000)', 3600);
+        netError('open this page through the server, not as a file!!', 3600);
         return;
       }
       loadMe().then((me) => {
