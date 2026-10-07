@@ -58,7 +58,7 @@ function buildWordPattern(word) {
 
 const FILTER_PATTERNS = FILTER_WORDS.map(buildWordPattern);
 
-// true if the message is safe to send
+// true if message clean
 function isMessageClean(text) {
   const normalized = filterNormalize(text);
   return !FILTER_PATTERNS.some(re => re.test(normalized));

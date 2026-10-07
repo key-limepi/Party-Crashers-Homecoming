@@ -28,6 +28,7 @@ function loadImg(src) {
       { id: 'lux', name: 'LUX', nameImg: CS + 'luxname.png' },
       { id: 'toko', name: 'TOKO', nameImg: CS + 'tokoname.png' },
       { id: 'sonic', name: 'SONIC', nameImg: CS + 'sonicname.png' },
+      { id: 'supersonic', name: 'SUPER SONIC', nameImg: CS + 'supersonicname.png' },
       { id: 'tails', name: 'TAILS', nameImg: CS + 'tailsname.png' },
     ];
     const TOKO = "./Assets/Images/Characters/Survivors/Toko/";
@@ -45,19 +46,20 @@ function loadImg(src) {
     };
     const SONIC = "./Assets/Images/Characters/Survivors/Sonic/";
     const sonicSprites = {
-      idle: [loadImg(SONIC + "sonic_idle1.png"), loadImg(SONIC + "sonic_idle2.png")],
-      walk: [loadImg(SONIC + "sonic_walk1.png"), loadImg(SONIC + "sonic_walk2.png"), loadImg(SONIC + "sonic_walk3.png"), loadImg(SONIC + "sonic_walk4.png"), loadImg(SONIC + "sonic_walk5.png"), loadImg(SONIC + "sonic_walk6.png"), loadImg(SONIC + "sonic_walk7.png"), loadImg(SONIC + "sonic_walk8.png")],
-      run: [loadImg(SONIC + "sonic_run1.png"), loadImg(SONIC + "sonic_run2.png"), loadImg(SONIC + "sonic_run3.png"), loadImg(SONIC + "sonic_run4.png")],
+      idle: [loadImg(SONIC + "idle (1).png"), loadImg(SONIC + "idlelong.png"), loadImg(SONIC + "idlelong2.png"), loadImg(SONIC + "idlelong3.png"), loadImg(SONIC + "idlelong4.png"), loadImg(SONIC + "idlelong5.png"), loadImg(SONIC + "idlelong6.png"), loadImg(SONIC + "idlelong7.png")],
+      walk: [loadImg(SONIC + "walk.png"), loadImg(SONIC + "walk2.png"), loadImg(SONIC + "walk3.png"), loadImg(SONIC + "walk4.png"), loadImg(SONIC + "walk5.png"), loadImg(SONIC + "walk6.png"), loadImg(SONIC + "walk7.png"), loadImg(SONIC + "walk8.png")],
+      run: [loadImg(SONIC + "run.png"), loadImg(SONIC + "run2.png"), loadImg(SONIC + "run3.png"), loadImg(SONIC + "run4.png"), loadImg(SONIC + "run5.png"), loadImg(SONIC + "run6.png"), loadImg(SONIC + "run7.png"), loadImg(SONIC + "run8.png")],
       runStride: 35,
-      jump: [loadImg(SONIC + "sonic_roll1.png"), loadImg(SONIC + "sonic_roll2.png"), loadImg(SONIC + "sonic_roll3.png"), loadImg(SONIC + "sonic_roll4.png"), loadImg(SONIC + "sonic_roll5.png"), loadImg(SONIC + "sonic_roll6.png"), loadImg(SONIC + "sonic_roll7.png"), loadImg(SONIC + "sonic_roll8.png")],
+      jump: [loadImg(SONIC + "jump.png"), loadImg(SONIC + "roll.png"), loadImg(SONIC + "roll2.png"), loadImg(SONIC + "roll3.png"), loadImg(SONIC + "roll4.png"), loadImg(SONIC + "roll5.png"), loadImg(SONIC + "roll6.png"), loadImg(SONIC + "roll7.png")],
       jumpScale: 0.87,
-      stun: loadImg(SONIC + "sonic_struggle1.png"),
-      struggle: [loadImg(SONIC + "sonic_struggle1.png"), loadImg(SONIC + "sonic_struggle2.png")],
-      cower: loadImg(SONIC + "sonic_idle1.png"),
-      dash: loadImg(SONIC + "sonic_run1.png"),
-      peel: [loadImg(SONIC + "sonic_peelout1.png"), loadImg(SONIC + "sonic_peelout2.png"), loadImg(SONIC + "sonic_peelout3.png"), loadImg(SONIC + "sonic_peelout4.png")],
-      spin: [loadImg(SONIC + "sonic_spindash1.png"), loadImg(SONIC + "sonic_spindash2.png"), loadImg(SONIC + "sonic_spindash3.png")],
-      charge: loadImg(SONIC + "sonic_peeloutcharge.png"),
+      stun: loadImg(SONIC + "stun.png"),
+      struggle: [loadImg(SONIC + "struggle.png"), loadImg(SONIC + "struggle2.png")],
+      cower: loadImg(SONIC + "idle (1).png"),
+      dash: loadImg(SONIC + "run.png"),
+      peel: [loadImg(SONIC + "peelout.png"), loadImg(SONIC + "peelout2.png"), loadImg(SONIC + "peelout3.png"), loadImg(SONIC + "peelout4.png")],
+      spin: [loadImg(SONIC + "spindash.png"), loadImg(SONIC + "spindash2.png"), loadImg(SONIC + "spindash3.png")],
+      charge: [loadImg(SONIC + "peeloutcharge1.png"), loadImg(SONIC + "peeloutcharge2.png"), loadImg(SONIC + "peeloutcharge3.png"), loadImg(SONIC + "peeloutcharge4.png")],
+      fall: loadImg(SONIC + "fall.png"),
     };
     const TAILS = "./Assets/Images/Characters/Survivors/Tails/";
     const tailsSprites = {
@@ -72,18 +74,38 @@ function loadImg(src) {
       cower: loadImg(TAILS + "idle_blink2.png"),
       dash: loadImg(TAILS + "run1.png"),
       whip: [loadImg(TAILS + "tailwhip.png"), loadImg(TAILS + "tailwhip2.png"), loadImg(TAILS + "tailwhip3.png"), loadImg(TAILS + "tailwhip4.png"), loadImg(TAILS + "tailwhip5.png"), loadImg(TAILS + "tailwhip6.png"), loadImg(TAILS + "tailwhip7.png")],
-      throw: loadImg(TAILS + "throw.png"),
-      throw2: loadImg(TAILS + "throw2.png"),
-      airthrow: loadImg(TAILS + "airthrow.png"),
-      airthrow2: loadImg(TAILS + "airthrow2.png"),
+      throw: [loadImg(TAILS + "throw.png"), loadImg(TAILS + "throw2.png")],
+      airthrow: [loadImg(TAILS + "airthrow.png"), loadImg(TAILS + "airthrow2.png")],
       bomb: loadImg(TAILS + "bomb.png"),
     };
-    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, tails: tailsSprites, evil: null }; // evil later
+    const SSP = "./Assets/Images/Characters/Survivors/Super Sonic/";
+    const superSprites = {
+      idle: [loadImg(SSP + "idle1.png"), loadImg(SSP + "idle2.png"), loadImg(SSP + "idle3.png")],
+      walk: [loadImg(SSP + "walk1.png"), loadImg(SSP + "walk2.png"), loadImg(SSP + "walk3.png"), loadImg(SSP + "walk4.png"), loadImg(SSP + "walk5.png"), loadImg(SSP + "walk6.png")],
+      run: [loadImg(SSP + "run1.png"), loadImg(SSP + "run2.png")],
+      runStride: 35,
+      jump: [loadImg(SSP + "roll1.png"), loadImg(SSP + "roll2.png"), loadImg(SSP + "roll3.png"), loadImg(SSP + "roll4.png")],
+      jumpScale: 0.87,
+      stun: loadImg(SSP + "stun.png"),
+      stun2: loadImg(SSP + "stun2.png"),
+      struggle: [loadImg(SSP + "struggle1.png"), loadImg(SSP + "struggle2.png")],
+      cower: loadImg(SSP + "duck2.png"),
+      duck: [loadImg(SSP + "duck.png"), loadImg(SSP + "duck2.png"), loadImg(SSP + "duck3.png")],
+      dash: loadImg(SSP + "run1.png"),
+      skid: [loadImg(SSP + "skid1.png"), loadImg(SSP + "skid2.png")],
+      boost: [loadImg(SSP + "boost.png"), loadImg(SSP + "boost2.png")],
+      spin: [loadImg(SSP + "spindash1.png"), loadImg(SSP + "spindash2.png"), loadImg(SSP + "spindash3.png")],
+      guard: loadImg(SSP + "guard.png"),
+      // skip missing transform4
+      transform: [loadImg(SSP + "transform.png"), loadImg(SSP + "transform2.png"), loadImg(SSP + "transform3.png"), loadImg(SSP + "transform5.png"), loadImg(SSP + "transform6.png"), loadImg(SSP + "transform7.png"), loadImg(SSP + "transform8.png"), loadImg(SSP + "rollflash.png")],
+      fall: loadImg(SSP + "roll1.png"),
+    };
+    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, supersonic: superSprites, tails: tailsSprites, evil: null }; // evil later
     function wearChar(id) {
       game.setPlayerSprites(charSprites[id] || luxSprites);
       // true size
       game.player.drawW = 50;
-      game.player.drawH = (id === 'sonic' || id === 'tails') ? 64 : 70;
+      game.player.drawH = (id === 'sonic' || id === 'supersonic' || id === 'tails') ? 64 : 70;
     }
     game.setPlayerSprites(luxSprites);
 
@@ -233,7 +255,7 @@ function loadImg(src) {
         `vel: ${Math.round(p.vel.x)}, ${Math.round(p.vel.y)}\n` +
         `ground: ${p.onGround ? 'yep!!' : 'nope!!'}\n` +
         `phase: ${net.phase}\n` +
-        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} lmstails=${beds.lmstails.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
+        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} lmstails=${beds.lmstails.volume.toFixed(2)} hero=${beds.hero.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
     }, 100);
 
     // needs server
@@ -471,10 +493,13 @@ function loadImg(src) {
       return true;
     }
     function runFrameFor(charId, evil) {
-      // char art
       if (evil) return EVIL_RUN[csFrame % EVIL_RUN.length];
+      if (charId === 'supersonic') charId = 'sonic'; // disguised in select
       const set = charSprites[charId];
-      const run = set && set.run && set.run[csFrame % set.run.length];
+      let run = set && set.run && set.run[csFrame % set.run.length];
+      if (!run || !run.complete || !run.naturalWidth) {
+        run = set && set.idle && set.idle[0];
+      }
       return run && run.complete && run.naturalWidth ? run.src : null;
     }
     function renderLobby(players, killerId) {
@@ -550,7 +575,7 @@ function loadImg(src) {
       }).then((r) => r.json()).then((d) => {
         if (d && d.ok) {
           net.pick = cur.id;
-          if (!game.player.evil) wearChar(cur.id);
+          if (!game.player.evil) wearChar(cur.id === 'supersonic' && !SS.transformed ? 'sonic' : cur.id);
         }
       }).catch(() => {});
     }
@@ -571,7 +596,20 @@ function loadImg(src) {
       const paint = (el) => {
         if (!el || !el._runImg) return;
         const src = runFrameFor(el._runChar, el === csSlotEls.killer);
-        if (src && el._runImg.src !== src) el._runImg.src = src;
+        if (src) {
+          if (el._runImg.src !== src) el._runImg.src = src;
+          el._runImg.style.display = '';
+        } else {
+          // fallback: colored placeholder
+          el._runImg.style.display = 'none';
+          if (!el._placeholder) {
+            el._placeholder = document.createElement('div');
+            el._placeholder.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;font-size:24px;background:#444';
+            el._placeholder.textContent = (el._runChar || '?')[0].toUpperCase();
+            el.insertBefore(el._placeholder, el._runImg);
+          }
+          el._placeholder.style.display = 'flex';
+        }
       };
       paint(csSlotEls.killer);
       for (const el of csSlotEls.surv) paint(el);
@@ -720,6 +758,7 @@ function loadImg(src) {
       lmslux: loopTrack(MUS + 'lux_lms.mp3', false), // lux anthem
       lmssonic: loopTrack(MUS + 'sonic_lms.mp3', false), // sonic anthem
       lmstails: loopTrack(MUS + 'tails_lms.mp3', false), // tails anthem
+      hero: loopTrack(MUS + 'supersonichero.mp3'), // super sonic theme
       chase: loopTrack(MUS + 'chase_elux.mp3'),
       terror: loopTrack(MUS + 'terror_radius_elux.mp3'),
       charselect: loopTrack(MUS + 'charselect.mp3'),
@@ -737,7 +776,7 @@ function loadImg(src) {
         if (lmsTrack === key) lmsEnded = true;
       });
     }
-    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'chase', 'terror', 'charselect'];
+    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'hero', 'chase', 'terror', 'charselect'];
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.key.toLowerCase() !== 'm') return;
       soloIdx = soloIdx >= soloOrder.length - 1 ? -1 : soloIdx + 1;
@@ -818,6 +857,7 @@ function loadImg(src) {
       lux: './Assets/Images/UI/luxicon.png',
       toko: './Assets/Images/UI/tokoicon.png',
       sonic: './Assets/Images/UI/sonicicon.png',
+      supersonic: './Assets/Images/UI/supersonicicon.jpg',
       tails: './Assets/Images/UI/tailsicon.png',
     };
     function renderParty(self, p, others, killerId) {
@@ -854,12 +894,12 @@ function loadImg(src) {
         row.appendChild(col);
         partyList.appendChild(row);
       };
-      if (self && !p.evil) add(self.name, self.char, p.hp, p.maxHp, p.alive !== false, true, false, p.pos.x + p.w / 2, p.pos.y + p.h / 2);
+      if (self && !p.evil) add(self.name, self.char === 'supersonic' && !SS.transformed ? 'sonic' : self.char, p.hp, p.maxHp, p.alive !== false, true, false, p.pos.x + p.w / 2, p.pos.y + p.h / 2);
       for (const [id, d] of Object.entries(others || {})) {
         if (!d || id === net.id || id === killerId) continue;
         const r = game.remotes.find((r) => r.id === id);
         const rx = r ? r.pos.x + r.w / 2 : 1e9, ry = r ? r.pos.y + r.h / 2 : 1e9;
-        add(d.name, d.char, d.hp, d.maxhp || 100, (d.alive ?? d.hp > 0), false, false, rx, ry);
+        add(d.name, d.char === 'supersonic' && !d.super ? 'sonic' : d.char, d.hp, d.maxhp || 100, (d.alive ?? d.hp > 0), false, false, rx, ry);
       }
     }
     // spike pips
@@ -909,6 +949,15 @@ function loadImg(src) {
           { key: 'Z', name: 'PEELOUT', icon: null, cd: () => SN.peelCD },
           { key: 'X', name: 'SPINDASH', icon: null, cd: () => SN.spinCD },
         ];
+      } else if (isSuper()) {
+        // pre-glow, only one move
+        abilDefs = SS.transformed ? [
+          { key: 'Z', name: 'BOOST', icon: ABIL_ICONS.rush, cd: () => SS.boostCD },
+          { key: 'X', name: 'BLOCK', icon: ABIL_ICONS.cower, cd: () => SS.blockCD },
+          { key: 'C', name: 'SPINDASH', icon: ABIL_ICONS.roundhouse, cd: () => SS.spinCD },
+        ] : [
+          { key: 'Z', name: 'TRANSFORM', icon: null, cd: () => 0 },
+        ];
       } else if (isTails()) {
         abilDefs = [
           { key: 'Z', name: 'FLY', icon: null, cd: () => TW.flyCD },
@@ -953,10 +1002,10 @@ function loadImg(src) {
         game.moveSpeed = 300; // evil speed
         game.spawn = { x: game.evilSpawn.x, y: game.evilSpawn.y }; // far spawn
       } else {
-        wearChar(net.pick);
+        wearChar(net.pick === 'supersonic' ? 'sonic' : net.pick); // plain sonic until glow
         p.maxHp = 100; p.hp = Math.min(p.hp, 100);
         p.maxJumps = 1;
-        game.moveSpeed = net.pick === 'sonic' ? 270 : 240;
+        game.moveSpeed = (net.pick === 'sonic' || net.pick === 'supersonic') ? 270 : 240;
         game.spawn = { x: 100, y: 880 };
         p.invis = false; p.rooted = false; p.chargeDir = 0;
         K.charging = false;
@@ -970,7 +1019,7 @@ function loadImg(src) {
       const now = Date.now();
       const p = game.player;
       if (!p || !net.id) return;
-      const role = p.evil ? 'evil' : (isToko() ? 'toko' : (isSonic() ? 'sonic' : (isTails() ? 'tails' : 'lux')));
+      const role = p.evil ? 'evil' : (isToko() ? 'toko' : (isSonic() ? 'sonic' : (isSuper() ? (SS.transformed ? 'super' : 'super0') : (isTails() ? 'tails' : 'lux'))));
       if (role !== abilRole) {
         abilRole = role;
         buildAbilities();
@@ -1011,6 +1060,10 @@ function loadImg(src) {
       } else if (char === 'tails') {
         if (pose === 'whip') return tailsSprites.whip[0];
         if (pose === 'throw') return tailsSprites.throw2;
+      } else if (char === 'supersonic') {
+        if (pose === 'transform') return superSprites.transform[0];
+        if (pose === 'boost') return superSprites.boost[0];
+        if (pose === 'block') return superSprites.guard;
       } else {
         if (pose === 'dash') return luxDash;
       }
@@ -1025,6 +1078,12 @@ function loadImg(src) {
       T.kickUntil = 0; T.jabUntil = 0;
       SN.windupUntil = 0; SN.peelUntil = 0; SN.peeling = false;
       SN.spinWindup = 0; SN.spinUntil = 0; SN.spinning = false;
+      SS.transformed = false; SS.formUntil = 0;
+      SS.boostCD = 0; SS.boostWindup = 0; SS.boostUntil = 0; SS.boosting = false;
+      SS.blockCD = 0; SS.wasBlocking = false;
+      SS.spinCD = 0; SS.spinWindup = 0; SS.spinUntil = 0; SS.spinning = false;
+      SS.formUntil = 0; SS.focusUntil = 0;
+      p.tremble = false; p.rainbow = false; p.whiteFlash = false;
       TW.flying = false; TW.flyLeft = 0; TW.whipUntil = 0; TW.holding = false;
       p.sneakColor = null;
       TW.bombCD = 0; TW.flyCD = 0; TW.whipCD = 0; TW.throwUntil = 0;
@@ -1046,6 +1105,7 @@ function loadImg(src) {
     };
     const isToko = () => effChar() === 'toko';
     const isSonic = () => effChar() === 'sonic';
+    const isSuper = () => effChar() === 'supersonic';
     const isTails = () => effChar() === 'tails';
     // costume counts
     function effChar() {
@@ -1057,6 +1117,15 @@ function loadImg(src) {
       peelCD: 0, windupUntil: 0, peelUntil: 0, peeling: false,
       spinCD: 0, spinWindup: 0, spinUntil: 0, spinning: false, spinHits: 0, spinTouching: false, spinHitCD: 0,
     };
+    // super dev test kit
+    const SS = {
+      transformed: false, formUntil: 0,
+      boostCD: 0, boostWindup: 0, boostUntil: 0, boosting: false, boostTouching: false, boostHitCD: 0,
+      blockCD: 0, wasBlocking: false,
+      spinCD: 0, spinWindup: 0, spinUntil: 0, spinning: false, spinStart: 0, spinHits: 0, spinTouching: false, spinHitCD: 0, dir: 0, lastX: 0,
+    };
+    const SUPER_HP = 550; // juggernaut health
+    const SUPER_SPEED = 360; // super run speed
     // tails kit
     const TW = {
       flyCD: 0, flyLeft: 0, flying: false,
@@ -1064,7 +1133,7 @@ function loadImg(src) {
       whipCD: 0, whipUntil: 0, whipHit: false,
     };
     const FLY_MAX = 10000; // meter
-    const FLY_DRAIN = 95; // per tick, meter burns fast
+    const FLY_DRAIN = 95; // meter burns fast
     const FLY_COLOR = '#ff8c1a'; // orange
     const FLY_CD = 25000; // after flight
     const BOMB_CD = 15000; // trap wait
@@ -1175,7 +1244,7 @@ function loadImg(src) {
       if (game.player) game.player.taxiFly = false;
       sayStatus('landed - wings folded!!', 1.5);
     };
-    // bomb lands where it fell
+    // bomb stays landed
     game.onTossLand = (t) => {
       if (t.dead || !net.id) return;
       const bx = Math.round(t.x), by = Math.round(t.groundY ?? t.y);
@@ -1314,7 +1383,7 @@ function loadImg(src) {
             moving: Math.abs(p.vel.x) > 10, onGround: p.onGround,
             alive: p.alive !== false,
             invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true, spinwindup: !!SN.spinWindup,
-            lift: TW.flying === true,
+            lift: TW.flying === true, super: SS.transformed === true, forming: !!SS.formUntil, whipUntil: !!TW.whipUntil, kickUntil: !!T.kickUntil, jabUntil: !!T.jabUntil, throwUntil: !!TW.throwUntil,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
             cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup || !!K.pullWindup, pullwindup: !!K.pullWindup,
             dashing: !!S.dashing,
@@ -1481,11 +1550,17 @@ function loadImg(src) {
           r.alive = d.alive ?? d.hp > 0;
           r.evil = id === data.killer_id;
           r.maxHp = d.maxhp || (r.evil ? 250 : 100); // true bars
-          r.sprites = r.evil ? evilSprites : (charSprites[r.char] || luxSprites); // see all
+          r.super = !!d.super; // glowing or not
+          r.rainbow = !!d.super; // gold bar
+          r.forming = !!d.forming; // mid glow up
+          r.tremble = !!d.forming;
+          r.whiteFlash = !!d.forming;
+          r.sprites = r.evil ? evilSprites : (r.char === 'supersonic' && !r.super && !r.forming ? sonicSprites : (charSprites[r.char] || luxSprites)); // see all
           // true size
-          if (r._lastChar !== r.char) { r._baseFrame = null; r._lastChar = r.char; }
+          const rkey = r.char + (r.super ? '!' : '') + (r.forming ? '?' : '');
+          if (r._lastChar !== rkey) { r._baseFrame = null; r._lastChar = rkey; }
           r.drawW = 50;
-          r.drawH = (!r.evil && (r.char === 'sonic' || r.char === 'tails')) ? 64 : 70;
+          r.drawH = (!r.evil && (r.char === 'sonic' || r.char === 'supersonic' || r.char === 'tails')) ? 64 : 70;
           r.invis = !!d.invis;
           r.stunned = !!d.stunned;
           r.pull = !!d.pull;
@@ -1494,6 +1569,10 @@ function loadImg(src) {
           r.spinwindup = !!d.spinwindup;
           r.pullwindup = !!d.pullwindup;
           r.lift = !!d.lift;
+          r.whipUntil = !!d.whipUntil;
+          r.kickUntil = !!d.kickUntil;
+          r.jabUntil = !!d.jabUntil;
+          r.throwUntil = !!d.throwUntil;
           r.dashing = !!d.dashing;
           r.away = !!d.away;
           r.inRound = !!d.in_round;
@@ -1528,18 +1607,20 @@ function loadImg(src) {
             r.pose = null;
           }
           r._wasWindup = !!d.windup;
-          // spin for all
-          if (!r.evil && r.peeling) {
-            r.poseImg = sonicSprites.peel[Math.floor(Date.now() / 60) % 4];
-            r.poseUntil = Date.now() + 150;
-          }
-          if (!r.evil && r.spinning) {
-            r.poseImg = sonicSprites.jump[Math.floor(Date.now() / 60) % 8];
-            r.poseUntil = Date.now() + 150;
+          // sync sonic flags
+          if (!r.evil) {
+            r.peeling = !!r.peeling;
+            r.spinning = !!r.spinning;
+            r.spinWindup = !!r.spinwindup;
           }
           // fly for all
           if (!r.evil && r.lift) {
             r.poseImg = tailsSprites.fly[Math.floor(Date.now() / 120) % 3];
+            r.poseUntil = Date.now() + 150;
+          }
+          // super glow for all
+          if (!r.evil && r.char === 'supersonic' && r.forming) {
+            r.poseImg = superSprites.transform[Math.floor(Date.now() / 200) % superSprites.transform.length];
             r.poseUntil = Date.now() + 150;
           }
           if (p.evil && r._lastHp !== undefined && r.hp < r._lastHp) {
@@ -1550,13 +1631,22 @@ function loadImg(src) {
           }
           r._wasAlive = !!r.alive;
           r._lastHp = r.hp;
+          if (!r._wasSuper && r.super) {
+            // watch new gold
+            r._focusUntil = Date.now() + 1500;
+          }
+          r._wasSuper = !!r.super;
+          if (r.forming) {
+            // keep watching glow
+            r._focusUntil = Date.now() + 2800;
+          }
         }
         game.remotes = game.remotes.filter((r) => seen.has(r.id));
         // learn picks
         const mePick = (data.players || {})[net.id];
         if (mePick && mePick.char && mePick.char !== net.pick) {
           net.pick = mePick.char;
-          if (!p.evil) wearChar(mePick.char);
+          if (!p.evil) wearChar(mePick.char === 'supersonic' && !SS.transformed ? 'sonic' : mePick.char);
         } else if (mePick && !mePick.char && net.pick) {
           net.pick = null;
           if (!p.evil) wearChar('lux');
@@ -1632,7 +1722,8 @@ function loadImg(src) {
         const luxLMS = isLMS && lmsChar === 'lux';
         const sonicLMS = isLMS && lmsChar === 'sonic';
         const tailsLMS = isLMS && lmsChar === 'tails';
-        const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : (tailsLMS ? 'lmstails' : 'lms'));
+        const superLMS = isLMS && lmsChar === 'supersonic';
+        const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : (tailsLMS ? 'lmstails' : (superLMS ? 'lmssonic' : 'lms')));
         if (isLMS && lmsTrack !== lmsKey) {
           // start anthem
           for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic', 'lmstails']) {
@@ -1643,29 +1734,38 @@ function loadImg(src) {
           lmsTrack = lmsKey;
           lmsEnded = false;
           if (!p.evil && p.alive !== false) {
-            // heal up
-            p.maxHp = LMS_HP; p.hp = LMS_HP;
+            // heal, keep super hp
+            const superGlow = isSuper() && SS.transformed;
+            p.maxHp = superGlow ? SUPER_HP : LMS_HP; p.hp = superGlow ? SUPER_HP : LMS_HP;
             S.dashCD = 0; S.cowerCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0;
+            SS.boostCD = 0; SS.blockCD = 0; SS.spinCD = 0;
             fetch('/api/heal', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: net.id, amount: 999, max: LMS_HP }),
+              body: JSON.stringify({ id: net.id, amount: 999, max: superGlow ? SUPER_HP : LMS_HP }),
             }).catch(() => {});
           }
         } else if (!isLMS && lmsTrack) {
           // lms over
           beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause();
           lmsTrack = null; lmsEnded = false;
-          if (!p.evil) { p.maxHp = 100; p.hp = Math.min(p.hp, 100); } // drop buffs
+          if (!p.evil) {
+            // drop buffs except super
+            if (!(isSuper() && SS.transformed)) { p.maxHp = 100; p.hp = Math.min(p.hp, 100); }
+          } // drop buffs
         }
         // block chase
         if (isLMS) { chaseT = 0; terrorT = 0; }
+        // super theme overpowers everything
+        const heroOn = (!p.evil && SS.transformed && p.alive !== false) ||
+          game.remotes.some((r) => !r.evil && r.super && r.alive && r.hp > 0);
         // lms first
         const cands = [
+          ['hero', heroOn ? 1 : 0, 0.3],
           ['lmslux', luxLMS ? 1 : 0, 0.25],
-          ['lmssonic', sonicLMS ? 1 : 0, 0.25],
+          ['lmssonic', (sonicLMS || superLMS) ? 1 : 0, 0.25],
           ['lmstails', tailsLMS ? 1 : 0, 0.25],
-          ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS ? 1 : 0, 0.25],
+          ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS && !superLMS ? 1 : 0, 0.25],
           ['chase', chaseT, 0.5],
           ['terror', terrorT, 0.5],
           ['inter', data.phase === 'intermission' ? 1 : 0, 0.3],
@@ -1673,7 +1773,7 @@ function loadImg(src) {
           ['map', data.phase === 'round' ? 1 : 0, 0.12],
           ['wait', data.phase === 'lobby' ? 1 : 0, 0.3],
         ];
-        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, chase: 0, terror: 0, charselect: 0 };
+        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, hero: 0, chase: 0, terror: 0, charselect: 0 };
         const win = cands.find((c) => c[1] > 0.05);
         if (win) bedT[win[0]] = win[2] * (win[0] === 'chase' || win[0] === 'terror' ? win[1] : 1);
         if (document.hidden) for (const k in bedT) bedT[k] = 0; // mute hidden
@@ -1730,7 +1830,8 @@ function loadImg(src) {
         for (const toss of (data.tosses || [])) {
           if (!seenTosses.has(toss.id)) {
             seenTosses.add(toss.id);
-            game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id);
+            // pass throwerId for arc
+            game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id, toss.throwerId);
           }
         }
         game.alerts = data.alerts || [];
@@ -1798,6 +1899,43 @@ function loadImg(src) {
               }
               continue;
             }
+            if (isSuper()) {
+              // super sonic dev kit
+              if (!SS.transformed) {
+                // plain sonic one move
+                if (ab === 'Z' && !SS.formUntil && p.alive !== false) {
+                  // glow up
+                  SS.formUntil = now + 1600;
+                  SS.focusUntil = now + 2800; // all eyes here
+                  game.cameraTarget = p;
+                  p.rooted = true;
+                  wearChar('supersonic'); p._wore = 'super'; // scale the seq right
+                  setPose('transform', 1600);
+                  fileSfx(SFX + 'dash_charge.wav', {});
+                }
+              } else if (ab === 'Z' && now >= SS.boostCD && !SS.boostWindup && !SS.boosting && !SS.spinning && !SS.spinWindup && (p.cowerT || 0) <= 0) {
+                // boost
+                SS.boostWindup = now + 400;
+                p.rooted = true;
+                p.actionImg = superSprites.skid[0]; p.actionT = 0.5;
+                setPose('boost', 400);
+                fileSfx(SFX + 'dash_charge.wav', {});
+              } else if (ab === 'X' && now >= SS.blockCD && !SS.boosting && !SS.spinning && !SS.spinWindup && (p.cowerT || 0) <= 0) {
+                // block spares server hit
+                p.cowerT = 2.5;
+                p.rooted = true;
+                SS.wasBlocking = true;
+                setPose('block', 2500);
+                fileSfx(SFX + 'basic_hit.wav', {});
+              } else if (ab === 'C' && now >= SS.spinCD && !SS.spinWindup && !SS.spinning && !SS.boosting && !SS.boostWindup && (p.cowerT || 0) <= 0) {
+                // super spindash
+                SS.spinWindup = now + 800;
+                p.rooted = true;
+                p.actionImg = superSprites.spin[0]; p.actionT = 0.9;
+                fileSfx(SFX + 'dash_charge.wav', {});
+              }
+              continue;
+            }
             if (isTails()) {
               // fly
               if (ab === 'Z') {
@@ -1819,12 +1957,13 @@ function loadImg(src) {
                   TW.bombCD = now + BOMB_CD * (isLMS ? LMS_CD : 1);
                   TW.throwUntil = now + 300;
                   setPose('throw', 300);
-                  // lob it, gravity does the rest
+                  // throw it far
                   const throwX = p.pos.x + p.w / 2 + dir * 16;
                   const throwY = p.pos.y + 8;
-                  const throwVx = dir * 620;
-                  const throwVy = -620;
-                  game.addToss(throwX, throwY, throwVx, throwVy, game.bombImg);
+                  const throwVx = dir * 1100;
+                  const throwVy = -350;
+                  // add toss with throwerId
+                  game.addToss(throwX, throwY, throwVx, throwVy, game.bombImg, null, net.id);
                   fetch('/api/bomb', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -2109,17 +2248,12 @@ function loadImg(src) {
         // sonic taxi
         if (!p.evil && isSonic()) {
           if (SN.windupUntil && now < SN.windupUntil) {
-            // revving up
-            const t = 1 - (SN.windupUntil - now) / 3000;
-            if (t < 0.3) {
-              p.actionImg = sonicSprites.charge;
-            } else if (t < 0.7) {
-              const w = sonicSprites.walk;
-              p.actionImg = w[Math.floor(now / Math.max(40, 140 - t * 150)) % w.length];
-            } else {
-              p.actionImg = sonicSprites.peel[Math.floor(now / 60) % 4];
-            }
-            p.actionT = 0.15;
+            // revving for charge pose
+            p.windupUntil = true;
+            p.actionImg = null;
+            p.actionT = 0;
+          } else {
+            p.windupUntil = false;
           }
           if (SN.windupUntil && now >= SN.windupUntil) {
             SN.windupUntil = 0;
@@ -2132,14 +2266,16 @@ function loadImg(src) {
           }
           if (SN.peeling) {
             if (now >= SN.peelUntil || p.alive === false) {
-              SN.peeling = false; p.chargeDir = 0; p.chargeSpeed = 0;
+              SN.peeling = false; p.peeling = false; // engine flag
+              p.chargeDir = 0; p.chargeSpeed = 0;
               p.actionImg = null;
               SN.peelCD = now + 20000;
             } else {
               // steer the zoom
               if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
               else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
-              p.actionImg = sonicSprites.peel[Math.floor(now / 60) % 4]; p.actionT = 0.15;
+              // engine handles peel animation
+              p.peeling = true; // engine flag
               const pgi = game._spriteFor(p);
               const pfs = game.frameSize(p, pgi);
               game.afterimages.push({
@@ -2154,11 +2290,15 @@ function loadImg(src) {
         // sonic spin
         if (!p.evil && isSonic()) {
           if (SN.spinWindup && now < SN.spinWindup) {
-            p.actionImg = sonicSprites.spin[Math.floor(now / 100) % 3]; p.actionT = 0.15;
+            p.spinWindup = true; // engine spin charge flag
+            p.actionImg = null;
+            p.actionT = 0;
+          } else {
+            p.spinWindup = false;
           }
           if (SN.spinWindup && now >= SN.spinWindup) {
             SN.spinWindup = 0;
-            SN.spinning = true; SN.spinUntil = now + 4000; SN.spinHits = 0; SN.spinTouching = false;
+            SN.spinning = true; SN.spinUntil = now + 4000; SN.spinStart = now; SN.spinHits = 0; SN.spinTouching = false;
             p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
             p.facing = p.chargeDir;
             SN.dir = p.chargeDir;
@@ -2167,9 +2307,13 @@ function loadImg(src) {
             p.rooted = false;
             fileSfx(SFX + 'dash_release.wav', {});
           }
+          // clear spin if stopped
+          if (!SN.spinning) p.spinning = false;
           if (SN.spinning) {
-            if (now >= SN.spinUntil || p.alive === false) {
-              SN.spinning = false; p.chargeDir = 0; p.chargeSpeed = 0;
+            const spinOver = now >= SN.spinUntil || p.alive === false || now - (SN.spinStart || now) > 6000;
+            if (spinOver) {
+              SN.spinning = false; p.spinning = false; // engine flag
+              p.chargeDir = 0; p.chargeSpeed = 0;
               p.actionImg = null;
               SN.spinCD = now + (SN.spinHits > 0 ? 18000 : 25000);
             } else {
@@ -2192,7 +2336,7 @@ function loadImg(src) {
                 fileSfx(SFX + 'basic_hit.wav', { v: 0.25 });
               }
               SN.lastX = p.pos.x;
-              p.actionImg = sonicSprites.jump[Math.floor(now / 60) % 8]; p.actionT = 0.15;
+              p.spinning = true; // engine flag
               const sgi = game._spriteFor(p);
               const sfs = game.frameSize(p, sgi);
               game.afterimages.push({
@@ -2229,6 +2373,186 @@ function loadImg(src) {
             }
           }
         }
+        // super sonic ticks
+        if (!p.evil && isSuper()) {
+          // right look
+          if (SS.transformed && p._wore !== 'super') { wearChar('supersonic'); p._wore = 'super'; }
+          else if (!SS.transformed && !SS.formUntil && p._wore !== 'sonic') { wearChar('sonic'); p._wore = 'sonic'; }
+          game.moveSpeed = SS.transformed ? SUPER_SPEED : 270;
+          p.rainbow = SS.transformed === true;
+          // glowing up
+          if (SS.formUntil) {
+            p.rooted = true;
+            p.tremble = true; p.whiteFlash = true;
+            if (now >= SS.formUntil) {
+              SS.formUntil = 0; p.tremble = false; p.whiteFlash = false;
+              if (p.alive === false) { p.rooted = false; p.actionImg = null; }
+              else {
+              SS.transformed = true;
+              p.rooted = false; p.actionImg = null;
+              p.maxHp = SUPER_HP; p.hp = SUPER_HP;
+              wearChar('supersonic'); p._wore = 'super';
+              fileSfx(SFX + 'dash_release.wav', {});
+              sayStatus('super sonic!!', 3);
+              fetch('/api/heal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: net.id, amount: 999, max: SUPER_HP }),
+              }).catch(() => {});
+              }
+            } else {
+              const seq = superSprites.transform;
+              p.actionImg = seq[Math.min(seq.length - 1, Math.floor((now - (SS.formUntil - 1600)) / 200))];
+              p.actionT = 0.15;
+            }
+          }
+          // boost skid
+          if (SS.boostWindup && now < SS.boostWindup) {
+            p.actionImg = superSprites.skid[Math.floor(now / 90) % 2]; p.actionT = 0.15;
+          }
+          if (SS.boostWindup && now >= SS.boostWindup) {
+            SS.boostWindup = 0;
+            SS.boosting = true; SS.boostUntil = now + 4000; SS.boostTouching = false;
+            p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
+            p.facing = p.chargeDir;
+            p.chargeSpeed = 950;
+            p.rooted = false;
+            setPose('boost', 4000);
+            fileSfx(SFX + 'dash_release.wav', {});
+          }
+          if (SS.boosting) {
+            if (now >= SS.boostUntil || p.alive === false) {
+              SS.boosting = false;
+              p.chargeDir = 0; p.chargeSpeed = 0;
+              p.actionImg = null;
+              SS.boostCD = now + 20000 * (isLMS ? LMS_CD : 1);
+            } else {
+              if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
+              else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
+              p.actionImg = superSprites.boost[Math.floor(now / 80) % 2]; p.actionT = 0.15;
+              const bgi = game._spriteFor(p);
+              const bfs = game.frameSize(p, bgi);
+              game.afterimages.push({
+                x: p.pos.x, y: p.pos.y, w: p.w, h: p.h,
+                drawW: bfs.dw, drawH: bfs.dh, facing: p.facing,
+                img: bgi, age: 0, plain: true,
+              });
+              const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
+              const touching = !!(ek &&
+                  Math.abs(ek.pos.x - p.pos.x) < 55 &&
+                  Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 70);
+              if (touching && !SS.boostTouching && now >= (SS.boostHitCD || 0)) {
+                SS.boostTouching = true;
+                SS.boostHitCD = now + 1000;
+                fileSfx(SFX + 'basic_hit.wav', {});
+                fetch('/api/hit', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 30, stun: 3, stack: true, kb: 2.5 }),
+                }).catch(() => {});
+              } else if (!touching) {
+                SS.boostTouching = false;
+              }
+            }
+          }
+          // guard up
+          const blocking = SS.wasBlocking && (p.cowerT || 0) > 0;
+          if (blocking) {
+            const age = 2.5 - (p.cowerT || 0);
+            p.actionImg = age < 0.4 ? superSprites.duck[Math.floor(now / 130) % 3] : superSprites.guard;
+            p.actionT = 0.15;
+            p.rooted = true;
+          }
+          if (SS.wasBlocking && (p.cowerT || 0) <= 0) {
+            SS.wasBlocking = false;
+            SS.blockCD = now + 15000 * (isLMS ? LMS_CD : 1);
+          }
+          // super spin
+          if (SS.spinWindup && now < SS.spinWindup) {
+            p.spinWindup = true;
+            p.actionImg = null; p.actionT = 0;
+          } else {
+            p.spinWindup = false;
+          }
+          if (SS.spinWindup && now >= SS.spinWindup) {
+            SS.spinWindup = 0;
+            SS.spinning = true; SS.spinUntil = now + 5000; SS.spinStart = now; SS.spinHits = 0; SS.spinTouching = false;
+            p.superFly = true; // ball can fly now
+            p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
+            p.facing = p.chargeDir;
+            SS.dir = p.chargeDir;
+            SS.lastX = p.pos.x;
+            p.chargeSpeed = 700;
+            p.rooted = false;
+            fileSfx(SFX + 'dash_release.wav', {});
+          }
+          if (!SS.spinning) p.spinning = false;
+          if (SS.spinning) {
+            const spinOver = now >= SS.spinUntil || p.alive === false || now - (SS.spinStart || now) > 7000;
+            if (spinOver) {
+              SS.spinning = false; p.spinning = false;
+              p.chargeDir = 0; p.chargeSpeed = 0;
+              p.actionImg = null;
+              SS.spinCD = now + (SS.spinHits > 0 ? 18000 : 25000) * (isLMS ? LMS_CD : 1);
+            } else {
+              const want = game.input.left ? -1 : (game.input.right ? 1 : (SS.dir || p.chargeDir));
+              SS.dir = SS.dir ?? p.chargeDir;
+              SS.dir += Math.max(-0.15, Math.min(0.15, want - SS.dir));
+              if (Math.abs(SS.dir) > 0.2) {
+                p.chargeDir = Math.sign(SS.dir);
+                p.facing = Math.sign(SS.dir);
+              }
+              p.chargeSpeed = 700 * (0.4 + 0.6 * Math.min(1, Math.abs(SS.dir)));
+              const spinAge = 5000 - (SS.spinUntil - now);
+              if (spinAge > 300 && Math.abs(p.pos.x - (SS.lastX ?? p.pos.x)) < 2 && p.alive !== false) {
+                p.chargeDir = -(p.chargeDir || p.facing || 1);
+                p.facing = p.chargeDir;
+                SS.dir = p.chargeDir;
+                fileSfx(SFX + 'basic_hit.wav', { v: 0.25 });
+              }
+              SS.lastX = p.pos.x;
+              p.spinning = true;
+              const sgi = game._spriteFor(p);
+              const sfs = game.frameSize(p, sgi);
+              game.afterimages.push({
+                x: p.pos.x, y: p.pos.y, w: p.w, h: p.h,
+                drawW: sfs.dw, drawH: sfs.dh, facing: p.facing,
+                img: sgi, age: 0, plain: true,
+              });
+              const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
+              const touching = !!(ek &&
+                  Math.abs(ek.pos.x - p.pos.x) < 55 &&
+                  Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 70);
+              if (touching && !SS.spinTouching && SS.spinHits < 5 && now >= (SS.spinHitCD || 0)) {
+                SS.spinTouching = true;
+                SS.spinHits++;
+                SS.spinHitCD = now + 1000;
+                fileSfx(SFX + 'basic_hit.wav', {});
+                const away = (p.pos.x + p.w / 2) >= (ek.pos.x + ek.w / 2) ? 1 : -1;
+                p.chargeDir = away; p.facing = away; SS.dir = away;
+                p.vel.y = Math.min(p.vel.y || 0, -300);
+                fetch('/api/hit', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 25, stun: 3, stack: true, kb: 2.5 }),
+                }).catch(() => {});
+                if (SS.spinHits >= 5) {
+                  SS.spinning = false; p.chargeDir = 0; p.chargeSpeed = 0;
+                  p.actionImg = null;
+                  SS.spinCD = now + 18000 * (isLMS ? LMS_CD : 1);
+                }
+              } else if (!touching) {
+                SS.spinTouching = false;
+              }
+            }
+          }
+          // dazed flicker
+          if ((p.stunT || 0) > 0 && p.alive !== false && !SS.boosting && !SS.spinning) {
+            p.actionImg = (Math.floor(now / 150) % 2) ? superSprites.stun2 : superSprites.stun;
+            p.actionT = 0.15;
+          }
+          if (!SS.formUntil) p.rooted = !!SS.boostWindup || !!SS.spinWindup || blocking;
+        }
         // toko ticks
         if (!p.evil && isToko()) {
           const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
@@ -2237,17 +2561,19 @@ function loadImg(src) {
             Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < dy;
           // bounce kick
           if (T.kickUntil) {
-            p.actionImg = tokoSprites.kick[Math.floor(now / 120) % 2]; p.actionT = 0.15;
+            p.kickUntil = true; // engine flag
             // ground ends
             const landed = p.onGround && now > (T.kickStart || 0) + 100;
             if (now >= T.kickUntil || landed) {
               T.kickUntil = 0;
+              p.kickUntil = false; // engine flag
               p.chargeDir = 0; p.chargeSpeed = 0;
               T.kickCD = now + (T.kickHit ? 20000 : 30000) * (isLMS ? LMS_CD : 1); // kick waits
               if (!T.kickHit) fileSfx(SFX + 'denied.wav', {}); // missed kick
             } else if (!T.kickHit && ekClose(60, 80)) {
               T.kickHit = true;
               T.kickUntil = 0; // start bounce
+              p.kickUntil = false; // engine flag
               p.chargeDir = 0; p.chargeSpeed = 0;
               T.kickCD = now + 20000 * (isLMS ? LMS_CD : 1);
               setPose('kick', 400);
@@ -2261,10 +2587,13 @@ function loadImg(src) {
                 body: JSON.stringify({ id: net.id, victim: ek.id, dmg: isLMS ? 23 : 15, stun: 4 }),
               }).catch(() => {});
             }
+          } else {
+            p.kickUntil = false; // engine flag
           }
           // fast jab
           if (T.jabUntil) {
-            p.actionImg = tokoSprites.jab[Math.floor(now / 100) % 2]; p.actionT = 0.15;
+            p.jabUntil = true; // engine flag
+            p.rooted = true;
             if (!T.jabHit && ekClose(55, 70)) {
               T.jabHit = true;
               fileSfx(SFX + 'jab_hit.wav', {});
@@ -2276,6 +2605,7 @@ function loadImg(src) {
             }
             if (now >= T.jabUntil) {
               T.jabUntil = 0;
+              p.jabUntil = false; // engine flag
               p.rooted = false;
               if (T.jabHit) {
                 T.jabCD = now + 15000 * (isLMS ? LMS_CD : 1); // fast recharge
@@ -2285,6 +2615,8 @@ function loadImg(src) {
                 fileSfx(SFX + 'denied.wav', {}); // missed jab
               }
             }
+          } else {
+            p.jabUntil = false; // engine flag
           }
         }
         // tails ticks
@@ -2298,42 +2630,44 @@ function loadImg(src) {
           if (!TW.holding && now >= TW.bombCD) TW.holding = true;
           if (TW.throwUntil) {
             // winding the toss
-            const air = !p.onGround;
-            const set = air ? [tailsSprites.airthrow, tailsSprites.airthrow2]
-              : [tailsSprites.throw, tailsSprites.throw2];
-            p.actionImg = set[now >= TW.throwUntil - 200 ? 1 : 0];
-            p.actionT = 0.15;
-            if (now >= TW.throwUntil) TW.throwUntil = 0;
+            p.throwUntil = true; // engine flag
+            if (now >= TW.throwUntil) {
+              TW.throwUntil = 0;
+              p.throwUntil = false; // engine flag
+            }
+          } else {
+            p.throwUntil = false; // engine flag
           }
           // fly meter
           if (TW.flying) {
             TW.flyLeft -= FLY_DRAIN; // burns fast
             p.taxiFly = true;
+            p.lift = true; // engine flag
             p.sneakFrac = Math.max(0, TW.flyLeft / FLY_MAX);
             p.sneakColor = FLY_COLOR;
-            const fl = tailsSprites.fly;
-            p.actionImg = fl[Math.floor(now / 110) % fl.length];
-            p.actionT = 0.15;
+            // engine handles fly animation
             if (TW.flyLeft <= 0) {
               TW.flying = false;
               TW.flyCD = now + FLY_CD * (isLMS ? LMS_CD : 1);
             }
           } else {
             p.taxiFly = false;
+            p.lift = false; // engine flag
             p.sneakColor = FLY_COLOR;
             if (!TW.holding && !TW.throwUntil) p.sneakFrac = Math.max(0, TW.flyLeft / FLY_MAX);
             if (!TW.holding && TW.flyLeft <= 0) p.sneakFrac = 0;
           }
           // tailwhip
           if (TW.whipUntil) {
-            p.actionImg = tailsSprites.whip[Math.floor(now / 60) % tailsSprites.whip.length];
-            p.actionT = 0.15;
+            p.whipUntil = true; // engine flag
+            p.rooted = true;
             const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
             if (!TW.whipHit && ek &&
                 Math.abs((ek.pos.x + ek.w / 2) - (p.pos.x + p.w / 2)) < 90 &&
                 Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 80) {
               TW.whipHit = true;
               TW.whipUntil = 0;
+              p.whipUntil = false; // engine flag
               p.rooted = false;
               TW.whipCD = now + WHIP_CD * (isLMS ? LMS_CD : 1);
               const away = (p.pos.x + p.w / 2) >= (ek.pos.x + ek.w / 2) ? 1 : -1;
@@ -2345,11 +2679,14 @@ function loadImg(src) {
               }).catch(() => {});
             } else if (now >= TW.whipUntil) {
               TW.whipUntil = 0;
+              p.whipUntil = false; // engine flag
               p.rooted = false;
               TW.whipCD = now + 25000 * (isLMS ? LMS_CD : 1); // slow whiff
               p.stunT = Math.max(p.stunT || 0, 1);
               fileSfx(SFX + 'denied.wav', {}); // missed whip
             }
+          } else {
+            p.whipUntil = false; // engine flag
           }
         }
         // shared ropes
@@ -2420,6 +2757,27 @@ function loadImg(src) {
         } else {
           specBox.style.display = 'none';
           specHint.style.display = 'none';
+        }
+        // focus super glow up
+        {
+          const nowF = Date.now();
+          let focusBody = null;
+          if (nowF < (SS.focusUntil || 0) && p.alive !== false) focusBody = p;
+          if (!focusBody) focusBody = game.remotes.find((r) => r.alive && r.hp > 0 && (r.forming || nowF < (r._focusUntil || 0))) || null;
+          if (focusBody) {
+            if (game.cameraTarget !== focusBody && game.cameraTarget) game.cameraTarget._superFocus = false;
+            focusBody._superFocus = true;
+            game.cameraTarget = focusBody;
+          } else if (game.cameraTarget && game.cameraTarget._superFocus) {
+            // show over, restore camera
+            game.cameraTarget._superFocus = false;
+            game.cameraTarget = null;
+            if (p.alive === false) {
+              const alive = game.remotes.filter((r) => r.alive && r.hp > 0);
+              if (!alive.find((r) => r.id === specId)) specId = alive.length ? alive[0].id : null;
+              game.cameraTarget = alive.find((r) => r.id === specId) || null;
+            }
+          }
         }
         if (net.fail > 0) { netStatus.style.color = ''; hideFatal(); } // error clear
         net.fail = 0;
