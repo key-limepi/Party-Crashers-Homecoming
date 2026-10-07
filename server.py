@@ -106,7 +106,8 @@ CHARACTERS = [
     {"id": "sonic", "name": "SONIC"},
     {"id": "tails", "name": "TAILS"},
     {"id": "supersonic", "name": "SUPER SONIC", "dev": True},
-    {"id": "nyan", "name": "NYAN CYAT", "dev": True}, # works as survivor or killer
+    {"id": "nyan", "name": "NYAN CYAT", "dev": True},
+    {"id": "bear5", "name": "BEAR5", "dev": True, "killer": True},
 ]
 chat_log = [] # chat list
 last_chat = {} # spam guard
@@ -528,7 +529,7 @@ def start_round():
     # random picks
     for pid, pl in eligible.items():
         if pl.get("char") not in [c["id"] for c in CHARACTERS]:
-            pool = [c for c in CHARACTERS if c["id"] != "nyan" and (not c.get("dev") or is_admin(pl.get("fid")))] # nyan is picked on purpose
+            pool = [c for c in CHARACTERS if c["id"] not in ("nyan", "bear5") and (not c.get("dev") or is_admin(pl.get("fid")))]
             pl["char"] = random.choice(pool or CHARACTERS)["id"]
     for pl in eligible.values():
         pl["alive"] = True
@@ -845,13 +846,26 @@ class Handler(SimpleHTTPRequestHandler):
             data = self._read_json()
             with lock:
                 me = players.get(data.get("id"))
-                if not me or phase != "intermission":
+                if not me:
+                    self._send_json({"ok": False, "reason": "no player!!"})
+                    return
+                fid = me["fid"]
+                if is_admin(fid):
+                    try:
+                        amount = max(0, int(data.get("amount", MALICE_PER_BUY)))
+                    except (TypeError, ValueError):
+                        amount = MALICE_PER_BUY
+                    add_malice(fid, amount)
+                    total = malice.get(fid, 0)
+                    print(f"!! dev {me['name']} gave themselves {amount} malice ({total})!!", flush=True)
+                    self._send_json({"ok": True, "malice": total})
+                    return
+                if phase != "intermission":
                     self._send_json({"ok": False, "reason": "malice is sold during intermission only!!"})
                     return
                 if MALICE_PRICE <= 0:
                     self._send_json({"ok": False, "reason": "malice is not for sale!!"})
                     return
-                fid = me["fid"]
                 pin = sessions.get(me["sid"], {}).get("pin")
             if FORMBAR_MODE:
                 if not pin:
@@ -1102,6 +1116,8 @@ class Handler(SimpleHTTPRequestHandler):
                         dmg = max(0, min(100, int(data.get("dmg", 0))))
                     except (ValueError, TypeError):
                         dmg = 0
+                    if atk_evil:
+                        dmg = int(round(dmg * 1.08))
                     # 25% damage reduction
                     if lms_set and not vic_evil:
                         dmg = (dmg * 3 + 3) // 4
@@ -1175,7 +1191,10 @@ class Handler(SimpleHTTPRequestHandler):
                 want = data.get("char")
                 ids = [c["id"] for c in CHARACTERS]
                 dev = next((c.get("dev", False) for c in CHARACTERS if c["id"] == want), False)
-                if me and data.get("id") in _here_players() and phase == "select" and want in ids and (not dev or is_admin(me.get("fid"))):
+                if want == "bear5" and (not me or not is_admin(me.get("fid"))):
+                    self._send_json({"ok": False, "reason": "bear5 is dev-only!!"})
+                    return
+                if me and data.get("id") in _here_players() and phase == "select" and want in ids and ((not dev) or is_admin(me.get("fid"))):
                     me["char"] = want
                     print(f"!! {me['name']} picked {want}!!", flush=True)
                     self._send_json({"ok": True, "char": want})
@@ -1200,10 +1219,11 @@ class Handler(SimpleHTTPRequestHandler):
                 me = players.get(data.get("id"))
                 text = str(data.get("text", ""))[:60].strip()
                 now = time.time()
-                if me and text and now - last_chat.get(data.get("id"), 0) >= CHAT_COOLDOWN:
-                    if text not in QUICK_CHAT:
+                dev_chat = bool(me and is_admin(me.get("fid")))
+                if me and text and (dev_chat or now - last_chat.get(data.get("id"), 0) >= CHAT_COOLDOWN):
+                    if not dev_chat and text not in QUICK_CHAT:
                         self._send_json({"ok": False, "reason": "blocked"})
-                    elif not is_clean(text):
+                    elif not dev_chat and not is_clean(text):
                         muted_fids[me.get("fid") or ip] = now + MUTE_TIME
                         print(f"!! {me['name']} muted 10 min!!", flush=True)
                         self._send_json({"ok": False, "reason": "muted", "left": MUTE_TIME})
@@ -1275,6 +1295,34 @@ class Handler(SimpleHTTPRequestHandler):
                 elif action == "clearspikes":
                     spikes.clear()
                     bombs.clear()
+                elif action == "givemalice":
+                    try:
+                        amount = max(0, int(data.get("amount", 0)))
+                    except (ValueError, TypeError):
+                        amount = 0
+                    target = data.get("target")
+                    if target == "me" and me:
+                        set_malice(me["fid"], malice.get(me["fid"], 0) + amount)
+                    elif target in players:
+                        set_malice(players[target]["fid"], malice.get(players[target]["fid"], 0) + amount)
+                    else:
+                        self._send_json({"ok": False, "reason": "bad target"})
+                        return
+                    print(f"!! mod {me['name']} granted {amount} malice to {target}!!", flush=True)
+                elif action == "setmalice":
+                    try:
+                        amount = max(0, int(data.get("amount", 0)))
+                    except (ValueError, TypeError):
+                        amount = 0
+                    target = data.get("target")
+                    if target == "me" and me:
+                        set_malice(me["fid"], amount)
+                    elif target in players:
+                        set_malice(players[target]["fid"], amount)
+                    else:
+                        self._send_json({"ok": False, "reason": "bad target"})
+                        return
+                    print(f"!! mod {me['name']} set malice for {target} to {amount}!!", flush=True)
                 elif action == "sethealth":
                     try:
                         hp = max(0, min(1000, int(data.get("hp", 100))))

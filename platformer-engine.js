@@ -632,7 +632,8 @@ class PlatformerEngine {
         // white hot, then yellow, orange, red
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = Math.max(0, 1 - t) * 0.85;
-        ctx.fillStyle = t < 0.2 ? '#fff6c8' : t < 0.45 ? '#ffd23f' : t < 0.75 ? '#ff7a1a' : '#c2260c';
+        const fireColor = f.color || (t < 0.2 ? '#fff6c8' : t < 0.45 ? '#ffd23f' : t < 0.75 ? '#ff7a1a' : '#c2260c');
+        ctx.fillStyle = fireColor;
         ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(1, f.size * (1 - t * 0.35)), 0, 6.2832); ctx.fill();
       } else if (f.kind === 'smoke') {
         ctx.globalAlpha = Math.max(0, (1 - t)) * 0.55;
