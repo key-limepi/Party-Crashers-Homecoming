@@ -38,6 +38,8 @@ We are remaking the whole game from the ground up in Javascript.
 2. Add your Formbar user ID to `admins.txt` if you want the mod menu.
 3. Players log in with Formbar and enter their digipog PIN once. The PIN is kept in server memory only.
 
+**Local testing:** set `FORMBAR_MODE=false` in `.env` to skip Formbar login and digipogs. There is no login at all: click the title screen and you're in as a guest (or open `http://localhost:8000/?name=bob` to pick a name). Every browser tab is its own player and everyone counts as a mod, so you can test dev characters like Nyan Cyat with a couple of tabs. Leave it `true` when hosting for real.
+
 Costs and malice settings (all in `.env`): `ROUND_COST` (25), `MALICE_PRICE` (10), `MALICE_PER_BUY` (1), `MALICE_PER_ROUND` (1). Set `ROUND_COST=0` for free rounds.
 
 ## Quick start

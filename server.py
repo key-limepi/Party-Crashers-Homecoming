@@ -58,12 +58,16 @@ def app_url(headers):
     return f"{protocol}://{host}"
 
 
+_fm = (os.environ.get("FORMBAR_MODE", "true").split("#")[0].split() or ["true"])[0].strip("\"'").lower() # tolerates a trailing comment
+FORMBAR_MODE = _fm not in ("0", "false", "off", "no", "n", "disabled", "disable") # off = local testing
 POOL_ID = int(os.environ.get("POOL_ID", 0) or 0) # digipog destination pool
 ROUND_COST = int(os.environ.get("ROUND_COST", 25)) # round cost, 0=free
+if not FORMBAR_MODE:
+    ROUND_COST = 0 # local testing is free
 MALICE_PER_ROUND = int(os.environ.get("MALICE_PER_ROUND", 1)) # malice per round played
 MALICE_PRICE = int(os.environ.get("MALICE_PRICE", 10)) # digipogs per malice purchase
 MALICE_PER_BUY = int(os.environ.get("MALICE_PER_BUY", 1)) # malice gained per purchase
-DIGIPOGS_ON = ROUND_COST > 0 or MALICE_PRICE > 0 # pin needed if paid
+DIGIPOGS_ON = FORMBAR_MODE and (ROUND_COST > 0 or MALICE_PRICE > 0) # pin needed if paid
 TIMEOUT = 25 # patient timeouts
 ROUND_BASE = 120 # base time
 ROUND_PER_PLAYER = 30 # per player
@@ -79,12 +83,21 @@ TOUCH_COOLDOWN = 1.0
 SPIKE_MAX = 5 # trap cap
 SPIKE_LIFE = 45 # trap rot
 SPIKE_DMG = 30
+ROCKET_DMG = 50 # rocket hit
+ROCKET_RADIUS = 170 # blast reach
+ROCKET_UP = 1.1 # climb time, same as the client
+ROCKET_LIFE = 12 # stale rockets drop
+ROCKET_GAP = 3.0 # launch spam guard
+BLAST_LIFE = 4 # blasts linger so everyone sees them
 
 
 players = {} # player list
 spikes = {} # trap list
 bombs = {} # tails traps
 bomb_tosses = {} # airborne tails bomb throws
+rockets = {} # nyan rockets in the air
+blasts = [] # fresh rocket blasts, everyone shakes
+last_rocket = {} # launch guard
 alerts = [] # ping list
 # pick pair
 CHARACTERS = [
@@ -93,6 +106,7 @@ CHARACTERS = [
     {"id": "sonic", "name": "SONIC"},
     {"id": "tails", "name": "TAILS"},
     {"id": "supersonic", "name": "SUPER SONIC", "dev": True},
+    {"id": "nyan", "name": "NYAN CYAT", "dev": True}, # works as survivor or killer
 ]
 chat_log = [] # chat list
 last_chat = {} # spam guard
@@ -110,6 +124,7 @@ QUICK_CHAT = (
 ) # only these may post
 muted_fids = {} # mute list
 formbar_cache = {} # formbar's public key
+LOCAL_SESSION = {"sid": "local", "fid": "local", "name": "guest", "pin": None} # stands in for a login when FORMBAR_MODE is off
 sessions = {} # cookie -> session data
 MALICE_FILE = os.path.join(HERE, "malice.json")
 malice = {} # fid -> malice totals
@@ -122,6 +137,11 @@ def load_admins():
             return {l.strip() for l in f if l.strip() and not l.strip().startswith("#")}
     except OSError:
         return set()
+
+def is_admin(fid):
+    """mod menu + dev characters, everyone is a mod in local testing"""
+    return not FORMBAR_MODE or fid in load_admins()
+
 
 # word filter
 EXTRA_FILTER = [
@@ -221,6 +241,8 @@ def is_clean(text):
 spike_seq = 0
 bomb_seq = 0
 bomb_toss_seq = 0
+rocket_seq = 0
+blast_seq = 0
 lock = threading.Lock()
 
 phase = "lobby" # phase flow
@@ -403,6 +425,8 @@ def load_malice():
 
 def set_malice(fid, amount):
     malice[fid] = max(0, amount)
+    if not FORMBAR_MODE:
+        return # local testing stays off disk
     try:
         with open(MALICE_FILE, "w", encoding="utf-8") as f:
             json.dump(malice, f)
@@ -419,6 +443,29 @@ def pick_killer(candidates):
     best = max(malice.get(pl["fid"], 0) for pl in candidates.values())
     top = [pid for pid, pl in candidates.items() if malice.get(pl["fid"], 0) == best]
     return random.choice(top)
+
+
+def _enemies_of(pid):
+    """alive round players on the other side, killer vs survivors"""
+    evil = pid == killer_id
+    return {p: pl for p, pl in _alive_players().items() if (p == killer_id) != evil}
+
+
+def update_rockets(now):
+    """pick or swap who each rocket chases, drop stale ones"""
+    for rid in list(rockets):
+        rk = rockets[rid]
+        if rk["by"] not in players or phase != "round" or now - rk["at"] > ROCKET_LIFE:
+            del rockets[rid]
+            continue
+        if now - rk["at"] >= ROCKET_UP:
+            foes = _enemies_of(rk["by"])
+            if rk.get("target") not in foes:
+                # nearest to where it launched
+                rk["target"] = min(foes, key=lambda p: (foes[p].get("x", 0) - rk["x"]) ** 2
+                                   + (foes[p].get("y", 0) - rk["y"]) ** 2) if foes else None
+    while blasts and now - blasts[0]["at"] > BLAST_LIFE:
+        blasts.pop(0)
 
 
 def start_intermission():
@@ -476,7 +523,7 @@ def start_round():
     # random picks
     for pid, pl in eligible.items():
         if pl.get("char") not in [c["id"] for c in CHARACTERS]:
-            pool = [c for c in CHARACTERS if not c.get("dev") or pl.get("fid") in load_admins()]
+            pool = [c for c in CHARACTERS if c["id"] != "nyan" and (not c.get("dev") or is_admin(pl.get("fid")))] # nyan is picked on purpose
             pl["char"] = random.choice(pool or CHARACTERS)["id"]
     for pl in eligible.values():
         pl["alive"] = True
@@ -484,6 +531,8 @@ def start_round():
         pl["stun_until"] = 0
     spikes.clear()
     bombs.clear()
+    rockets.clear()
+    del blasts[:]
     del alerts[:]
     last_hit.clear()
     # find killer
@@ -512,6 +561,8 @@ def end_round(winner):
         pl["char"] = None # fresh picks
     spikes.clear()
     bombs.clear()
+    rockets.clear()
+    del blasts[:]
     del alerts[:]
     last_hit.clear()
     name = players.get(killer_id, {}).get("name", "???") if killer_id else "???"
@@ -672,6 +723,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def _session(self):
         """the logged in formbar user for this browser, or None"""
+        if not FORMBAR_MODE:
+            return LOCAL_SESSION # no login at all in local testing
         cookie = SimpleCookie(self.headers.get("Cookie", ""))
         morsel = cookie.get("pch_sid")
         sess = sessions.get(morsel.value) if morsel else None
@@ -740,22 +793,33 @@ class Handler(SimpleHTTPRequestHandler):
                 # fid identity, mods/mutes follow
                 fid = sess["fid"]
                 tab = str(data.get("tab") or "")[:16]
-                # one tab per account
-                for pl in players.values():
-                    if pl.get("fid") == fid and pl.get("tab") != tab and time.time() - pl.get("last", 0) <= 10:
-                        self._send_json({"error": "already online in another tab!!"}, 403)
-                        return
-                for _old in [p for p, pl in players.items() if pl.get("fid") == fid]:
-                    if killer_id == _old:
-                        killer_id = pid
-                    del players[_old]
+                name = sess["name"]
+                if FORMBAR_MODE:
+                    # one tab per account
+                    for pl in players.values():
+                        if pl.get("fid") == fid and pl.get("tab") != tab and time.time() - pl.get("last", 0) <= 10:
+                            self._send_json({"error": "already online in another tab!!"}, 403)
+                            return
+                    for _old in [p for p, pl in players.items() if pl.get("fid") == fid]:
+                        if killer_id == _old:
+                            killer_id = pid
+                        del players[_old]
+                else:
+                    # local testing: every tab is its own player, ?name=bob picks a name
+                    fid = f"{fid}:{tab}"
+                    name = str(data.get("name") or "").strip()[:20] or f"guest {tab[:3]}"
+                    taken = {pl["name"] for pl in players.values()}
+                    base, n = name, 1
+                    while name in taken:
+                        n += 1
+                        name = f"{base} {n}"
                 players[pid] = {
-                    "fid": sess["fid"],
+                    "fid": fid,
                     "sid": sess["sid"],
                     "tab": tab,
                     "char": None, # pick spot
                     "maxhp": 100, # told maxhp
-                    "name": sess["name"],
+                    "name": name,
                     "paid": False,
                     "pay_msg": "",
                     "x": 60, "y": 100, "facing": 1,
@@ -767,7 +831,7 @@ class Handler(SimpleHTTPRequestHandler):
                 }
             print(f"!! {players[pid]['name']} joined ({pid})", flush=True)
             self._send_json({"id": pid, "fid": fid, "name": players[pid]["name"],
-                             "mod": fid in load_admins(),
+                             "mod": is_admin(fid),
                              "muted": max(0, int(muted_fids.get(fid, 0) - time.time()))})
             return
 
@@ -784,13 +848,14 @@ class Handler(SimpleHTTPRequestHandler):
                     return
                 fid = me["fid"]
                 pin = sessions.get(me["sid"], {}).get("pin")
-            if not pin:
-                self._send_json({"ok": False, "reason": "enter your digipog pin first!!"})
-                return
-            ok, msg = formbar_transfer(fid, pin, MALICE_PRICE, "party crashers malice")
-            if not ok:
-                self._send_json({"ok": False, "reason": msg or "payment failed!!"})
-                return
+            if FORMBAR_MODE:
+                if not pin:
+                    self._send_json({"ok": False, "reason": "enter your digipog pin first!!"})
+                    return
+                ok, msg = formbar_transfer(fid, pin, MALICE_PRICE, "party crashers malice")
+                if not ok:
+                    self._send_json({"ok": False, "reason": msg or "payment failed!!"})
+                    return
             with lock:
                 add_malice(fid, MALICE_PER_BUY)
                 total = malice.get(fid, 0)
@@ -948,6 +1013,69 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json({"ok": False})
             return
 
+        if self.path == "/api/rocket":
+            # nyan rockets, dev only, works for killer or survivor
+            global rocket_seq, blast_seq
+            data = self._read_json()
+            now = time.time()
+            with lock:
+                pid = data.get("id")
+                me = players.get(pid)
+                if not (me and phase == "round" and pid in round_players
+                        and me.get("alive", True) and me.get("hp", 100) > 0
+                        and me.get("char") == "nyan" and is_admin(me.get("fid"))):
+                    self._send_json({"ok": False})
+                    return
+                action = data.get("action")
+                if action == "launch":
+                    try:
+                        x, y = float(data.get("x", 0)), float(data.get("y", 0))
+                    except (ValueError, TypeError):
+                        self._send_json({"ok": False, "reason": "bad launch"})
+                        return
+                    if not (x == x and y == y) or x < -600 or x > 3600 or y < -3000 or y > 3000:
+                        self._send_json({"ok": False, "reason": "bad launch"})
+                        return
+                    if not _grace_over(now) or now - last_rocket.get(pid, 0) < ROCKET_GAP or len(rockets) >= 8:
+                        self._send_json({"ok": False, "reason": "not yet"})
+                        return
+                    last_rocket[pid] = now
+                    rocket_seq += 1
+                    rid = f"r{rocket_seq}"
+                    rockets[rid] = {"id": rid, "x": x, "y": y, "by": pid, "name": me["name"],
+                                    "at": now, "target": None}
+                    print(f"!! {me['name']} launched a rocket!!", flush=True)
+                    self._send_json({"ok": True, "rocket": dict(rockets[rid], age=0)})
+                    return
+                if action == "detonate":
+                    rk = rockets.get(data.get("rocket"))
+                    try:
+                        x, y = float(data.get("x", 0)), float(data.get("y", 0))
+                    except (ValueError, TypeError):
+                        rk = None
+                    if (not rk or rk["by"] != pid or now - rk["at"] < ROCKET_UP * 0.8
+                            or not (x == x and y == y) or abs(x) > 6000 or abs(y) > 6000):
+                        self._send_json({"ok": False})
+                        return
+                    del rockets[rk["id"]]
+                    hit = []
+                    for vid, vic in _enemies_of(pid).items():
+                        # player x and y are the top left, hitbox is 28 by 60
+                        if ((vic.get("x", 0) + 14 - x) ** 2 + (vic.get("y", 0) + 30 - y) ** 2) ** 0.5 > ROCKET_RADIUS:
+                            continue
+                        vic["hp"] = max(0, vic.get("hp", 100) - ROCKET_DMG) # always the full 50
+                        if vic["hp"] <= 0:
+                            vic["alive"] = False
+                        hit.append(vic["name"])
+                    blast_seq += 1
+                    blasts.append({"id": f"x{blast_seq}", "x": x, "y": y, "r": ROCKET_RADIUS,
+                                   "rid": rk["id"], "by": me["name"], "at": now})
+                    print(f"!! {me['name']}'s rocket blew up, hit: {', '.join(hit) or 'nobody'}!!", flush=True)
+                    self._send_json({"ok": True, "hit": len(hit)})
+                    return
+            self._send_json({"ok": False})
+            return
+
         if self.path == "/api/hit":
             # both ways
             data = self._read_json()
@@ -1036,7 +1164,7 @@ class Handler(SimpleHTTPRequestHandler):
                 want = data.get("char")
                 ids = [c["id"] for c in CHARACTERS]
                 dev = next((c.get("dev", False) for c in CHARACTERS if c["id"] == want), False)
-                if me and data.get("id") in _here_players() and phase == "select" and want in ids and (not dev or me.get("fid") in load_admins()):
+                if me and data.get("id") in _here_players() and phase == "select" and want in ids and (not dev or is_admin(me.get("fid"))):
                     me["char"] = want
                     print(f"!! {me['name']} picked {want}!!", flush=True)
                     self._send_json({"ok": True, "char": want})
@@ -1087,7 +1215,7 @@ class Handler(SimpleHTTPRequestHandler):
             data = self._read_json()
             with lock:
                 me = players.get(data.get("id"))
-                if not me or me.get("fid") not in load_admins():
+                if not me or not is_admin(me.get("fid")):
                     self._send_json({"ok": False, "reason": "mods only!!"})
                     return
                 action = data.get("action")
@@ -1194,6 +1322,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
+        if url.path in ("/login", "/logout") and not FORMBAR_MODE:
+            self._redirect("/") # nothing to log into
+            return
         if url.path == "/login":
             # formbar return with token
             token = urllib.parse.parse_qs(url.query).get("token", [""])[0]
@@ -1221,6 +1352,7 @@ class Handler(SimpleHTTPRequestHandler):
             sess = self._session()
             self._send_json({
                 "logged_in": bool(sess),
+                "formbar_mode": FORMBAR_MODE,
                 "name": sess["name"] if sess else None,
                 "has_pin": bool(sess and sess.get("pin")),
                 "needs_pin": DIGIPOGS_ON,
@@ -1237,6 +1369,7 @@ class Handler(SimpleHTTPRequestHandler):
                     print(f"!! {players[pid]['name']} timed out", flush=True)
                     del players[pid]
                     last_hit.pop(pid, None)
+                update_rockets(now)
                 snapshot = {}
                 for pid, pl in players.items():
                     # safe keys
@@ -1275,6 +1408,8 @@ class Handler(SimpleHTTPRequestHandler):
                     "spikes": [dict(s, id=sid) for sid, s in spikes.items()],
                     "bombs": [dict(s, id=bid) for bid, s in bombs.items()],
                     "tosses": [dict(s) for s in bomb_tosses.values()],
+                    "rockets": [dict(r, age=round(now - r["at"], 2)) for r in rockets.values()],
+                    "blasts": [dict(b, age=round(now - b["at"], 2)) for b in blasts],
                     "alerts": list(alerts),
                     "chat": [dict(m) for m in chat_log],
                     "chars": [dict(c, taken=c["id"] in taken) for c in CHARACTERS],
@@ -1289,7 +1424,10 @@ class Handler(SimpleHTTPRequestHandler):
 
 if __name__ == "__main__":
     load_malice()
-    if not FORMBAR_ADDRESS:
+    print(f"[CONFIG] FORMBAR_MODE is {'ON' if FORMBAR_MODE else 'OFF'} (read {os.environ.get('FORMBAR_MODE', '<unset, default on>')!r})", flush=True)
+    if not FORMBAR_MODE:
+        print("!! FORMBAR_MODE is off - no formbar, no digipogs, everyone is a mod. local testing only!! (add ?name=bob to the page url to pick a name)", flush=True)
+    elif not FORMBAR_ADDRESS:
         print("!! FORMBAR_ADDRESS is not set in .env, nobody can log in!!", flush=True)
     threading.Thread(target=game_tick, daemon=True).start()
     try:
