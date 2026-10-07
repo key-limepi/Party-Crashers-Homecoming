@@ -1178,16 +1178,28 @@ function loadImg(src) {
     const seenBlasts = new Set();
     function fireRocket() {
       const p = game.player;
-      const x = Math.round(p.pos.x + p.w / 2), y = Math.round(p.pos.y);
+      // the cat becomes the rocket right now, the server just hands out the id
+      const cx = Math.round(p.pos.x + p.w / 2), cy = Math.round(p.pos.y + p.h / 2);
+      if (NY.dashing) { NY.dashing = false; p.dashing = false; p.chargeDir = 0; p.chargeSpeed = 0; }
+      const local = game.addRocket(cx, cy, { owner: net.id, mine: true });
+      p.rocketing = true;
       fetch('/api/rocket', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: net.id, action: 'launch', x, y }),
+        body: JSON.stringify({ id: net.id, action: 'launch', x: cx, y: cy }),
       }).then((r) => r.json()).then((d) => {
-        // the next poll would add it too, same id so no doubles
         const rk = d && d.rocket;
-        if (rk && !game.rockets.some((g) => g.id === rk.id)) game.addRocket(rk.x, rk.y, { id: rk.id, owner: rk.by, mine: true });
-      }).catch(() => {});
+        if (!rk) {
+          // server said no, cat goes back to normal
+          game.rockets = game.rockets.filter((g) => g !== local);
+          NY.rocketCD = 0;
+          return;
+        }
+        // the next poll may have claimed it already
+        if (!local.id) local.id = rk.id;
+        local.owner = rk.by;
+        game.rockets = game.rockets.filter((g) => g === local || g.id !== rk.id);
+      }).catch(() => { game.rockets = game.rockets.filter((g) => g !== local); });
       fileSfx(SFX + 'dash_release.wav', {});
     }
     // caster calls the hit, server does the damage
@@ -1203,7 +1215,13 @@ function loadImg(src) {
       game.myId = net.id;
       const list = data.rockets || [];
       for (const r of list) {
+        if (game.rocketDone.has(r.id)) continue; // already blew up here
         let rk = game.rockets.find((g) => g.id === r.id);
+        // my own launch that is still waiting on its id
+        if (!rk && r.by === net.id) {
+          rk = game.rockets.find((g) => g.mine && !g.id);
+          if (rk) rk.id = r.id;
+        }
         if (!rk) {
           rk = game.addRocket(r.x, r.y, { id: r.id, owner: r.by, mine: r.by === net.id, age: r.age });
           fileSfx(SFX + 'dash_release.wav', { v: 0.6 });
@@ -1951,7 +1969,7 @@ function loadImg(src) {
         // evil keys
         const now = Date.now();
         // picking locks abilities
-        const canCast = p.alive !== false && (p.stunT || 0) <= 0 && !selectOpen;
+        const canCast = p.alive !== false && (p.stunT || 0) <= 0 && !selectOpen && !p.rocketing; // a rocket can't do anything else
         if (!canCast) while (game.input.consumeAbility()) {} // clear queue
         const m1Muted = now < K.penaltyUntil; // sneak mute
         let ab;

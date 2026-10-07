@@ -15,6 +15,8 @@ const ROCKET_SPEED = 1250; // dive speed
 const ROCKET_SCALE = 0.7; // art size
 const ROCKET_NOSE = 40; // nose reach
 const ROCKET_LIFE = 8; // give up time
+const TRAIL_STEP = 4; // px between rainbow points
+const TRAIL_LIFE = 0.42; // secs a stripe lives
 const FX_MAX = 700; // particle cap
 
 class Vec {
@@ -170,6 +172,7 @@ class PlatformerEngine {
     this.booms = []; // boom pops
     this.boomImg = null; // boom art
     this.rockets = []; // nyan rockets
+    this.rocketDone = new Set(); // ended ids, never respawn them from a late poll
     this.rocketImgs = []; // rocket frames
     this.onRocketBoom = null; // rocket hook
     this.myId = null; // my net id
@@ -228,6 +231,7 @@ class PlatformerEngine {
   hurtPlayer(n, source) {
     const p = this.player;
     if (!p || p.alive === false) return;
+    if (p.rocketing) return; // rocket form can't be hurt
     // soften hits
     if (source !== 'killer' && this.lmsResist && !p.evil) n = Math.ceil(n * 0.75);
     if (source === 'killer' && (p.cowerT ?? 0) > 0) {
@@ -417,7 +421,7 @@ class PlatformerEngine {
     this.shakeT = Math.max(this.shakeT, dur);
   }
 
-  // nyan rocket, late joiners fast forward the climb
+  // nyan rocket, the cat itself turns into it. late joiners fast forward the climb
   addRocket(x, y, opts = {}) {
     const rk = {
       id: opts.id || null, owner: opts.owner || null, mine: !!opts.mine,
@@ -439,6 +443,11 @@ class PlatformerEngine {
     const t = rk.target === this.myId ? this.player : this.remotes.find((r) => r.id === rk.target);
     if (!t || t.alive === false || (t.hp ?? 1) <= 0) return null;
     return t;
+  }
+  // the cat that is wearing this rocket
+  _rocketCarrier(rk) {
+    if (rk.mine) return this.player || null;
+    return this.remotes.find((r) => r.id === rk.owner) || null;
   }
   stepRocket(rk, dt) {
     rk.age += dt;
@@ -465,10 +474,68 @@ class PlatformerEngine {
     rk.y += rk.vy * dt;
     if (Math.hypot(rk.vx, rk.vy) > 30) rk.ang = Math.atan2(rk.vy, rk.vx);
   }
+  // rocket is done, cat pops back out where it blew up
+  _rocketLand(b) {
+    b.vel.x = 0; b.vel.y = 0;
+    b.onGround = false;
+    b.jumps = b.maxJumps ?? 1;
+    // not inside a wall please
+    const stuck = () => this.statics.some((st) => aabbOverlap(b, st));
+    if (!stuck()) return;
+    const ox = b.pos.x, oy = b.pos.y;
+    for (let r = 4; r <= 400; r += 4) {
+      for (const [dx, dy] of [[0, -r], [r, -r], [-r, -r], [r, 0], [-r, 0]]) {
+        b.pos.x = ox + dx; b.pos.y = oy + dy;
+        if (!stuck()) return;
+      }
+    }
+    b.pos.x = ox; b.pos.y = oy; // nothing free, collision will sort it
+  }
   stepRockets(dt) {
+    const me = this.player;
+    const wasRocket = !!(me && me.rocketing);
+    // flags get rebuilt each frame, so a vanished rocket always frees its cat
+    if (me) me.rocketing = false;
+    for (const r of this.remotes) { r.rocketing = false; r._rk = null; }
+    if (me) me._rk = null;
     for (const rk of this.rockets) {
       if (rk.boomed) continue;
-      this.stepRocket(rk, dt);
+      const c = this._rocketCarrier(rk);
+      const alive = c && c.alive !== false && (c.hp ?? 1) > 0;
+      if (c && !alive && rk.mine) {
+        // cat died mid flight, rocket goes with it
+        rk.boomed = true;
+        if (rk.id) this.rocketDone.add(rk.id);
+        continue;
+      }
+      if (c && c.isRemote && !alive) { c.rocketing = false; continue; }
+      if (c) {
+        c.rocketing = true;
+        c._rk = rk;
+      }
+      if (c && !rk.mine) {
+        // someone else's cat, the rocket rides their synced body
+        const nx = c.pos.x + c.w / 2, ny = c.pos.y + c.h / 2;
+        rk.age += dt;
+        const mx = nx - rk.x, my = ny - rk.y;
+        if (Math.hypot(mx, my) > 1.5) {
+          const want = Math.atan2(my, mx);
+          let da = want - rk.ang;
+          da = Math.atan2(Math.sin(da), Math.cos(da));
+          rk.ang += da * (1 - Math.exp(-20 * dt));
+        } else if (rk.age < ROCKET_UP) {
+          rk.ang = -Math.PI / 2;
+        }
+        rk.x = nx; rk.y = ny;
+      } else {
+        this.stepRocket(rk, dt);
+        if (c) {
+          // my cat is the rocket
+          c.pos.x = rk.x - c.w / 2;
+          c.pos.y = rk.y - c.h / 2;
+          c.vel.x = 0; c.vel.y = 0;
+        }
+      }
       // fire and smoke out the back
       rk.puff += dt * 110;
       while (rk.puff >= 1) {
@@ -490,9 +557,13 @@ class PlatformerEngine {
       }
       if (boom) {
         rk.boomed = true;
+        this.rocketDone.add(rk.id);
+        if (c) { c.rocketing = false; c._rk = null; }
         this.onRocketBoom(rk);
       }
     }
+    // rocket over, my cat is back
+    if (me && wasRocket && !me.rocketing) this._rocketLand(me);
     this.rockets = this.rockets.filter((rk) => rk.age < ROCKET_LIFE + 4);
   }
 
@@ -620,20 +691,36 @@ class PlatformerEngine {
     }
   }
 
-  // nyan rainbow, drawn behind the cat in the cat's own flipped space
-  drawTrail(ctx, b, tr, img, dx, dy, dw) {
-    const s = dw / img.naturalWidth; // frame scale
-    const moving = Math.abs(b.vel ? b.vel.x : 0) > 40 || b.onGround === false || !!b.dashing;
-    b._trailLen = (b._trailLen ?? 8) + ((moving ? 13 : 8) - (b._trailLen ?? 8)) * 0.12;
-    const segs = Math.round(b._trailLen);
+  // nyan rainbow. laid down in the world behind wherever the cat actually goes,
+  // so it only exists while moving and bends along jumps, falls and the rocket
+  drawTrail(ctx, b, tr, ax, ay, s) {
+    const T = b._tr || (b._tr = { pts: [], lx: ax, ly: ay, n: 0 });
+    // teleport or respawn, start clean
+    if (Math.hypot(ax - T.lx, ay - T.ly) > 260) { T.pts.length = 0; T.lx = ax; T.ly = ay; }
+    // new point every few pixels moved, nothing while standing still
+    if (Math.hypot(ax - T.lx, ay - T.ly) >= TRAIL_STEP) {
+      T.pts.push({ x: T.lx, y: T.ly, t: this.time, n: T.n++ });
+      T.lx = ax; T.ly = ay;
+    }
+    // old stripes fade off the end
+    while (T.pts.length && this.time - T.pts[0].t > TRAIL_LIFE) T.pts.shift();
+    if (!T.pts.length) return;
     const tw = tr.naturalWidth, th = tr.naturalHeight;
-    const x0 = dx + 15 * s; // starts inside the pop tart
-    const y0 = dy + 3 * s;
-    for (let i = 0; i < segs; i++) {
-      // little wave, steps along the trail
-      const wave = (Math.floor(i / 2 + this.time * 7) % 2 === 0 ? -2 : 2) * s;
-      const x = Math.round(x0 - (i + 1) * tw * s);
-      ctx.drawImage(tr, x, Math.round(y0 + wave), Math.ceil(tw * s) + 1, Math.round(th * s));
+    const full = th * s;
+    let nx = ax, ny = ay; // walk from the cat back along its path
+    for (let i = T.pts.length - 1; i >= 0; i--) {
+      const q = T.pts[i];
+      const len = Math.hypot(nx - q.x, ny - q.y);
+      if (len < 0.5) continue;
+      const age = Math.min(1, (this.time - q.t) / TRAIL_LIFE);
+      const h = full * (1 - 0.45 * age * age); // thins out toward the tail
+      const wave = (Math.floor(q.n / 4 + this.time * 7) % 2 === 0 ? -2 : 2) * s;
+      ctx.save();
+      ctx.translate(q.x, q.y);
+      ctx.rotate(Math.atan2(ny - q.y, nx - q.x));
+      ctx.drawImage(tr, 0, 0, tw, th, 0, Math.round(-h / 2 + wave), Math.ceil(len) + 1, Math.round(h));
+      ctx.restore();
+      nx = q.x; ny = q.y;
     }
   }
 
@@ -711,7 +798,16 @@ class PlatformerEngine {
 
   update(dt) {
     const p = this.player;
-    if (p) {
+    if (p && p.rocketing) {
+      // the cat is the rocket, stepRockets drives the body
+      p.vel.x = 0; p.vel.y = 0;
+      p.onGround = false; p.wasGround = false;
+      p.stunT = 0; p.chargeDir = 0; p.cowerT = 0; p.cowering = false;
+      p.pulled = false;
+      p.animTime += dt;
+      this.input.consumeJumpPressed(); // drop inputs
+    }
+    if (p && !p.rocketing) {
       const stunned = (p.stunT ?? 0) > 0;
       if (stunned) p.stunT -= dt;
       if (p.actionT > 0) p.actionT -= dt;
@@ -808,6 +904,7 @@ class PlatformerEngine {
     // move bodies
     for (const b of this.bodies) {
       if (b.isStatic) continue;
+      if (b === p && p.rocketing) continue; // rocket flies through everything
       b.wasGround = b.onGround;
       b.onGround = false;
       this.moveBody(b, dt, this.statics); // tunnel-safe push
@@ -822,7 +919,7 @@ class PlatformerEngine {
 
     // drag close
     p.pulled = false;
-    if (p && this.pullSrc && p.alive !== false && !p.evil) {
+    if (p && !p.rocketing && this.pullSrc && p.alive !== false && !p.evil) {
       const dx = this.pullSrc.x - (p.pos.x + p.w / 2);
       const dy = this.pullSrc.y - (p.pos.y + p.h / 2);
       const d = Math.hypot(dx, dy) || 1;
@@ -832,13 +929,13 @@ class PlatformerEngine {
       p.pulled = true; // dragged pose
     }
     // ride sonic
-    if (p && this.peelSrc && p.alive !== false && !p.evil) {
+    if (p && !p.rocketing && this.peelSrc && p.alive !== false && !p.evil) {
       p.pos.x = this.peelSrc.x - p.w / 2;
       p.pos.y = this.peelSrc.y - p.h / 2;
       p.pulled = true; // dragged pose
     }
     // ride tails
-    if (p && this.liftSrc && p.alive !== false && !p.evil) {
+    if (p && !p.rocketing && this.liftSrc && p.alive !== false && !p.evil) {
       p.pos.x = this.liftSrc.x - p.w / 2;
       p.pos.y = this.liftSrc.y - p.h / 2;
       p.pulled = true; // dragged pose
@@ -858,7 +955,7 @@ class PlatformerEngine {
     }
 
     // trap bites
-    if (p && p.alive !== false && !p.evil && p.onGround && this.damageOn !== false) {
+    if (p && !p.rocketing && p.alive !== false && !p.evil && p.onGround && this.damageOn !== false) {
       const cx = p.pos.x + p.w / 2, feet = p.pos.y + p.h;
       for (const sp of this.spikes) {
         if (sp.tripped) continue;
@@ -886,7 +983,7 @@ class PlatformerEngine {
     }
 
     // spring pads
-    if (p && p.alive !== false && (p.vel.y >= 0 || p.onGround)) {
+    if (p && !p.rocketing && p.alive !== false && (p.vel.y >= 0 || p.onGround)) {
       const cx = p.pos.x + p.w / 2, feet = p.pos.y + p.h;
       for (const sp of this.springs) {
         if (sp.map !== this.activeMap) continue;
@@ -992,7 +1089,7 @@ class PlatformerEngine {
     }
 
     // fell far
-    if (p && p.pos.y > this.fallY && this.damageOn !== false) {
+    if (p && !p.rocketing && p.pos.y > this.fallY && this.damageOn !== false) {
       this.hurtPlayer(this.fallDamage);
       if (p.hp > 0) this.respawn(); // spawn back
     }
@@ -1188,24 +1285,40 @@ class PlatformerEngine {
         const dx = Math.round(b.pos.x + (b.w - dw) / 2) + offsetX + scare;
         const dy = Math.round(b.pos.y + (b.h - dh)); // align feet
         const cx = Math.round(b.pos.x + b.w / 2) + offsetX;
-        ctx.save();
-        if (b === this.player && b.invis) ctx.globalAlpha = 0.45;
-        else if (b.isRemote && b.away) ctx.globalAlpha = 0.5;
-        if (b.facing < 0) {
-          ctx.translate(cx, 0);
-          ctx.scale(-1, 1);
-          ctx.translate(-cx, 0);
-        }
-        // windup strobes
-        const strobe = Math.floor(this.time * 10) % 2 === 0;
-        const tinted = (b.whiteFlash && strobe) ? this._whiteTint(img)
-          : (b.redFlash && strobe) ? this._redTint(img)
-          : (b.cyanFlash && strobe) ? this._cyanTint(img) : img;
-        // rainbow sits behind the cat
+        // rainbow, tied to where the cat really moves
         const trail = b.sprites && b.sprites.trail;
-        if (trail && trail.complete && trail.naturalWidth) this.drawTrail(ctx, b, trail, img, dx, dy, dw);
-        this.blit(ctx, tinted, img, dx, dy, dw, dh);
-        ctx.restore();
+        if (trail && trail.complete && trail.naturalWidth) {
+          if (b.rocketing && b._rk) {
+            // rocket form, rainbow streams from the tail
+            const rk = b._rk;
+            this.drawTrail(ctx, b, trail, rk.x - Math.cos(rk.ang) * 40, rk.y - Math.sin(rk.ang) * 40, 0.8);
+          } else if (!b.rocketing) {
+            const s = dw / img.naturalWidth; // frame scale
+            const x0 = dx + 15 * s; // starts inside the pop tart
+            const ax = b.facing < 0 ? 2 * cx - x0 : x0; // flip with the cat
+            this.drawTrail(ctx, b, trail, ax, dy + 3 * s + trail.naturalHeight * s / 2, s);
+          }
+        } else if (b._tr) {
+          b._tr.pts.length = 0;
+        }
+        // the cat is the rocket right now, renderRockets draws that
+        if (!b.rocketing) {
+          ctx.save();
+          if (b === this.player && b.invis) ctx.globalAlpha = 0.45;
+          else if (b.isRemote && b.away) ctx.globalAlpha = 0.5;
+          if (b.facing < 0) {
+            ctx.translate(cx, 0);
+            ctx.scale(-1, 1);
+            ctx.translate(-cx, 0);
+          }
+          // windup strobes
+          const strobe = Math.floor(this.time * 10) % 2 === 0;
+          const tinted = (b.whiteFlash && strobe) ? this._whiteTint(img)
+            : (b.redFlash && strobe) ? this._redTint(img)
+            : (b.cyanFlash && strobe) ? this._cyanTint(img) : img;
+          this.blit(ctx, tinted, img, dx, dy, dw, dh);
+          ctx.restore();
+        }
       } else {
         ctx.fillStyle = b.color;
         ctx.fillRect(b.pos.x, b.pos.y, b.w, b.h);
