@@ -451,6 +451,11 @@ def _enemies_of(pid):
     return {p: pl for p, pl in _alive_players().items() if (p == killer_id) != evil}
 
 
+def _rocketing(pid):
+    """a nyan riding its own rocket can't be hurt"""
+    return any(rk["by"] == pid for rk in rockets.values())
+
+
 def update_rockets(now):
     """pick or swap who each rocket chases, drop stale ones"""
     for rid in list(rockets):
@@ -1060,6 +1065,8 @@ class Handler(SimpleHTTPRequestHandler):
                     del rockets[rk["id"]]
                     hit = []
                     for vid, vic in _enemies_of(pid).items():
+                        if _rocketing(vid):
+                            continue # mid rocket, untouchable
                         # player x and y are the top left, hitbox is 28 by 60
                         if ((vic.get("x", 0) + 14 - x) ** 2 + (vic.get("y", 0) + 30 - y) ** 2) ** 0.5 > ROCKET_RADIUS:
                             continue
@@ -1102,6 +1109,10 @@ class Handler(SimpleHTTPRequestHandler):
                         stun = max(0, min(5, float(data.get("stun", 0))))
                     except (ValueError, TypeError):
                         stun = 0
+                    # nyan mid rocket, nothing lands
+                    if _rocketing(data["victim"]):
+                        self._send_json({"ok": True})
+                        return
                     # wide swings
                     reach = 140 if stun <= 0 else 95
                     dx = vic.get("x", 0) - k.get("x", 0)
