@@ -8,6 +8,15 @@ const BOMB_DH = 30;
 // realistic bomb physics
 const BOMB_DRAG = 0.0008; // lighter air resistance
 
+// nyan rocket tuning
+const ROCKET_UP = 1.1; // climb time
+const ROCKET_CLIMB = 1500; // climb speed
+const ROCKET_SPEED = 1250; // dive speed
+const ROCKET_SCALE = 0.7; // art size
+const ROCKET_NOSE = 40; // nose reach
+const ROCKET_LIFE = 8; // give up time
+const FX_MAX = 700; // particle cap
+
 class Vec {
   constructor(x = 0, y = 0) { this.x = x; this.y = y; }
 }
@@ -78,6 +87,7 @@ class Input {
           this.jump = true; break;
         case 'z': case 'Z': case 'x': case 'X': case 'c': case 'C':
         case 'v': case 'V': case 'b': case 'B':
+        case 'n': case 'N':
           // evil keys
           if (!e.repeat) this._abilityPressed.push(e.key.toUpperCase());
           break;
@@ -159,6 +169,11 @@ class PlatformerEngine {
     this.onFlyLand = null; // touchdown hook
     this.booms = []; // boom pops
     this.boomImg = null; // boom art
+    this.rockets = []; // nyan rockets
+    this.rocketImgs = []; // rocket frames
+    this.onRocketBoom = null; // rocket hook
+    this.myId = null; // my net id
+    this.fx = []; // blast particles
     this.bombImg = null; // bomb art
     this.springs = []; // bounce pads
     this.onSpring = null; // bounce hook
@@ -392,6 +407,234 @@ class PlatformerEngine {
     this.booms.push(b);
     if (this.booms.length > 12) this.booms.shift(); // trim spares
     return this.booms[this.booms.length - 1];
+  }
+
+  // screen shake, bigger wins
+  shake(mag, dur) {
+    const cur = this.shakeT > 0 ? this.shakeMag * Math.min(1, this.shakeT * 3) : 0;
+    if (mag < cur) return;
+    this.shakeMag = mag;
+    this.shakeT = Math.max(this.shakeT, dur);
+  }
+
+  // nyan rocket, late joiners fast forward the climb
+  addRocket(x, y, opts = {}) {
+    const rk = {
+      id: opts.id || null, owner: opts.owner || null, mine: !!opts.mine,
+      x, y, vx: 0, vy: -200, age: 0, target: opts.target || null,
+      ang: -Math.PI / 2, boomed: false, puff: 0,
+    };
+    const skip = Math.min(opts.age || 0, ROCKET_UP);
+    for (let t = 0; t < skip; t += 1 / 60) this.stepRocket(rk, 1 / 60);
+    rk.age = opts.age || 0;
+    this.rockets.push(rk);
+    return rk;
+  }
+  removeRocket(id) {
+    this.rockets = this.rockets.filter((rk) => rk.id !== id);
+  }
+  // who the rocket chases
+  _rocketTarget(rk) {
+    if (!rk.target) return null;
+    const t = rk.target === this.myId ? this.player : this.remotes.find((r) => r.id === rk.target);
+    if (!t || t.alive === false || (t.hp ?? 1) <= 0) return null;
+    return t;
+  }
+  stepRocket(rk, dt) {
+    rk.age += dt;
+    if (rk.age < ROCKET_UP) {
+      // straight up, speeding up
+      const k = Math.min(1, rk.age / 0.5);
+      rk.vx = 0;
+      rk.vy = -(200 + (ROCKET_CLIMB - 200) * k);
+    } else {
+      const t = this._rocketTarget(rk);
+      if (t) {
+        // glide onto them, no orbiting
+        const sp = Math.min(ROCKET_SPEED, 500 + (rk.age - ROCKET_UP) * 1400);
+        const dx = t.pos.x + t.w / 2 - rk.x, dy = t.pos.y + t.h / 2 - rk.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const k = 1 - Math.exp(-6 * dt);
+        rk.vx += (dx / d * sp - rk.vx) * k;
+        rk.vy += (dy / d * sp - rk.vy) * k;
+      } else {
+        rk.vy += 1800 * dt; // nobody left, drop
+      }
+    }
+    rk.x += rk.vx * dt;
+    rk.y += rk.vy * dt;
+    if (Math.hypot(rk.vx, rk.vy) > 30) rk.ang = Math.atan2(rk.vy, rk.vx);
+  }
+  stepRockets(dt) {
+    for (const rk of this.rockets) {
+      if (rk.boomed) continue;
+      this.stepRocket(rk, dt);
+      // fire and smoke out the back
+      rk.puff += dt * 110;
+      while (rk.puff >= 1) {
+        rk.puff -= 1;
+        const bx = rk.x - Math.cos(rk.ang) * 28, by = rk.y - Math.sin(rk.ang) * 28;
+        this.fx.push({
+          kind: Math.random() < 0.45 ? 'fire' : 'smoke', x: bx + (Math.random() - 0.5) * 8, y: by + (Math.random() - 0.5) * 8,
+          vx: (Math.random() - 0.5) * 50, vy: (Math.random() - 0.5) * 50, age: 0,
+          life: 0.35 + Math.random() * 0.3, size: 5 + Math.random() * 5, grow: 14,
+        });
+      }
+      // only the caster calls the hit
+      if (!rk.mine || !rk.id || !this.onRocketBoom) continue;
+      const t = this._rocketTarget(rk);
+      let boom = rk.age > ROCKET_LIFE || (!t && rk.age > ROCKET_UP + 1.2);
+      if (t && rk.age > ROCKET_UP + 0.15) {
+        const nx = rk.x + Math.cos(rk.ang) * ROCKET_NOSE, ny = rk.y + Math.sin(rk.ang) * ROCKET_NOSE;
+        if (nx > t.pos.x - 12 && nx < t.pos.x + t.w + 12 && ny > t.pos.y - 12 && ny < t.pos.y + t.h + 12) boom = true;
+      }
+      if (boom) {
+        rk.boomed = true;
+        this.onRocketBoom(rk);
+      }
+    }
+    this.rockets = this.rockets.filter((rk) => rk.age < ROCKET_LIFE + 4);
+  }
+
+  // big blast, all drawn in code
+  addBlast(x, y, scale = 1) {
+    const add = (o) => this.fx.push(Object.assign({ x, y, vx: 0, vy: 0, age: 0, life: 1, size: 10, grow: 0, drag: 0, grav: 0 }, o));
+    add({ kind: 'flash', life: 0.35, size: 260 * scale });
+    add({ kind: 'ring', life: 0.55, size: 20, grow: 700 * scale });
+    add({ kind: 'ring', life: 0.8, size: 10, grow: 480 * scale, color: '#ffd23f' });
+    for (let i = 0; i < 16; i++) {
+      // fireball core
+      const a = Math.random() * Math.PI * 2, s = Math.random() * 190 * scale;
+      add({ kind: 'fire', vx: Math.cos(a) * s, vy: Math.sin(a) * s - 40, life: 0.5 + Math.random() * 0.45, size: (26 + Math.random() * 26) * scale, grow: 70 * scale, drag: 2.2 });
+    }
+    for (let i = 0; i < 34; i++) {
+      const a = Math.random() * Math.PI * 2, s = (60 + Math.random() * 360) * scale;
+      add({ kind: 'fire', vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.35 + Math.random() * 0.5, size: (8 + Math.random() * 14) * scale, grow: 25, drag: 2.6 });
+    }
+    for (let i = 0; i < 28; i++) {
+      // dark smoke, drifts up
+      const a = Math.random() * Math.PI * 2, s = Math.random() * 150 * scale;
+      add({ kind: 'smoke', vx: Math.cos(a) * s, vy: Math.sin(a) * s - 90, life: 1.1 + Math.random() * 0.9, size: (18 + Math.random() * 20) * scale, grow: 36 * scale, drag: 1.6, grav: -40 });
+    }
+    for (let i = 0; i < 80; i++) {
+      // flying sparks
+      const a = Math.random() * Math.PI * 2, s = (250 + Math.random() * 850) * scale;
+      add({ kind: 'spark', vx: Math.cos(a) * s, vy: Math.sin(a) * s - 120, life: 0.4 + Math.random() * 0.7, size: 2 + Math.random() * 2, drag: 1.4, grav: 900 });
+    }
+    for (let i = 0; i < 44; i++) {
+      // nyan confetti
+      const a = Math.random() * Math.PI * 2, s = (120 + Math.random() * 520) * scale;
+      add({ kind: 'confetti', vx: Math.cos(a) * s, vy: Math.sin(a) * s - 200, life: 0.9 + Math.random() * 0.9, size: 4 + Math.random() * 4, drag: 1.2, grav: 700, hue: Math.floor(Math.random() * 6) * 60, spin: Math.random() * 6.28 });
+    }
+    if (this.fx.length > FX_MAX) this.fx.splice(0, this.fx.length - FX_MAX);
+  }
+  stepFx(dt) {
+    for (const f of this.fx) {
+      f.age += dt;
+      if (f.drag) { const k = Math.exp(-f.drag * dt); f.vx *= k; f.vy *= k; }
+      if (f.grav) f.vy += f.grav * dt;
+      f.x += f.vx * dt; f.y += f.vy * dt;
+      if (f.grow) f.size += f.grow * dt;
+    }
+    this.fx = this.fx.filter((f) => f.age < f.life);
+  }
+  renderFx(ctx) {
+    for (const f of this.fx) {
+      const t = f.age / f.life;
+      ctx.save();
+      if (f.kind === 'flash') {
+        const g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.size);
+        g.addColorStop(0, 'rgba(255,255,240,1)');
+        g.addColorStop(0.35, 'rgba(255,220,120,0.7)');
+        g.addColorStop(1, 'rgba(255,120,0,0)');
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 1 - t;
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, 6.2832); ctx.fill();
+      } else if (f.kind === 'ring') {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = (1 - t) * 0.9;
+        ctx.strokeStyle = f.color || '#ffffff';
+        ctx.lineWidth = 8 * (1 - t) + 1;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, 6.2832); ctx.stroke();
+      } else if (f.kind === 'fire') {
+        // white hot, then yellow, orange, red
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.max(0, 1 - t) * 0.85;
+        ctx.fillStyle = t < 0.2 ? '#fff6c8' : t < 0.45 ? '#ffd23f' : t < 0.75 ? '#ff7a1a' : '#c2260c';
+        ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(1, f.size * (1 - t * 0.35)), 0, 6.2832); ctx.fill();
+      } else if (f.kind === 'smoke') {
+        ctx.globalAlpha = Math.max(0, (1 - t)) * 0.55;
+        ctx.fillStyle = t < 0.3 ? '#4a4a52' : '#2b2b31';
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, 6.2832); ctx.fill();
+      } else if (f.kind === 'spark') {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = 1 - t;
+        ctx.strokeStyle = t < 0.4 ? '#fff2a8' : '#ff9a2a';
+        ctx.lineWidth = f.size;
+        ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x - f.vx * 0.035, f.y - f.vy * 0.035); ctx.stroke();
+      } else if (f.kind === 'confetti') {
+        ctx.globalAlpha = Math.min(1, (1 - t) * 2);
+        ctx.translate(f.x, f.y);
+        ctx.rotate(f.spin + f.age * 9);
+        ctx.fillStyle = `hsl(${f.hue}, 100%, 55%)`;
+        ctx.fillRect(-f.size / 2, -f.size / 2, f.size, f.size * 0.6);
+      }
+      ctx.restore();
+    }
+  }
+  // rockets and the red mark on whoever they chase
+  renderRockets(ctx) {
+    const frames = this.rocketImgs.filter((im) => im && im.complete && im.naturalWidth);
+    for (const rk of this.rockets) {
+      if (rk.boomed) continue;
+      const t = rk.age >= ROCKET_UP ? this._rocketTarget(rk) : null;
+      if (t) {
+        const pulse = 1 + Math.sin(this.time * 14) * 0.15;
+        const cx = t.pos.x + t.w / 2, cy = t.pos.y + t.h / 2;
+        ctx.save();
+        ctx.strokeStyle = '#ff2a2a';
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(cx, cy, 38 * pulse, 0, 6.2832); ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx - 52 * pulse, cy); ctx.lineTo(cx - 24 * pulse, cy);
+        ctx.moveTo(cx + 24 * pulse, cy); ctx.lineTo(cx + 52 * pulse, cy);
+        ctx.moveTo(cx, cy - 52 * pulse); ctx.lineTo(cx, cy - 24 * pulse);
+        ctx.moveTo(cx, cy + 24 * pulse); ctx.lineTo(cx, cy + 52 * pulse);
+        ctx.stroke();
+        ctx.restore();
+      }
+      if (!frames.length) {
+        ctx.fillStyle = '#eee';
+        ctx.fillRect(rk.x - 16, rk.y - 8, 32, 16);
+        continue;
+      }
+      const img = frames[Math.floor(this.time * 14) % frames.length];
+      const w = img.naturalWidth * ROCKET_SCALE, h = img.naturalHeight * ROCKET_SCALE;
+      ctx.save();
+      ctx.translate(Math.round(rk.x), Math.round(rk.y));
+      ctx.rotate(rk.ang);
+      if (Math.cos(rk.ang) < 0) ctx.scale(1, -1); // keep the cat upright
+      ctx.drawImage(img, Math.round(ROCKET_NOSE - w), Math.round(-h / 2), Math.round(w), Math.round(h));
+      ctx.restore();
+    }
+  }
+
+  // nyan rainbow, drawn behind the cat in the cat's own flipped space
+  drawTrail(ctx, b, tr, img, dx, dy, dw) {
+    const s = dw / img.naturalWidth; // frame scale
+    const moving = Math.abs(b.vel ? b.vel.x : 0) > 40 || b.onGround === false || !!b.dashing;
+    b._trailLen = (b._trailLen ?? 8) + ((moving ? 13 : 8) - (b._trailLen ?? 8)) * 0.12;
+    const segs = Math.round(b._trailLen);
+    const tw = tr.naturalWidth, th = tr.naturalHeight;
+    const x0 = dx + 15 * s; // starts inside the pop tart
+    const y0 = dy + 3 * s;
+    for (let i = 0; i < segs; i++) {
+      // little wave, steps along the trail
+      const wave = (Math.floor(i / 2 + this.time * 7) % 2 === 0 ? -2 : 2) * s;
+      const x = Math.round(x0 - (i + 1) * tw * s);
+      ctx.drawImage(tr, x, Math.round(y0 + wave), Math.ceil(tw * s) + 1, Math.round(th * s));
+    }
   }
 
   // swap maps
@@ -680,6 +923,10 @@ class PlatformerEngine {
     // toss arcs
     this.stepTosses(dt);
 
+    // nyan rockets and blast bits
+    this.stepRockets(dt);
+    this.stepFx(dt);
+
     // glide friends
     for (const r of this.remotes) {
       if (r.tx === undefined) { r.tx = r.pos.x; r.ty = r.pos.y; }
@@ -954,6 +1201,9 @@ class PlatformerEngine {
         const tinted = (b.whiteFlash && strobe) ? this._whiteTint(img)
           : (b.redFlash && strobe) ? this._redTint(img)
           : (b.cyanFlash && strobe) ? this._cyanTint(img) : img;
+        // rainbow sits behind the cat
+        const trail = b.sprites && b.sprites.trail;
+        if (trail && trail.complete && trail.naturalWidth) this.drawTrail(ctx, b, trail, img, dx, dy, dw);
         this.blit(ctx, tinted, img, dx, dy, dw, dh);
         ctx.restore();
       } else {
@@ -1092,6 +1342,9 @@ class PlatformerEngine {
       this.blit(ctx, g.plain ? g.img : this._cyanTint(g.img), g.img, gx, gy, dw, dh);
       ctx.restore();
     }
+    // rockets, then the blast over everything
+    this.renderRockets(ctx);
+    this.renderFx(ctx);
     // debug boxes
     if (this.debug) {
       ctx.strokeStyle = '#ff00ff';
@@ -1354,12 +1607,12 @@ class PlatformerEngine {
       else if (b.animRunning && speed < 260) b.animRunning = false;
       const frames = (b.animRunning && s.run && s.run.length) ? s.run : s.walk;
       // slow run
-      const stride = b.animRunning ? (s.runStride || 65) : (tired ? 70 : 40);
+      const stride = b.animRunning ? (s.runStride || 65) : (s.walkStride || (tired ? 70 : 40));
       const i = Math.floor(b.walkDist / stride) % frames.length;
       return frames[i];
     }
     if (s.idle && s.idle.length) {
-      const i = Math.floor(b.animTime * (tired ? 1 : 2)) % s.idle.length;
+      const i = Math.floor(b.animTime * (s.idleFps || (tired ? 1 : 2))) % s.idle.length;
       return s.idle[i];
     }
     return null;

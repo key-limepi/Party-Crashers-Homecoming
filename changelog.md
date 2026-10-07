@@ -1,6 +1,10 @@
 # changelog
 
 ## latest
+- nyan cyat dev character (mods only): works as a survivor (200 hp, double jump, rainbow dash) or as evil (mods who are evil can pick nyan to wear it, N = rocket)
+- nyan rocket: flies up, then homes down on the nearest enemy for 50 dmg with a big blast, everyone's screen shakes (closer = harder)
+- rainbow trail drawn behind nyan
+- `FORMBAR_MODE=false` in .env skips formbar + digipogs for local testing
 - tails playable: tap jump to flap (orange meter, 25s cooldown), thrown bombs sit on the floor and only trip the killer (30 dmg + 5s stun, 15s cooldown), tailwhip stuns
 - tails has thier own lms anthem
 - super sonic dev character (mods only): transform for 550 hp, super speed, boost/block/spindash, all cameras watch + screen shake + hero theme + rainbow hp bar

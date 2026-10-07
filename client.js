@@ -30,6 +30,7 @@ function loadImg(src) {
       { id: 'sonic', name: 'SONIC', nameImg: CS + 'sonicname.png' },
       { id: 'supersonic', name: 'SUPER SONIC', nameImg: CS + 'supersonicname.png' },
       { id: 'tails', name: 'TAILS', nameImg: CS + 'tailsname.png' },
+      { id: 'nyan', name: 'NYAN CYAT', nameImg: CS + 'nyanname.png' },
     ];
     const TOKO = "./Assets/Images/Characters/Survivors/Toko/";
     const tokoSprites = {
@@ -100,12 +101,32 @@ function loadImg(src) {
       transform: [loadImg(SSP + "transform.png"), loadImg(SSP + "transform2.png"), loadImg(SSP + "transform3.png"), loadImg(SSP + "transform5.png"), loadImg(SSP + "transform6.png"), loadImg(SSP + "transform7.png"), loadImg(SSP + "transform8.png"), loadImg(SSP + "rollflash.png")],
       fall: loadImg(SSP + "roll1.png"),
     };
-    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, supersonic: superSprites, tails: tailsSprites, evil: null }; // evil later
+    const NYAN = "./Assets/Images/Characters/Survivors/Nyan Cyat/";
+    const nyanRun = [1, 2, 3, 4, 5, 6].map((n) => loadImg(NYAN + `main-${n}.png`)); // one loop does it all
+    const nyanSprites = {
+      idle: nyanRun,
+      idleFps: 10,
+      walk: nyanRun,
+      walkStride: 16,
+      run: nyanRun,
+      runStride: 12,
+      jump: nyanRun[2],
+      fall: nyanRun[2],
+      stun: loadImg(NYAN + "hurt.png"),
+      struggle: [loadImg(NYAN + "hurt.png")],
+      cower: nyanRun[0],
+      dash: nyanRun[0],
+      trail: loadImg(NYAN + "rainbow.png"), // drawn behind the cat by the engine
+    };
+    game.rocketImgs = [1, 2, 3, 4].map((n) => loadImg(NYAN + `rocket-${n}.png`));
+    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, supersonic: superSprites, tails: tailsSprites, nyan: nyanSprites, evil: null }; // evil later
+    const NYAN_H = 50; // the cat is wide and low
     function wearChar(id) {
       game.setPlayerSprites(charSprites[id] || luxSprites);
       // true size
       game.player.drawW = 50;
-      game.player.drawH = (id === 'sonic' || id === 'supersonic' || id === 'tails') ? 64 : 70;
+      game.player.drawH = id === 'nyan' ? NYAN_H : (id === 'sonic' || id === 'supersonic' || id === 'tails') ? 64 : 70;
+      game.player.maxJumps = id === 'nyan' ? 2 : 1; // nyan double jumps
     }
     game.setPlayerSprites(luxSprites);
 
@@ -435,8 +456,10 @@ function loadImg(src) {
     let selIdx = 0, selectOpen = false, takenMap = {}, csFrame = 0;
     // dev roster
     let devChars = {};
+    // mods who are evil may wear nyan, nothing else
+    const killerPicks = () => !!net.amKillerElect && !!net.mod && net.phase === 'select';
     function visRoster() {
-      const list = ROSTER.filter((c) => net.mod || !devChars[c.id]);
+      const list = ROSTER.filter((c) => (net.mod || !devChars[c.id]) && (!killerPicks() || c.id === 'nyan'));
       return list.length ? list : ROSTER.slice(0, 1);
     }
     let revealUntil = 0; // reveal timer
@@ -552,7 +575,7 @@ function loadImg(src) {
         csName.alt = cur.name;
       }
       // no buttons
-      const evilLocked = !!(game.player && game.player.evil) || net.phase === 'round' || !!net.amKillerElect;
+      const evilLocked = !killerPicks() && (!!(game.player && game.player.evil) || net.phase === 'round' || !!net.amKillerElect);
       document.getElementById('csLeft').style.display = evilLocked ? 'none' : '';
       document.getElementById('csRight').style.display = evilLocked ? 'none' : '';
       csName.style.visibility = evilLocked ? 'hidden' : '';
@@ -565,9 +588,9 @@ function loadImg(src) {
     function lockPick() {
       if (net.phase !== 'select') return; // select only
       if (game.player && game.player.evil) return; // killers skip
-      if (net.amKillnrElect) return; // evil skips
       const vis = visRoster();
       const cur = vis[((selIdx % vis.length) + vis.length) % vis.length];
+      if (net.amKillerElect && cur.id !== 'nyan') return; // evil skips
       fetch('/api/pick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -859,6 +882,7 @@ function loadImg(src) {
       sonic: './Assets/Images/UI/sonicicon.png',
       supersonic: './Assets/Images/UI/supersonicicon.jpg',
       tails: './Assets/Images/UI/tailsicon.png',
+      nyan: './Assets/Images/UI/nyanicon.png',
     };
     function renderParty(self, p, others, killerId) {
       partyList.innerHTML = '';
@@ -939,6 +963,12 @@ function loadImg(src) {
           { key: 'V', name: 'PULL', icon: ABIL_ICONS.pull, cd: () => K.pullCD },
           { key: 'B', name: 'RUSH', icon: ABIL_ICONS.rush, cd: () => K.rushCD },
         ];
+        if (isNyan()) abilDefs.push({ key: 'N', name: 'ROCKET', icon: null, cd: () => NY.rocketCD });
+      } else if (isNyan()) {
+        abilDefs = [
+          { key: 'Z', name: 'ROCKET', icon: null, cd: () => NY.rocketCD },
+          { key: 'X', name: 'RAINBOW DASH', icon: ABIL_ICONS.dash, cd: () => NY.dashCD },
+        ];
       } else if (isToko()) {
         abilDefs = [
           { key: 'Z', name: 'ROUNDHOUSE', icon: ABIL_ICONS.roundhouse, cd: () => T.kickCD },
@@ -995,17 +1025,18 @@ function loadImg(src) {
       const p = game.player;
       p.evil = evil;
       if (evil) {
-        game.setPlayerSprites(evilSprites);
-        p.drawW = 50; p.drawH = 70; // full size
+        const nyanEvil = net.pick === 'nyan'; // dev skin, same kit
+        game.setPlayerSprites(nyanEvil ? nyanSprites : evilSprites);
+        p.drawW = 50; p.drawH = nyanEvil ? NYAN_H : 70; // full size
         p.maxHp = 250; p.hp = 250;
         p.maxJumps = 2; // double jump
         game.moveSpeed = 300; // evil speed
         game.spawn = { x: game.evilSpawn.x, y: game.evilSpawn.y }; // far spawn
       } else {
         wearChar(net.pick === 'supersonic' ? 'sonic' : net.pick); // plain sonic until glow
-        p.maxHp = 100; p.hp = Math.min(p.hp, 100);
-        p.maxJumps = 1;
-        game.moveSpeed = (net.pick === 'sonic' || net.pick === 'supersonic') ? 270 : 240;
+        p.maxHp = survHp(); p.hp = Math.min(p.hp, p.maxHp);
+        p.maxJumps = net.pick === 'nyan' ? 2 : 1;
+        game.moveSpeed = (net.pick === 'sonic' || net.pick === 'supersonic') ? 270 : net.pick === 'nyan' ? 300 : 240;
         game.spawn = { x: 100, y: 880 };
         p.invis = false; p.rooted = false; p.chargeDir = 0;
         K.charging = false;
@@ -1019,7 +1050,7 @@ function loadImg(src) {
       const now = Date.now();
       const p = game.player;
       if (!p || !net.id) return;
-      const role = p.evil ? 'evil' : (isToko() ? 'toko' : (isSonic() ? 'sonic' : (isSuper() ? (SS.transformed ? 'super' : 'super0') : (isTails() ? 'tails' : 'lux'))));
+      const role = p.evil ? (isNyan() ? 'evilnyan' : 'evil') : (isNyan() ? 'nyan' : isToko() ? 'toko' : (isSonic() ? 'sonic' : (isSuper() ? (SS.transformed ? 'super' : 'super0') : (isTails() ? 'tails' : 'lux'))));
       if (role !== abilRole) {
         abilRole = role;
         buildAbilities();
@@ -1087,6 +1118,7 @@ function loadImg(src) {
       TW.flying = false; TW.flyLeft = 0; TW.whipUntil = 0; TW.holding = false;
       p.sneakColor = null;
       TW.bombCD = 0; TW.flyCD = 0; TW.whipCD = 0; TW.throwUntil = 0;
+      NY.rocketCD = 0; NY.dashCD = 0; NY.dashUntil = 0; NY.dashing = false;
       p.taxiFly = false;
       p.rooted = false;
       p.actionImg = null;
@@ -1132,6 +1164,66 @@ function loadImg(src) {
       bombCD: 0, holding: false, throwUntil: 0,
       whipCD: 0, whipUntil: 0, whipHit: false,
     };
+    // nyan cyat dev kit, survivor or killer
+    const NY = { rocketCD: 0, dashCD: 0, dashUntil: 0, dashing: false, dashHit: false };
+    const isNyan = () => effChar() === 'nyan';
+    const NYAN_HP = 200; // survivor nyan is tanky
+    const ROCKET_CD = 8000; // rocket wait
+    const NYAN_DASH_CD = 6000; // rainbow dash wait
+    const NYAN_DASH_MS = 700; // dash length
+    const NYAN_DASH_SPEED = 950;
+    const BLAST_RANGE = 1800; // shake falls off over this far
+    // lms and nyan both set max hp
+    const survHp = () => (net.pick === 'nyan' ? NYAN_HP : 100);
+    const seenBlasts = new Set();
+    function fireRocket() {
+      const p = game.player;
+      const x = Math.round(p.pos.x + p.w / 2), y = Math.round(p.pos.y);
+      fetch('/api/rocket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: net.id, action: 'launch', x, y }),
+      }).then((r) => r.json()).then((d) => {
+        // the next poll would add it too, same id so no doubles
+        const rk = d && d.rocket;
+        if (rk && !game.rockets.some((g) => g.id === rk.id)) game.addRocket(rk.x, rk.y, { id: rk.id, owner: rk.by, mine: true });
+      }).catch(() => {});
+      fileSfx(SFX + 'dash_release.wav', {});
+    }
+    // caster calls the hit, server does the damage
+    game.onRocketBoom = (rk) => {
+      fetch('/api/rocket', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: net.id, action: 'detonate', rocket: rk.id, x: Math.round(rk.x), y: Math.round(rk.y) }),
+      }).catch(() => {});
+    };
+    // rockets and blasts from the server, everyone sees both
+    function syncRockets(data) {
+      game.myId = net.id;
+      const list = data.rockets || [];
+      for (const r of list) {
+        let rk = game.rockets.find((g) => g.id === r.id);
+        if (!rk) {
+          rk = game.addRocket(r.x, r.y, { id: r.id, owner: r.by, mine: r.by === net.id, age: r.age });
+          fileSfx(SFX + 'dash_release.wav', { v: 0.6 });
+        }
+        rk.target = r.target || null;
+      }
+      game.rockets = game.rockets.filter((g) => !g.id || list.some((r) => r.id === g.id));
+      for (const b of (data.blasts || [])) {
+        if (seenBlasts.has(b.id)) continue;
+        seenBlasts.add(b.id);
+        if (b.age > 1.5) continue; // old news
+        game.addBlast(b.x, b.y);
+        // everyone shakes, closer is harder
+        const cx = game.camera.x + game.width / 2, cy = game.camera.y + game.height / 2;
+        const k = Math.max(0, 1 - Math.hypot(b.x - cx, b.y - cy) / BLAST_RANGE);
+        game.shake(3 + 30 * k * k, 0.7 + 0.9 * k);
+        fileSfx(SFX + 'explode.mp3', { v: 0.25 + 0.75 * k });
+      }
+      if (seenBlasts.size > 60) seenBlasts.delete(seenBlasts.values().next().value);
+    }
     const FLY_MAX = 10000; // meter
     const FLY_DRAIN = 95; // meter burns fast
     const FLY_COLOR = '#ff8c1a'; // orange
@@ -1275,7 +1367,7 @@ function loadImg(src) {
         const res = await fetch('/api/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tab: tabId }),
+          body: JSON.stringify({ tab: tabId, name: new URLSearchParams(location.search).get('name') || '' }), // name only counts with FORMBAR_MODE=false
         });
         if (res.status === 401) {
           // no login
@@ -1386,7 +1478,7 @@ function loadImg(src) {
             lift: TW.flying === true, super: SS.transformed === true, forming: !!SS.formUntil, whipUntil: !!TW.whipUntil, kickUntil: !!T.kickUntil, jabUntil: !!T.jabUntil, throwUntil: !!TW.throwUntil,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
             cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup || !!K.pullWindup, pullwindup: !!K.pullWindup,
-            dashing: !!S.dashing,
+            dashing: !!S.dashing || NY.dashing,
             pose: (poseName && Date.now() < poseUntil) ? poseName : null,
           }),
         });
@@ -1422,7 +1514,7 @@ function loadImg(src) {
                 wearChar(ids[Math.floor(Math.random() * ids.length)]);
               }
             }
-            if (!p.evil) { p.maxHp = 100; } // drop buffs
+            if (!p.evil) { p.maxHp = data.phase === 'round' ? survHp() : 100; } // drop buffs, nyan keeps its hp
             p.hp = p.maxHp;
             game.respawn();
             justRevived = true;
@@ -1555,12 +1647,12 @@ function loadImg(src) {
           r.forming = !!d.forming; // mid glow up
           r.tremble = !!d.forming;
           r.whiteFlash = !!d.forming;
-          r.sprites = r.evil ? evilSprites : (r.char === 'supersonic' && !r.super && !r.forming ? sonicSprites : (charSprites[r.char] || luxSprites)); // see all
+          r.sprites = r.evil ? (r.char === 'nyan' ? nyanSprites : evilSprites) : (r.char === 'supersonic' && !r.super && !r.forming ? sonicSprites : (charSprites[r.char] || luxSprites)); // see all
           // true size
-          const rkey = r.char + (r.super ? '!' : '') + (r.forming ? '?' : '');
+          const rkey = r.char + (r.evil ? '*' : '') + (r.super ? '!' : '') + (r.forming ? '?' : '');
           if (r._lastChar !== rkey) { r._baseFrame = null; r._lastChar = rkey; }
           r.drawW = 50;
-          r.drawH = (!r.evil && (r.char === 'sonic' || r.char === 'supersonic' || r.char === 'tails')) ? 64 : 70;
+          r.drawH = r.char === 'nyan' ? NYAN_H : (!r.evil && (r.char === 'sonic' || r.char === 'supersonic' || r.char === 'tails')) ? 64 : 70;
           r.invis = !!d.invis;
           r.stunned = !!d.stunned;
           r.pull = !!d.pull;
@@ -1736,13 +1828,15 @@ function loadImg(src) {
           if (!p.evil && p.alive !== false) {
             // heal, keep super hp
             const superGlow = isSuper() && SS.transformed;
-            p.maxHp = superGlow ? SUPER_HP : LMS_HP; p.hp = superGlow ? SUPER_HP : LMS_HP;
+            const lmsHp = Math.max(LMS_HP, survHp());
+            p.maxHp = superGlow ? SUPER_HP : lmsHp; p.hp = superGlow ? SUPER_HP : lmsHp;
             S.dashCD = 0; S.cowerCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0;
+            NY.rocketCD = 0; NY.dashCD = 0;
             SS.boostCD = 0; SS.blockCD = 0; SS.spinCD = 0;
             fetch('/api/heal', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: net.id, amount: 999, max: superGlow ? SUPER_HP : LMS_HP }),
+              body: JSON.stringify({ id: net.id, amount: 999, max: superGlow ? SUPER_HP : lmsHp }),
             }).catch(() => {});
           }
         } else if (!isLMS && lmsTrack) {
@@ -1751,7 +1845,7 @@ function loadImg(src) {
           lmsTrack = null; lmsEnded = false;
           if (!p.evil) {
             // drop buffs except super
-            if (!(isSuper() && SS.transformed)) { p.maxHp = 100; p.hp = Math.min(p.hp, 100); }
+            if (!(isSuper() && SS.transformed)) { p.maxHp = survHp(); p.hp = Math.min(p.hp, p.maxHp); }
           } // drop buffs
         }
         // block chase
@@ -1835,6 +1929,7 @@ function loadImg(src) {
           }
         }
         game.alerts = data.alerts || [];
+        syncRockets(data);
         // chat log
         for (const m of (data.chat || [])) {
           if (!seenChat.has(m.mid)) {
@@ -1933,6 +2028,21 @@ function loadImg(src) {
                 p.rooted = true;
                 p.actionImg = superSprites.spin[0]; p.actionT = 0.9;
                 fileSfx(SFX + 'dash_charge.wav', {});
+              }
+              continue;
+            }
+            if (isNyan()) {
+              if (ab === 'Z' && now >= NY.rocketCD && data.phase === 'round' && !data.grace) {
+                // rocket goes for the killer
+                NY.rocketCD = now + ROCKET_CD * (isLMS ? LMS_CD : 1);
+                fireRocket();
+              } else if (ab === 'X' && now >= NY.dashCD && !NY.dashing) {
+                // rainbow dash
+                NY.dashing = true; NY.dashUntil = now + NYAN_DASH_MS; NY.dashHit = false;
+                p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
+                p.facing = p.chargeDir;
+                p.chargeSpeed = NYAN_DASH_SPEED;
+                fileSfx(SFX + 'super_dash.wav', {});
               }
               continue;
             }
@@ -2070,6 +2180,10 @@ function loadImg(src) {
             p.rooted = true;
             p.actionImg = evilAct.windup; p.actionT = 3.1;
             fileSfx(SFX + 'dash_charge.wav', {});
+          } else if (ab === 'N' && isNyan() && now >= NY.rocketCD && data.phase === 'round' && !data.grace) {
+            // killer rocket goes for the nearest survivor
+            NY.rocketCD = now + ROCKET_CD * (isLMS ? LMS_CD : 1);
+            fireRocket();
           }
         }
         // mute over
@@ -2617,6 +2731,36 @@ function loadImg(src) {
             }
           } else {
             p.jabUntil = false; // engine flag
+          }
+        }
+        // nyan dash
+        if (!p.evil && isNyan()) {
+          p.dashing = NY.dashing; // engine flag, longer rainbow
+          if (NY.dashing) {
+            const gi = game._spriteFor(p);
+            const fs = game.frameSize(p, gi);
+            game.afterimages.push({
+              x: p.pos.x, y: p.pos.y, w: p.w, h: p.h,
+              drawW: fs.dw, drawH: fs.dh, facing: p.facing,
+              img: gi, age: 0, plain: true,
+            });
+            const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
+            if (!NY.dashHit && ek &&
+                Math.abs(ek.pos.x - p.pos.x) < 60 &&
+                Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 70) {
+              NY.dashHit = true;
+              fileSfx(SFX + 'basic_hit.wav', {});
+              fetch('/api/hit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: net.id, victim: ek.id, dmg: isLMS ? 20 : 15, stun: 3 }),
+              }).catch(() => {});
+            }
+            if (now >= NY.dashUntil || p.alive === false || (p.stunT || 0) > 0) {
+              NY.dashing = false; p.dashing = false;
+              p.chargeDir = 0; p.chargeSpeed = 0;
+              NY.dashCD = now + NYAN_DASH_CD * (isLMS ? LMS_CD : 1);
+            }
           }
         }
         // tails ticks
