@@ -1,9 +1,12 @@
 
 
-// bomb half size, matches the collider
+// bomb collider half-size
 const BOMB_R = 20;
-// bomb draw height, the art has big transparent margins
+// bomb draw height
 const BOMB_DH = 30;
+
+// realistic bomb physics
+const BOMB_DRAG = 0.0008; // lighter air resistance
 
 class Vec {
   constructor(x = 0, y = 0) { this.x = x; this.y = y; }
@@ -125,6 +128,8 @@ class PlatformerEngine {
     this.remotes = []; // draw only
     this.player = null;
     this.camera = { x: 0, y: 0 };
+    this.shakeT = 0; // screen shake timer
+    this.shakeMag = 0; // shake size
     this.followPlayer = opts.followPlayer ?? true;
     this.background = opts.background || '#1a1b26';
     this.spawn = { x: 60, y: 100 };
@@ -239,6 +244,7 @@ class PlatformerEngine {
     p.visible = true;
     p.fatigue = 0; // fresh legs
     p.lastJumpT = -99;
+    p._justJumped = false;
     p.rooted = false; p.chargeDir = 0; // clear locks
     p.cowerT = 0; p.cowering = false; p.stunT = 0; p.actionT = 0;
   }
@@ -273,31 +279,57 @@ class PlatformerEngine {
   }
 
   // bomb toss arc
-  addToss(x, y, vx, vy, img, id = null) {
-    // real body, so walls and floors stop it
+  addToss(x, y, vx, vy, img, id = null, throwerId = null) {
+    // collides with walls
     const b = new Body(x - BOMB_R, y - BOMB_R, BOMB_R * 2, BOMB_R * 2, { color: '#333' });
     b.vel.x = vx; b.vel.y = vy;
-    const t = { body: b, x, y, age: 0, landed: false, spin: 0, img, id };
+    const t = { 
+      body: b, 
+      x, y, 
+      age: 0, 
+      landed: false, 
+      img, 
+      id,
+      throwerId, // thrower sync id
+      // for arc visualization
+      startX: x,
+      startY: y,
+      startVx: vx,
+      startVy: vy,
+      arcPoints: [], // precomputed arc for rendering
+    };
     this.tosses.push(t);
     if (this.tosses.length > 8) this.tosses.shift();
     return t;
   }
 
-  // toss physics
+  // toss physics with drag
   stepTosses(dt) {
     for (const t of this.tosses) {
       t.age += dt;
       if (t.landed) continue;
       const b = t.body;
+      
+      // Apply gravity
       b.vel.y += this.tossGravity * dt;
+      
+      // Air drag reduces velocity
+      const speed = Math.hypot(b.vel.x, b.vel.y);
+      if (speed > 0) {
+        const dragForce = BOMB_DRAG * speed * speed;
+        const dragX = -dragForce * (b.vel.x / speed);
+        const dragY = -dragForce * (b.vel.y / speed);
+        b.vel.x += dragX * dt;
+        b.vel.y += dragY * dt;
+      }
+      
       b.onGround = false;
       this.moveBody(b, dt, this.statics); // walls and floors
       t.x = b.pos.x + b.w / 2;
       t.y = b.pos.y + b.h / 2;
-      t.spin += b.vel.x * dt * 0.06;
+      
       if (b.onGround) {
         t.landed = true;
-        t.spin = 0; // lie flat
         t.groundY = b.pos.y + b.h; // surface under it
         if (this.onTossLand) this.onTossLand(t);
       } else if (b.pos.y > this.fallY) {
@@ -308,19 +340,54 @@ class PlatformerEngine {
     this.tosses = this.tosses.filter((t) => !(t.landed && t.age > 0.6));
   }
 
+  // compute arc for drawing
+  computeArc(t, maxTime = 3.0, step = 0.05) {
+    if (t.arcPoints && t.arcPoints.length > 0) return t.arcPoints;
+    
+    const points = [];
+    let x = t.startX;
+    let y = t.startY;
+    let vx = t.startVx;
+    let vy = t.startVy;
+    
+    for (let time = 0; time < maxTime; time += step) {
+      points.push({ x, y });
+      
+      // Apply gravity
+      vy += this.tossGravity * step;
+      
+      // Apply drag
+      const speed = Math.hypot(vx, vy);
+      if (speed > 0) {
+        const dragForce = BOMB_DRAG * speed * speed;
+        vx -= dragForce * (vx / speed) * step;
+        vy -= dragForce * (vy / speed) * step;
+      }
+      
+      x += vx * step;
+      y += vy * step;
+      
+      // Stop if hit ground
+      if (y > this.fallY) break;
+    }
+    
+    t.arcPoints = points;
+    return points;
+  }
+
   // bomb pop
   addBoom(x, y, scale = 1) {
-    // fresh img so the gif restarts for each boom
+    // fresh img per boom
     let img = null;
     const b = { x, y, age: 0, scale, img, loaded: false };
     if (this.boomImg && this.boomImg.src) {
       img = new Image();
       img.src = this.boomImg.src;
       img.style.position = 'fixed'; img.style.visibility = 'hidden'; img.style.left = '-9999px';
-      document.body.appendChild(img); // needs the dom to animate
-      img.onload = () => { b.loaded = true; b.age = 0; }; // clock starts on first paint
+      document.body.appendChild(img); // needs DOM attachment
+      img.onload = () => { b.loaded = true; b.age = 0; }; // starts on first paint
       b.img = img;
-      b.node = img; // so we can remove it later
+      b.node = img; // for later removal
     }
     this.booms.push(b);
     if (this.booms.length > 12) this.booms.shift(); // trim spares
@@ -447,7 +514,7 @@ class PlatformerEngine {
         p.onGround = false;
         p.jumps = p.maxJumps ?? 1;
       } else if (p.taxiFly && p.alive !== false) {
-        // tails wings: tap to flap up, gravity sinks you
+        // tap to flap
         const fs = this.moveSpeed * 1.6;
         const flap = fs * 1.05; // one tap of lift
         const sinkMax = fs * 1.25;
@@ -459,12 +526,17 @@ class PlatformerEngine {
         }
         p.onGround = false;
         p.jumps = p.maxJumps ?? 1;
+      } else if (p.superFly && p.alive !== false) {
+        // tap climbs, steer otherwise
+        if (this.input.consumeJumpPressed()) p.vel.y = -620; // flap up
+        else p.vel.y += this.gravity * dt; // normal sink
+        p.jumps = p.maxJumps ?? 1;
       } else {
         p.vel.y += this.gravity * dt;
       }
 
       if (p.onGround) p.jumps = p.maxJumps ?? 1; // feet reset
-      if (!noJump && !this.fly && !p.taxiFly && this.input.consumeJumpPressed()) {
+      if (!noJump && !this.fly && !p.taxiFly && !p.superFly && this.input.consumeJumpPressed()) {
         // weak jumps
         const hop = this.jumpSpeed * (1 - 0.5 * fat);
         if (p.onGround) {
@@ -473,19 +545,21 @@ class PlatformerEngine {
           p.jumps = (p.maxJumps ?? 1) - 1;
           if (!p.evil) p.fatigue = Math.min(1, (p.fatigue || 0) + 0.15);
           p.lastJumpT = this.time;
+          p._justJumped = true;
           if (this.onJump) this.onJump(false);
         } else if ((p.jumps ?? 0) > 0) {
           p.jumps--; // use jump
           p.vel.y = -hop;
           if (!p.evil) p.fatigue = Math.min(1, (p.fatigue || 0) + 0.15);
           p.lastJumpT = this.time;
+          p._justJumped = true;
           if (this.onJump) this.onJump(true);
         }
       } else {
         this.input.consumeJumpPressed(); // drop inputs
       }
-      // short hops, wings keep their own arc
-      if (!p.taxiFly && !this.input.jump && p.vel.y < -260 && this.time > (p.noCutUntil || 0)) p.vel.y = -260;
+      // cap short hops
+      if (!p.taxiFly && !p.superFly && !this.input.jump && p.vel.y < -260 && this.time > (p.noCutUntil || 0)) p.vel.y = -260;
     }
 
     // move bodies
@@ -494,6 +568,8 @@ class PlatformerEngine {
       b.wasGround = b.onGround;
       b.onGround = false;
       this.moveBody(b, dt, this.statics); // tunnel-safe push
+      // clear justJumped on landing
+      if (!b.wasGround && b.onGround) b._justJumped = false;
       // wings end on touchdown
       if (b === p && p.taxiFly && b.onGround) {
         p.taxiFly = false;
@@ -677,12 +753,12 @@ class PlatformerEngine {
     if (this.followPlayer && p) {
       const t = this.cameraTarget || p; // watch who
       this.camera.x = t.pos.x + t.w / 2 - this.width / 2;
-      this.camera.y = t.pos.y + t.h / 2 - this.height / 2;
-      if (this.levelBounds && this.activeMap === 'main') { // stay inside
+      this.camera.y = t.pos.y + t.h / 2 - this.height / 2;      if (this.levelBounds && this.activeMap === 'main') { // stay inside
         this.camera.x = Math.max(0, Math.min(this.levelBounds.w - this.width, this.camera.x));
         this.camera.y = Math.max(0, Math.min(this.levelBounds.h - this.height, this.camera.y));
       }
     }
+    if (this.shakeT > 0) this.shakeT -= dt; // shake decays
 
     if (this.onUpdate) this.onUpdate(dt);
     this.time += dt;
@@ -696,6 +772,11 @@ class PlatformerEngine {
 
     ctx.save();
     ctx.translate(-Math.round(this.camera.x), -Math.round(this.camera.y));
+    if (this.shakeT > 0) {
+      // rumble
+      const m = this.shakeMag * Math.min(1, this.shakeT * 3);
+      ctx.translate((Math.random() * 2 - 1) * m, (Math.random() * 2 - 1) * m);
+    }
 
     if (this.levelArt && this.levelArt.complete && this.activeMap === 'main') {
       const cx = Math.max(0, Math.round(this.camera.x)), cy = Math.max(0, Math.round(this.camera.y));
@@ -734,7 +815,7 @@ class PlatformerEngine {
       ctx.fill();
     }
     ctx.restore();
-    // bomb art, opaque bottom sits on the surface at bb.y
+    // bomb art
     for (const bb of this.bombs) {
       if (bb.used) continue;
       const bi = bb.img || this.bombImg;
@@ -748,22 +829,18 @@ class PlatformerEngine {
     // toss arcs
     for (const t of this.tosses) {
       if (t.dead) continue;
-      ctx.save();
-      ctx.translate(Math.round(t.x), Math.round(t.y));
-      ctx.rotate(t.spin);
       const ti = t.img || this.bombImg;
-      if (ti && ti.complete && ti.naturalWidth) this.drawContent(ctx, ti, 0, BOMB_R, BOMB_DH);
-      else { ctx.fillStyle = '#333'; ctx.fillRect(-BOMB_R, -BOMB_R, BOMB_R * 2, BOMB_R * 2); }
-      ctx.restore();
+      if (ti && ti.complete && ti.naturalWidth) this.drawContent(ctx, ti, Math.round(t.x), Math.round(t.y + BOMB_R), BOMB_DH);
+      else { ctx.fillStyle = '#333'; ctx.fillRect(Math.round(t.x) - BOMB_R, Math.round(t.y) - BOMB_R, BOMB_R * 2, BOMB_R * 2); }
     }
-    // boom pops, just play the gif at natural size
+    // boom pops
     for (const b of this.booms) {
       const img = b.img || this.boomImg;
       ctx.save();
       if (img && img.complete && img.naturalWidth) {
         const dw = Math.round(img.naturalWidth * 0.5), dh = Math.round(img.naturalHeight * 0.5);
         ctx.drawImage(img, Math.round(b.x - dw / 2), Math.round(b.y - dh / 2), dw, dh);
-      } // no fallback circle, it flashed
+      } // no fallback needed
       ctx.restore();
     }
     // spring art
@@ -840,22 +917,33 @@ class PlatformerEngine {
     }
     ctx.stroke();
     for (const b of [...this.bodies, ...(this.remotes || [])]) {
-      if (b.visible === false) continue; // dead camera
-      if (b.isRemote && b.alive === false) continue; // hide dead
-      if (b.isRemote && b.invis && !this.seeInvis) continue; // hidden evil
+      if (b.visible === false) continue;
+      if (b.isRemote && b.alive === false) continue;
+      if (b.isRemote && b.invis && !this.seeInvis) continue;
       const img = this._spriteFor(b);
       if (img && img.complete && img.naturalWidth) {
-        // big sprites
         // cower shake
-        const scare = b.cowering ? Math.floor(Math.random() * 3) - 1 : 0;
+        const scare = (b.cowering || b.tremble) ? Math.floor(Math.random() * 3) - 1 : 0;
         const fs = this.frameSize(b, img);
         const dw = fs.dw, dh = fs.dh;
-        const dx = Math.round(b.pos.x + (b.w - this.anchorW(b)) / 2) + scare;
+        // use visual center
+        const box = this.contentBox(img);
+        let offsetX = 0;
+        if (box) {
+          const base = this.baseFrame(b);
+          const scale = base ? (b.drawH || b.h) / base.h : 1;
+          // content box center
+          const contentCenterX = box.x + box.w / 2;
+          // full image center
+          const fullCenterX = img.naturalWidth / 2;
+          offsetX = Math.round((contentCenterX - fullCenterX) * scale);
+        }
+        const dx = Math.round(b.pos.x + (b.w - dw) / 2) + offsetX + scare;
         const dy = Math.round(b.pos.y + (b.h - dh)); // align feet
-        const cx = Math.round(b.pos.x + b.w / 2);
+        const cx = Math.round(b.pos.x + b.w / 2) + offsetX;
         ctx.save();
-        if (b === this.player && b.invis) ctx.globalAlpha = 0.45; // ghost evil
-        else if (b.isRemote && b.away) ctx.globalAlpha = 0.5; // ghost afk
+        if (b === this.player && b.invis) ctx.globalAlpha = 0.45;
+        else if (b.isRemote && b.away) ctx.globalAlpha = 0.5;
         if (b.facing < 0) {
           ctx.translate(cx, 0);
           ctx.scale(-1, 1);
@@ -863,13 +951,21 @@ class PlatformerEngine {
         }
         // windup strobes
         const strobe = Math.floor(this.time * 10) % 2 === 0;
-        const tinted = (b.redFlash && strobe) ? this._redTint(img)
+        const tinted = (b.whiteFlash && strobe) ? this._whiteTint(img)
+          : (b.redFlash && strobe) ? this._redTint(img)
           : (b.cyanFlash && strobe) ? this._cyanTint(img) : img;
         this.blit(ctx, tinted, img, dx, dy, dw, dh);
         ctx.restore();
       } else {
         ctx.fillStyle = b.color;
         ctx.fillRect(b.pos.x, b.pos.y, b.w, b.h);
+        // fallback char initial
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 16px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const initial = (b.name || '?')[0].toUpperCase();
+        ctx.fillText(initial, b.pos.x + b.w / 2, b.pos.y + b.h / 2);
       }
       // ghost meter
       if (b === this.player && (b.sneakFrac || 0) > 0) {
@@ -906,9 +1002,16 @@ class PlatformerEngine {
         ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
         ctx.fillStyle = '#000';
         ctx.fillRect(bx, by, bw, bh);
-        ctx.fillStyle = (b.hp ?? 100) <= 30 ? '#8e0000' // low health
+        if (b.rainbow) {
+          // super bar
+          const segs = 6, base = Math.floor(this.time * 200) % 360;
+          for (let i = 0; i < segs; i++) {
+            ctx.fillStyle = `hsl(${(base + i * 60) % 360}, 100%, 55%)`;
+            ctx.fillRect(bx + (bw * frac * i) / segs, by, (bw * frac) / segs + 0.5, bh);
+          }
+        } else ctx.fillStyle = (b.hp ?? 100) <= 30 ? '#8e0000' // low health
           : frac > 0.5 ? '#2ed573' : frac > 0.25 ? '#ffa502' : '#8e0000';
-        ctx.fillRect(bx, by, bw * frac, bh);
+        if (!b.rainbow) ctx.fillRect(bx, by, bw * frac, bh);
         // evil name
         // afk tag
         const evilTag = b.isRemote && b.evil;
@@ -967,13 +1070,25 @@ class PlatformerEngine {
       if (!g.img || !g.img.complete || !g.img.naturalWidth) continue;
       ctx.save();
       ctx.globalAlpha = Math.max(0, 0.5 * (1 - g.age / 0.4));
+      // use visual center
+      const box = this.contentBox(g.img);
+      let offsetX = 0;
+      if (box) {
+        const baseH = g.drawH || g.h;
+        const scale = baseH / g.img.naturalHeight;
+        const contentCenterX = box.x + box.w / 2;
+        const fullCenterX = g.img.naturalWidth / 2;
+        offsetX = Math.round((contentCenterX - fullCenterX) * scale);
+      }
+      const cx = Math.round(g.x + g.w / 2) + offsetX;
       if (g.facing < 0) {
-        ctx.translate(Math.round(g.x + g.w / 2), 0);
+        ctx.translate(cx, 0);
         ctx.scale(-1, 1);
-        ctx.translate(-Math.round(g.x + g.w / 2), 0);
+        ctx.translate(-cx, 0);
       }
       const dw = g.drawW || g.w, dh = g.drawH || g.h;
-      const gx = Math.round(g.x + (g.w - dw) / 2), gy = Math.round(g.y + (g.h - dh));
+      const gx = Math.round(g.x + (g.w - dw) / 2) + offsetX;
+      const gy = Math.round(g.y + (g.h - dh));
       this.blit(ctx, g.plain ? g.img : this._cyanTint(g.img), g.img, gx, gy, dw, dh);
       ctx.restore();
     }
@@ -1017,6 +1132,21 @@ class PlatformerEngine {
       img._cyanTint = t;
     }
     return img._cyanTint;
+  }
+  // hero tint
+  _whiteTint(img) {
+    if (!img._whiteTint) {
+      const t = document.createElement('canvas');
+      t.width = img.naturalWidth || img.width;
+      t.height = img.naturalHeight || img.height;
+      const c = t.getContext('2d');
+      c.drawImage(img, 0, 0);
+      c.globalCompositeOperation = 'source-atop';
+      c.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      c.fillRect(0, 0, t.width, t.height);
+      img._whiteTint = t;
+    }
+    return img._whiteTint;
   }
 
   // idle scale
@@ -1079,7 +1209,7 @@ class PlatformerEngine {
     return img._trimB;
   }
 
-  // opaque box of an image, ignores the transparent margins
+  // get opaque box
   contentBox(img) {
     if (img._cbox !== undefined) return img._cbox;
     let box = null;
@@ -1107,7 +1237,7 @@ class PlatformerEngine {
     return box;
   }
 
-  // draw an image by its opaque pixels, bottom edge on by
+  // draw opaque pixels bottom-aligned
   drawContent(ctx, img, cx, bottomY, h) {
     const box = this.contentBox(img);
     if (!box) {
@@ -1162,9 +1292,56 @@ class PlatformerEngine {
       const i = Math.floor(b.animTime * 6) % s.struggle.length;
       return s.struggle[i];
     }
+    // peelout animation
+    if ((b.peeling || (b.isRemote && b.peeling)) && s.peel && s.peel.length) {
+      return s.peel[Math.floor(b.animTime * 16) % s.peel.length];
+    }
+    // spindash roll animation
+    if ((b.spinning || (b.isRemote && b.spinning)) && s.jump && Array.isArray(s.jump)) {
+      return s.jump[Math.floor(b.animTime * 12) % s.jump.length];
+    }
+    // spindash windup animation
+    if ((b.spinWindup || (b.isRemote && b.spinwindup)) && s.spin && s.spin.length) {
+      return s.spin[Math.floor(b.animTime * 10) % s.spin.length];
+    }
+    // tails fly animation
+    if ((b.lift || (b.isRemote && b.lift)) && s.fly && s.fly.length) {
+      return s.fly[Math.floor(b.animTime * 8) % s.fly.length];
+    }
+    // tailwhip animation
+    if ((b.whipUntil || (b.isRemote && b.whipUntil)) && s.whip && s.whip.length) {
+      return s.whip[Math.floor(b.animTime * 15) % s.whip.length];
+    }
+    // kick animation
+    if ((b.kickUntil || (b.isRemote && b.kickUntil)) && s.kick && s.kick.length) {
+      return s.kick[Math.floor(b.animTime * 8) % s.kick.length];
+    }
+    // jab animation
+    if ((b.jabUntil || (b.isRemote && b.jabUntil)) && s.jab && s.jab.length) {
+      return s.jab[Math.floor(b.animTime * 10) % s.jab.length];
+    }
+    // throw animation
+    if ((b.throwUntil || (b.isRemote && b.throwUntil)) && s.throw && s.throw.length) {
+      return s.throw[Math.floor(b.animTime * 8) % s.throw.length];
+    }
+    // air throw animation
+    if ((b.throwUntil || (b.isRemote && b.throwUntil)) && !b.onGround && s.airthrow && s.airthrow.length) {
+      return s.airthrow[Math.floor(b.animTime * 8) % s.airthrow.length];
+    }
+    // peelout windup animation
+    if ((b.windupUntil && !b.peeling && !b.spinning) || (b.isRemote && b.windup && !b.peeling && !b.spinning)) {
+      if (s.charge && s.charge.length) return s.charge[Math.floor(b.animTime * 8) % s.charge.length];
+      if (s.charge) return s.charge;
+    }
     if (!b.onGround && s.jump) {
       if (b.vel.y > 300 && s.fall) return s.fall;
-      if (Array.isArray(s.jump)) return s.jump[Math.floor(b.animTime * 10) % s.jump.length];
+      // hold jump, then roll
+      if (Array.isArray(s.jump)) {
+        const justJumped = b._justJumped && b.animTime < 0.15;
+        if (justJumped) return s.jump[0];
+        b._justJumped = false;
+        return s.jump[Math.floor(b.animTime * 10) % s.jump.length];
+      }
       return s.jump;
     }
     const speed = Math.abs(b.vel.x);
