@@ -850,6 +850,16 @@ class Handler(SimpleHTTPRequestHandler):
                     self._send_json({"ok": False, "reason": "no player!!"})
                     return
                 fid = me["fid"]
+                if is_admin(fid):
+                    try:
+                        amount = max(0, int(data.get("amount", MALICE_PER_BUY)))
+                    except (TypeError, ValueError):
+                        amount = MALICE_PER_BUY
+                    add_malice(fid, amount)
+                    total = malice.get(fid, 0)
+                    print(f"!! dev {me['name']} gave themselves {amount} malice ({total})!!", flush=True)
+                    self._send_json({"ok": True, "malice": total})
+                    return
                 if phase != "intermission":
                     self._send_json({"ok": False, "reason": "malice is sold during intermission only!!"})
                     return
