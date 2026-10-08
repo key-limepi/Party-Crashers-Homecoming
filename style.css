@@ -72,7 +72,6 @@
 
     #debug h2 { margin: 0 0 4px; font-size: 14px; }
     #debug button { font-size: 12px; padding: 2px 8px; margin: 2px; }
-    #debug input, #debug select { box-sizing: border-box; max-width: 100%; margin: 2px; }
     #readout { white-space: pre; margin: 4px 0 0; font-size: 11px; }
 
     #net { margin-top: 8px; }

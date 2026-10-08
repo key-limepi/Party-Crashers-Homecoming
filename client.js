@@ -244,43 +244,6 @@ function loadImg(src) {
         body: JSON.stringify({ id: net.id, action, ...(extra || {}) }),
       }).catch(() => {});
     }
-    const maliceTarget = document.getElementById('maliceTarget');
-    const maliceAmountBox = document.getElementById('maliceAmountBox');
-    function refreshMaliceTargets(players) {
-      if (!net.mod) return;
-      const entries = Object.entries(players || {}).map(([id, player]) => [id, player.name || id]);
-      const signature = JSON.stringify(entries);
-      if (maliceTarget.dataset.signature === signature) return;
-      const selected = maliceTarget.value || net.id;
-      maliceTarget.replaceChildren(...entries.map(([id, name]) => {
-        const option = document.createElement('option');
-        option.value = id;
-        option.textContent = name;
-        return option;
-      }));
-      maliceTarget.dataset.signature = signature;
-      if (entries.some(([id]) => id === selected)) maliceTarget.value = selected;
-    }
-    document.getElementById('giveMaliceBtn').addEventListener('click', async () => {
-      const amount = Number(maliceAmountBox.value);
-      const target = maliceTarget.value;
-      if (!net.id || !net.mod || !target || !Number.isSafeInteger(amount) || amount < 0) {
-        sayStatus('choose a player and valid malice amount!!', 4);
-        return;
-      }
-      try {
-        const res = await fetch('/api/mod', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: net.id, action: 'givemalice', target, amount }),
-        });
-        const result = await res.json();
-        const name = maliceTarget.selectedOptions[0]?.textContent || 'player';
-        sayStatus(result.ok ? `gave ${amount} malice to ${name}!!` : (result.reason || 'could not give malice!!'), 5);
-      } catch (_) {
-        sayStatus('could not reach the server!!', 5);
-      }
-    });
     document.getElementById('hurtBtn').addEventListener('click', () => game.hurtPlayer(10));
     document.getElementById('healBtn').addEventListener('click', () => game.healPlayer(10));
     document.getElementById('spawnBtn').addEventListener('click', () => game.respawn());
@@ -439,10 +402,20 @@ function loadImg(src) {
     buyMaliceBtn.addEventListener('click', async () => {
       if (!net.id) return;
       buyMaliceBtn.disabled = true;
+      let amount = undefined;
+      if (net.mod) {
+        const raw = window.prompt('free dev malice amount?', '1000');
+        if (raw === null) {
+          buyMaliceBtn.disabled = false;
+          return;
+        }
+        const parsed = Number(raw);
+        amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 1000;
+      }
       const res = await fetch('/api/malice/buy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: net.id }),
+        body: JSON.stringify({ id: net.id, amount }),
       });
       const out = await res.json();
       sayStatus(out.ok ? `malice updated!! you have ${out.malice}!!` : (out.reason || 'could not buy!!'), 5);
@@ -689,13 +662,9 @@ function loadImg(src) {
     }, 180);
     // chat box
     const chatBox = document.getElementById('chatBox');
+    // readonly box
     const openFromBox = (e) => {
       e.preventDefault();
-      if (net.mod) {
-        game.input.left = game.input.right = game.input.jump = false;
-        chatBox.focus();
-        return;
-      }
       chatBox.blur();
       if (selectOpen) return;
       if (chatBox.disabled) {
@@ -708,13 +677,6 @@ function loadImg(src) {
     };
     chatBox.addEventListener('click', openFromBox);
     chatBox.addEventListener('focus', openFromBox);
-    chatBox.addEventListener('keydown', (e) => {
-      if (e.key !== 'Enter' || !net.mod) return;
-      e.preventDefault();
-      const text = chatBox.value.trim();
-      chatBox.value = '';
-      sendQuick(text);
-    });
     // changelog
     const logBtn = document.getElementById('logBtn');
     const logModal = document.getElementById('logModal');
@@ -1509,8 +1471,6 @@ function loadImg(src) {
         }, Math.max(0, 3000 - held));
         clearTimeout(net.retry);
         net.mod = !!joined.mod;
-        chatBox.readOnly = !net.mod;
-        chatBox.placeholder = net.mod ? 'type message!! (enter)' : 'say something!! (enter)';
         net.everOnline = true; // stay joined
         net.fid = joined.fid;
         sayStatus(`online as ${joined.name}!! friends can see you!! :D`, 4);
@@ -1709,7 +1669,6 @@ function loadImg(src) {
         }
         if (phaseText !== lastPhaseText) { phaseLine.textContent = phaseText; lastPhaseText = phaseText; }
         // malice shop
-        refreshMaliceTargets(data.players);
         malicePanel.style.display = 'block';
         maliceNum.textContent = you.malice || 0;
         buyMaliceBtn.disabled = data.phase !== 'intermission';
