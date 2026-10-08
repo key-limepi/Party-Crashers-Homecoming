@@ -34,29 +34,39 @@ We are remaking the whole game from the ground up in Javascript.
 
 ## Setup
 
-1. Copy `.env-template` to `.env` and fill in `FORMBAR_ADDRESS`, `URL` and `POOL_ID`.
+1. Set these environment variables: `FORMBAR_ADDRESS`, `URL` and `POOL_ID`. Locally you can put them in a `.env` file, on Vercel add them in Project Settings > Environment Variables.
 2. Add your Formbar user ID to `admins.txt` if you want the mod menu.
 3. Players log in with Formbar and enter their digipog PIN once. The PIN is kept in server memory only.
 
 **Local testing:** set `FORMBAR_MODE=false` in `.env` to skip Formbar login and digipogs. There is no login at all: click the title screen and you're in as a guest (or open `http://localhost:8000/?name=bob` to pick a name). Every browser tab is its own player and everyone counts as a mod, so you can test dev characters like Nyan Cyat with a couple of tabs. Leave it `true` when hosting for real.
 
-Costs and malice settings (all in `.env`): `ROUND_COST` (25), `MALICE_PRICE` (10), `MALICE_PER_BUY` (1), `MALICE_PER_ROUND` (1). Set `ROUND_COST=0` for free rounds.
+Costs and malice settings: `ROUND_COST` (25), `MALICE_PRICE` (10), `MALICE_PER_BUY` (1), `MALICE_PER_ROUND` (1). Set `ROUND_COST=0` for free rounds.
 
-## Quick start
+## Run it locally
 
-### Windows
-Double click **`start-server.bat`**. Keep the window open while you play.
+Needs Node 22 or newer. There is nothing to install.
 
-### macOS / Linux
 ```bash
-./start-server.sh
+npm start              # http://localhost:8000
+node server.js 8080    # custom port
 ```
-(You may need `chmod +x start-server.sh` first.)
 
-### Or run it directly
-```bash
-python3 server.py          # http://localhost:8000
-python3 server.py 8080     # custom port
-```
- 
 Then open **http://localhost:8000** in your browser.
+
+## Deploy to Vercel
+
+1. Push this repo to GitHub and import it in Vercel. No build settings are needed.
+2. Add the environment variables from the setup section.
+3. Deploy.
+
+## How the code is laid out
+
+```
+public/        the game page, client code, images and sounds
+api/index.js   the one Vercel function, every api call comes through here
+lib/           the server code (rounds, routes, chat filter, formbar)
+server.js      tiny local server for testing, not used on Vercel
+vercel.json    sends /api, /login and /logout to the function
+```
+
+**Heads up about Vercel:** the game keeps its state (players, rounds, logins) in memory, and there is no background timer, so round timers are checked whenever a request comes in. This works while one warm function instance serves everyone. If Vercel starts a second instance or restarts it, players can be split up or logged out, and malice totals are not saved to disk. For a big public game, move the state to something like Redis or host `server.js` on an always-on server.
