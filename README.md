@@ -34,7 +34,7 @@ We are remaking the whole game from the ground up in Javascript.
 
 ## Setup
 
-1. Set these environment variables: `FORMBAR_ADDRESS`, `URL` and `POOL_ID`. Locally you can put them in a `.env` file, on Vercel add them in Project Settings > Environment Variables.
+1. Set these environment variables: `FORMBAR_ADDRESS`, `URL`, `POOL_ID` and `SESSION_SECRET` (any long random text, it signs the login cookie and must be the same on every Vercel instance). Locally you can put them in a `.env` file, on Vercel add them in Project Settings > Environment Variables.
 2. Add your Formbar user ID to `admins.txt` if you want the mod menu.
 3. Players log in with Formbar and enter their digipog PIN once. The PIN is kept in server memory only.
 
