@@ -96,6 +96,7 @@ players = {} # player list
 spikes = {} # trap list
 bombs = {} # tails traps
 bomb_tosses = {} # airborne tails bomb throws
+pending_bomb_refunds = [] # bombs waiting to be refunded (owner_id, refund_time)
 rockets = {} # nyan rockets in the air
 blasts = [] # fresh rocket blasts, everyone shakes
 last_rocket = {} # launch guard
@@ -545,6 +546,7 @@ def start_round():
         pl["stun_until"] = 0
     spikes.clear()
     bombs.clear()
+    pending_bomb_refunds.clear()
     rockets.clear()
     del blasts[:]
     del alerts[:]
@@ -586,6 +588,7 @@ def end_round(winner):
         pl["char"] = None # fresh picks
     spikes.clear()
     bombs.clear()
+    pending_bomb_refunds.clear()
     rockets.clear()
     del blasts[:]
     del alerts[:]
@@ -630,6 +633,23 @@ def game_tick():
                     chat_log.pop(0)
                 if killer_id not in players:
                     killer_id = None
+                # clean up expired bombs and refund immediately
+                for bid in list(bombs):
+                    bb = bombs[bid]
+                    if now - bb.get("at", now) > 45:
+                        del bombs[bid]
+                        owner = bb.get("owner")
+                        if owner and isinstance(owner, str):
+                            owner_player = players.get(owner)
+                            if owner_player and owner_player.get("char") == "tails" and not owner_player.get("evil"):
+                                owner_player["bombs_left"] = min(5, owner_player.get("bombs_left", 5) + 1)
+                # process pending bomb refunds
+                for refund in list(pending_bomb_refunds):
+                    if now >= refund["until"]:
+                        owner_player = players.get(refund["owner"])
+                        if owner_player and owner_player.get("char") == "tails" and not owner_player.get("evil"):
+                            owner_player["bombs_left"] = min(5, owner_player.get("bombs_left", 5) + 1)
+                        pending_bomb_refunds.remove(refund)
 
                 if phase == "lobby":
                     # need players
@@ -1056,9 +1076,10 @@ class Handler(SimpleHTTPRequestHandler):
                         if (x - ob["x"]) ** 2 + (y - ob["y"]) ** 2 < 100 ** 2:
                             self._send_json({"ok": False, "reason": "too close!!"})
                             return
-                    while len(bombs) >= 5:
-                        oldest = min(bombs, key=lambda s: bombs[s]["at"])
-                        del bombs[oldest]
+                    # bombs have a hard limit and don't disappear - must be triggered
+                    if len(bombs) >= 5:
+                        self._send_json({"ok": False, "reason": "bomb limit reached!!"})
+                        return
                     bomb_seq += 1
                     bid = f"b{bomb_seq}"
                     bombs[bid] = {"x": x, "y": y, "by": me["name"], "owner": me["id"], "at": time.time()}
@@ -1095,22 +1116,25 @@ class Handler(SimpleHTTPRequestHandler):
                 if data.get("action") == "trip" and data.get("bomb") in bombs:
                     bb = bombs.pop(data["bomb"])
                     if data.get("id") == killer_id and me:
+                        now = time.time()
                         me["hp"] = max(0, me.get("hp", 250) - 30)
-                        me["stun_until"] = max(me.get("stun_until", 0), time.time() + 5)
+                        # bomb stun decays over 45 seconds: 5s fresh → 2s at 45s
+                        bomb_age = max(0, now - bb.get("at", now))
+                        bomb_stun = max(2.0, 5.0 - (bomb_age / 15))
+                        me["stun_until"] = max(me.get("stun_until", 0), now + bomb_stun)
                         try:
                             push = float(data.get("dx", 0) or 0)
                         except (ValueError, TypeError):
                             push = 0
                         me["kb"] = {"x": -push, "y": -0.4,
-                                    "at": time.time(), "s": 2}
+                                    "at": now, "s": 2}
                         if me["hp"] <= 0:
                             me["alive"] = False
-                        print(f"!! {me['name']} ate a bomb!!", flush=True)
+                        print(f"!! {me['name']} ate a bomb (age {bomb_age:.1f}s = {bomb_stun:.1f}s stun)!!", flush=True)
                     owner = bb.get("owner")
                     if owner and isinstance(owner, str):
-                        owner_player = players.get(owner)
-                        if owner_player and owner_player.get("char") == "tails" and not owner_player.get("evil"):
-                            owner_player["bombs_left"] = min(5, owner_player.get("bombs_left", 5) + 1)
+                        # defer refund for 5 seconds
+                        pending_bomb_refunds.append({"owner": owner, "until": now + 5})
                     self._send_json({"ok": True})
                     return
             self._send_json({"ok": False})
@@ -1389,6 +1413,7 @@ class Handler(SimpleHTTPRequestHandler):
                 elif action == "clearspikes":
                     spikes.clear()
                     bombs.clear()
+                    pending_bomb_refunds.clear()
                 elif action == "announce":
                     text = str(data.get("text", ""))[:120].strip()
                     if text and me:
