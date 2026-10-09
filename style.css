@@ -4,11 +4,11 @@
 
     body {
       margin: 0;
-      background: #fef9ff;
+      background: #101038 url("./sitebg.png") repeat;
       display: grid;
       place-items: center;
       min-height: 100vh;
-      color: #5b4b8a;
+      color: #fff;
     }
 
     #wrap {
@@ -18,13 +18,14 @@
 
     h1 {
       margin: 0 0 8px;
-      font-size: 28px;
-      color: #ff6fb5;
-      text-shadow: 1px 1px 0 #fff;
+      font-size: 34px;
+      font-style: italic;
+      letter-spacing: 2px;
+      color: #fff;
     }
 
     canvas {
-      border: 4px solid #ffb3dd;
+      border: 6px outset #c0c0f0;
       background: #bfe9ff;
       width: min(96vw, calc((100vh - 260px) * 16 / 9));
       width: min(96vw, calc((100dvh - 260px) * 16 / 9));
@@ -35,21 +36,27 @@
     p {
       font-size: 15px;
       margin: 8px 0;
+      color: #fff;
     }
 
     button {
       font-size: 18px;
       padding: 8px 20px;
       margin: 4px;
-      border: 3px solid #5b4b8a;
-      background: #fff3b0;
-      color: #5b4b8a;
+      border: 4px outset #f0f0f0;
+      background: #2e5bff;
+      color: #fff;
       cursor: pointer;
     }
 
     button:hover {
-      background: #ffe066;
-      transform: rotate(-2deg);
+      background: #4d7cff;
+      transform: translateY(-2px);
+    }
+
+    button:active {
+      border-style: inset;
+      transform: translateY(2px);
     }
 
     /* mod box */
@@ -62,22 +69,23 @@
       max-width: 230px;
       max-height: 60vh;
       overflow-y: auto;
-      background: rgba(255, 243, 176, 0.95);
-      border: 3px solid #5b4b8a;
+      background: rgba(8, 8, 32, 0.95);
+      border: 4px outset #c0c0f0;
+      color: #00e5ff;
       padding: 6px 8px;
       text-align: left;
       font-size: 12px;
       z-index: 999;
     }
 
-    #debug h2 { margin: 0 0 4px; font-size: 14px; }
+    #debug h2 { margin: 0 0 4px; font-size: 14px; color: #fff; }
     #debug button { font-size: 12px; padding: 2px 8px; margin: 2px; }
     #readout { white-space: pre; margin: 4px 0 0; font-size: 11px; }
 
     #net { margin-top: 8px; }
-    #pinBox, #nameBox { font-size: 16px; padding: 6px 10px; border: 3px solid #5b4b8a; background: #fff; color: #5b4b8a; width: 160px; }
-    #netStatus { display: block; margin-top: 4px; font-size: 14px; }
-    #midBox { display: block; margin-top: 2px; font-size: 13px; color: #ff6fb5; cursor: pointer; text-decoration: underline; }
+    #pinBox, #nameBox { font-size: 16px; padding: 6px 10px; border: 4px inset #c0c0f0; background: #000; color: #00e5ff; width: 160px; }
+    #netStatus { display: block; margin-top: 4px; font-size: 14px; color: #fff; }
+    #midBox { display: block; margin-top: 2px; font-size: 13px; color: #00e5ff; cursor: pointer; text-decoration: underline; }
 
     /* side icons */
     #abilities {
@@ -121,7 +129,7 @@
     .abSlot .abName { font-size: 11px; color: #fff; }
 
     /* big screen */
-    #wrap:fullscreen { width: 100vw; height: 100vh; display: grid; place-items: center; align-content: center; background: #fef9ff; }
+    #wrap:fullscreen { width: 100vw; height: 100vh; display: grid; place-items: center; align-content: center; background: #000; }
     #wrap:fullscreen canvas { width: min(98vw, 174vh); height: auto; max-width: none; }
 
     /* hurt flash */
@@ -230,7 +238,7 @@
       bottom: 0;
       left: 0;
       font-size: clamp(10px, 1.8vw, 16px);
-      color: #ffe93b;
+      color: #fff;
       background: rgba(0, 0, 0, 0.65);
       padding: 1px 8px;
       white-space: nowrap;
@@ -242,6 +250,7 @@
       width: 100%;
       height: 22%;
       background: #0d0d0d;
+      border-top: 4px solid #fff;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -262,14 +271,12 @@
       top: 4%;
       right: 4%;
       font-size: clamp(18px, 4vw, 40px);
-      color: #ffe93b;
-      text-shadow: 2px 2px 0 #000;
+      color: #fff;
     }
     #csNameText {
       font-size: clamp(24px, 5vw, 52px);
       color: #ff4757;
       letter-spacing: 4px;
-      text-shadow: 2px 2px 0 #000;
     }
     #csNameText.cs-taken { color: #6b6b6b; text-decoration: line-through; }
     .cs-hint {
@@ -279,7 +286,6 @@
       text-align: center;
       font-size: 12px;
       color: #ffb300;
-      text-shadow: 1px 1px 0 #000;
     }
     #phaseLine {
       position: absolute;
@@ -287,22 +293,70 @@
       left: 50%;
       transform: translateX(-50%);
       font-size: 16px;
-      color: #5b4b8a;
-      background: rgba(255, 255, 255, 0.85);
-      border: 2px solid #5b4b8a;
+      color: #fff;
+      background: #0a0a2e;
+      border: 3px outset #c0c0f0;
       padding: 2px 12px;
       pointer-events: none;
       line-height: normal;
       white-space: nowrap;
     }
+    /* hero lyrics */
+    #lyricBar {
+      position: absolute;
+      bottom: 64px;
+      width: 100%;
+      text-align: center;
+      font-size: clamp(16px, 3.4vw, 30px);
+      font-style: italic;
+      color: #fff;
+      -webkit-text-stroke: 2px #1a1b26;
+      paint-order: stroke fill;
+      pointer-events: none;
+      line-height: normal;
+      z-index: 40;
+      padding: 0 12px;
+      box-sizing: border-box;
+    }
+    #lyricBar .lyr-rainbow {
+      background: linear-gradient(90deg, #ff3131, #ffa502, #ffe93b, #2ed573, #00e5ff, #c084fc, #ff3131);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: lyrspin 1s steps(4, end) infinite;
+    }
+    @keyframes lyrspin {
+      0% { filter: hue-rotate(0deg); }
+      25% { filter: hue-rotate(90deg); }
+      50% { filter: hue-rotate(180deg); }
+      75% { filter: hue-rotate(270deg); }
+    }
+    /* mod announcement */
+    #announce {
+      position: absolute;
+      top: 22%;
+      width: 100%;
+      text-align: center;
+      font-size: clamp(22px, 5vw, 44px);
+      color: #fff;
+      -webkit-text-stroke: 2px #1a1b26;
+      paint-order: stroke fill;
+      pointer-events: none;
+      line-height: normal;
+      z-index: 65;
+      padding: 0 16px;
+      box-sizing: border-box;
+      overflow-wrap: break-word;
+    }
     #roleBox {
       display: none;
       position: absolute;
-      top: 35%;
+      top: 40px;
       left: 50%;
-      transform: translateX(-50%) rotate(-3deg);
-      font-size: 44px;
-      text-shadow: 3px 3px 0 #fff, -2px -2px 0 #fff, 2px -2px 0 #fff, -2px 2px 0 #fff;
+      transform: translateX(-50%);
+      font-size: 20px;
+      font-style: italic;
+      color: #fff;
       pointer-events: none;
       white-space: nowrap;
     }
@@ -313,9 +367,9 @@
       left: 50%;
       transform: translateX(-50%);
       font-size: 20px;
-      color: #5b4b8a;
-      background: rgba(255, 255, 255, 0.8);
-      border: 2px solid #5b4b8a;
+      color: #fff;
+      background: #0a0a2e;
+      border: 3px outset #c0c0f0;
       padding: 0 10px 2px;
       pointer-events: none;
       line-height: normal;
@@ -329,7 +383,8 @@
       left: 50%;
       transform: translateX(-50%);
       font-size: 56px;
-      color: #ff6fb5;
+      font-style: italic;
+      color: #2e5bff;
       pointer-events: none;
       z-index: 998;
       white-space: nowrap;
@@ -345,13 +400,32 @@
       gap: 6px;
       pointer-events: none;
       line-height: normal;
+      background: rgba(0, 0, 0, 0.55);
+      border: 3px outset #c0c0f0;
+      padding: 2px 6px;
     }
-    #spikeBar img {
+    /* bomb stash */
+    #bombBar {
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      pointer-events: none;
+      line-height: normal;
+      background: rgba(0, 0, 0, 0.55);
+      border: 3px outset #c0c0f0;
+      padding: 2px 6px;
+    }
+    #spikeBar img,
+    #bombBar img {
       width: 40px;
       height: 40px;
     }
-    #spikePips { display: flex; gap: 4px; }
-    #spikePips img {
+    #spikePips, #bombPips { display: flex; gap: 4px; }
+    #spikePips img,
+    #bombPips img {
       width: 18px;
       height: 26px;
     }
@@ -389,6 +463,9 @@
       color: #fff;
       -webkit-text-stroke: 2px #1a1b26;
       paint-order: stroke fill;
+      background: rgba(0, 0, 0, 0.55);
+      border: 3px outset #c0c0f0;
+      padding: 2px 8px 2px 2px;
     }
     #partyList .pRow img {
       width: 40px;
@@ -404,11 +481,23 @@
       width: 120px;
       height: 12px;
       background: #000;
-      border: 2px solid #000;
+      border: 2px solid #fff;
     }
     #partyList .pFill {
       height: 100%;
       background: #2ed573;
+    }
+    #partyList .pRow.super .pFill {
+      background: linear-gradient(90deg, #ff3131, #ffa502, #ffe93b, #2ed573, #00e5ff, #c084fc);
+    }
+    #partyList .pRow.super img {
+      animation: superpulse 0.8s steps(4, end) infinite;
+    }
+    @keyframes superpulse {
+      0% { filter: brightness(1); }
+      25% { filter: brightness(1.5); }
+      50% { filter: brightness(2); }
+      75% { filter: brightness(1.25); }
     }
     #partyList .pRow.dead {
       opacity: 0.45;
@@ -427,8 +516,9 @@
       position: fixed;
       left: 10px;
       bottom: 10px;
-      background: #fff3b0;
-      border: 3px solid #5b4b8a;
+      background: #0a0a2e;
+      border: 3px outset #c0c0f0;
+      color: #00e5ff;
       padding: 4px 10px;
       font-size: 14px;
       z-index: 997;
@@ -439,8 +529,9 @@
       position: fixed;
       right: 10px;
       top: 10px;
-      background: #fff3b0;
-      border: 3px solid #5b4b8a;
+      background: #0a0a2e;
+      border: 3px outset #c0c0f0;
+      color: #00e5ff;
       padding: 4px 10px;
       font-size: 14px;
       z-index: 997;
@@ -463,7 +554,7 @@
     }
     #errScreen.show { display: flex; }
     #errText {
-      color: #fff;
+      color: #2e5bff;
       font-size: 28px;
       padding: 0 24px;
     }
@@ -512,9 +603,60 @@
     #titleScreen span {
       color: #fff;
       font-size: 40px;
+      font-style: italic;
       padding: 0 24px;
     }
 
+    /* pin entry */
+    #pinRow {
+      position: absolute;
+      top: 58%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 75;
+      line-height: normal;
+    }
+    #pinRow #pinBox {
+      font-size: 28px;
+      padding: 8px 14px;
+      width: 220px;
+      text-align: center;
+    }
+    #pinRow #pinBtn {
+      font-size: 24px;
+    }
+    /* map loading */
+    #mapLoad {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 94;
+      pointer-events: none;
+      line-height: normal;
+    }
+    /* killer intro */
+    #introWrap {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      z-index: 95;
+      cursor: pointer;
+      line-height: normal;
+    }
+    #introWrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #000;
+    }
     /* pin banner */
     #pinBanner {
       position: absolute;
@@ -531,8 +673,9 @@
       z-index: 70;
     }
     #pinBanner span {
-      color: #fff3b0;
+      color: #fff;
       font-size: 44px;
+      font-style: italic;
       padding: 0 24px;
     }
 
@@ -562,8 +705,9 @@
     /* chat box */
     #chatPanel {
       width: 230px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 3px solid #5b4b8a;
+      background: rgba(8, 8, 32, 0.92);
+      border: 4px outset #c0c0f0;
+      color: #fff;
       padding: 6px 8px;
     }
     #chatLog {
@@ -580,9 +724,9 @@
       font-size: 14px;
       padding: 4px 6px;
       margin-top: 6px;
-      border: 3px solid #5b4b8a;
-      background: #fff;
-      color: #5b4b8a;
+      border: 4px inset #c0c0f0;
+      background: #000;
+      color: #00e5ff;
       cursor: pointer;
     }
     /* changelog */
@@ -593,8 +737,9 @@
       width: 280px;
       max-height: 70%;
       overflow-y: auto;
-      background: rgba(255, 255, 255, 0.97);
-      border: 3px solid #5b4b8a;
+      background: rgba(8, 8, 32, 0.97);
+      border: 4px outset #c0c0f0;
+      color: #fff;
       padding: 8px 10px;
       font-size: 13px;
       text-align: left;
@@ -612,12 +757,12 @@
     #quickPanel .quickBtn {
       font-size: 14px;
       padding: 4px 8px;
-      background: #fff3b0;
-      border: 3px solid #5b4b8a;
-      color: #5b4b8a;
+      background: #2e5bff;
+      border: 4px outset #f0f0f0;
+      color: #fff;
       cursor: pointer;
       text-align: left;
     }
 
-#malicePanel { margin-top: 6px; font-size: 14px; }
-#logoutLink { font-size: 13px; color: #ff6fb5; }
+#malicePanel { margin-top: 6px; font-size: 14px; color: #fff; }
+#logoutLink { font-size: 13px; color: #00e5ff; }

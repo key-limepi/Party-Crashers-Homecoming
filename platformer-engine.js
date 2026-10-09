@@ -129,7 +129,7 @@ class PlatformerEngine {
     this.gravity = opts.gravity ?? 2200; // fall speed
     this.flyGravity = opts.flyGravity ?? 700; // wings are floaty
     this.moveSpeed = opts.moveSpeed ?? 260; // walk speed
-    this.jumpSpeed = opts.jumpSpeed ?? 780; // jump speed
+    this.jumpSpeed = opts.jumpSpeed ?? 825; // jump speed
     this.airControl = opts.airControl ?? 0.7;
     this.tossGravity = opts.tossGravity ?? 2300; // clearer bomb arcs
 
@@ -175,6 +175,7 @@ class PlatformerEngine {
     this.rocketDone = new Set(); // ended ids, never respawn them from a late poll
     this.rocketImgs = []; // rocket frames
     this.onRocketBoom = null; // rocket hook
+    this.onRocketHome = null; // homing hook
     this.myId = null; // my net id
     this.fx = []; // blast particles
     this.bombImg = null; // bomb art
@@ -346,7 +347,22 @@ class PlatformerEngine {
       this.moveBody(b, dt, this.statics); // walls and floors
       t.x = b.pos.x + b.w / 2;
       t.y = b.pos.y + b.h / 2;
-      
+      // spring bounce, keeps its speed
+      if (b.vel.y > 0 && !b.onGround) {
+        const bcx = b.pos.x + b.w / 2, feet = b.pos.y + b.h;
+        for (const sp of this.springs) {
+          if (sp.map !== this.activeMap || sp.cd > this.time) continue;
+          if (Math.abs(bcx - (sp.x + sp.w / 2)) < (b.w + sp.w) / 2 &&
+              feet > sp.y + 4 && feet < sp.y + sp.h + 14) {
+            sp.cd = this.time + 6;
+            b.vel.y = -sp.power;
+            t.x = b.pos.x + b.w / 2;
+            t.y = b.pos.y + b.h / 2;
+            if (this.onTossBounce) this.onTossBounce(t);
+            break;
+          }
+        }
+      }
       if (b.onGround) {
         t.landed = true;
         t.groundY = b.pos.y + b.h; // surface under it
@@ -354,6 +370,19 @@ class PlatformerEngine {
       } else if (b.pos.y > this.fallY) {
         t.landed = true;
         t.dead = true; // sailed off
+      }
+    }
+    // midair hits
+    const flying = this.tosses.filter((t) => !t.landed && !t.dead);
+    for (let i = 0; i < flying.length; i++) {
+      for (let j = i + 1; j < flying.length; j++) {
+        const a = flying[i], c = flying[j];
+        if (Math.abs(a.x - c.x) < 30 && Math.abs(a.y - c.y) < 30) {
+          a.landed = true; a.dead = true;
+          c.landed = true; c.dead = true;
+          this.addBoom((a.x + c.x) / 2, (a.y + c.y) / 2);
+          if (this.onTossBoom) this.onTossBoom(a, c);
+        }
       }
     }
     this.tosses = this.tosses.filter((t) => !(t.landed && t.age > 0.6));
@@ -466,6 +495,12 @@ class PlatformerEngine {
         const k = 1 - Math.exp(-6 * dt);
         rk.vx += (dx / d * sp - rk.vx) * k;
         rk.vy += (dy / d * sp - rk.vy) * k;
+        // closer beeps faster and higher
+        const prox = Math.max(0, Math.min(1, 1 - d / 500));
+        if (this.time >= (rk.beepAt || 0)) {
+          rk.beepAt = this.time + 0.45 - prox * 0.37;
+          if (this.onRocketHome) this.onRocketHome(rk, 0.9 + prox * 1.1);
+        }
       } else {
         rk.vy += 1800 * dt; // nobody left, drop
       }
@@ -991,7 +1026,7 @@ class PlatformerEngine {
         if (sp.cd > this.time) continue;
         if (Math.abs(cx - (sp.x + sp.w / 2)) < (p.w + sp.w) / 2 &&
             feet > sp.y + 6 && feet < sp.y + sp.h + 14) {
-          sp.cd = this.time + 3;
+          sp.cd = this.time + 6;
           p.pos.y = sp.y + 6 - p.h;
           p.vel.y = -sp.power;
           p.noCutUntil = this.time + 0.6;
@@ -1318,7 +1353,23 @@ class PlatformerEngine {
             : (b.redFlash && strobe) ? this._redTint(img)
             : (b.cyanFlash && strobe) ? this._cyanTint(img) : img;
           this.blit(ctx, tinted, img, dx, dy, dw, dh);
+          if (b.pulseWhite) {
+            // stepped white pulse
+            const levels = [0.08, 0.24, 0.42, 0.6];
+            ctx.save();
+            ctx.globalAlpha = levels[Math.floor(this.time * 8) % levels.length];
+            this.blit(ctx, this._whiteTint(img), img, dx, dy, dw, dh);
+            ctx.restore();
+          }
           ctx.restore();
+        }
+        // held bomb, carry frames miss it
+        if (b.holdingBomb && !b.rocketing) {
+          const bi = this.bombImg;
+          if (bi && bi.complete && bi.naturalWidth) {
+            const hx = cx + (b.facing || 1) * dw * 0.35;
+            this.drawContent(ctx, bi, Math.round(hx), Math.round(dy + dh * 0.55), BOMB_DH);
+          }
         }
       } else {
         ctx.fillStyle = b.color;
