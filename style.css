@@ -627,6 +627,7 @@
     #pinRow #pinBtn {
       font-size: 24px;
     }
+    #pinRow { z-index: 102; }
     /* map loading */
     #mapLoad {
       position: absolute;
@@ -670,7 +671,7 @@
       text-align: center;
       pointer-events: none;
       line-height: normal;
-      z-index: 70;
+      z-index: 101;
     }
     #pinBanner span {
       color: #fff;
