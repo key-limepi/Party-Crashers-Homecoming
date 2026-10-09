@@ -67,7 +67,7 @@ class Body {
 
 class Input {
   constructor() {
-    this.left = false; this.right = false; this.jump = false;
+    this.left = false; this.right = false; this.jump = false; this.down = false;
     this._jumpPressed = false;
     this._abilityPressed = []; // ability taps
     this._bind();
@@ -84,6 +84,7 @@ class Input {
       switch (e.key) {
         case 'ArrowLeft': this.left = true; break;
         case 'ArrowRight': this.right = true; break;
+        case 'ArrowDown': this.down = true; break;
         case 'ArrowUp': case ' ':
           if (!this.jump) this._jumpPressed = true;
           this.jump = true; break;
@@ -99,6 +100,7 @@ class Input {
       switch (e.key) {
         case 'ArrowLeft': this.left = false; break;
         case 'ArrowRight': this.right = false; break;
+        case 'ArrowDown': this.down = false; break;
         case 'ArrowUp': case ' ': this.jump = false; break;
       }
     };
@@ -670,6 +672,26 @@ class PlatformerEngine {
         const fireColor = f.color || (t < 0.2 ? '#fff6c8' : t < 0.45 ? '#ffd23f' : t < 0.75 ? '#ff7a1a' : '#c2260c');
         ctx.fillStyle = fireColor;
         ctx.beginPath(); ctx.arc(f.x, f.y, Math.max(1, f.size * (1 - t * 0.35)), 0, 6.2832); ctx.fill();
+      } else if (f.kind === 'splat') {
+        const radius = Math.max(1, f.size * (1 - t * 0.3));
+        ctx.globalAlpha = Math.max(0, 1 - t);
+        ctx.translate(f.x, f.y);
+        ctx.rotate((f.spin || 0) * f.age);
+        const points = Array.from({ length: 12 }, (_, i) => {
+          const angle = i / 12 * 6.2832;
+          const lobe = i % 2 ? 0.62 : 1;
+          const wobble = 0.88 + 0.12 * Math.sin(i * 3.7 + (f.seed || 0));
+          return { x: Math.cos(angle) * radius * lobe * wobble, y: Math.sin(angle) * radius * lobe * wobble };
+        });
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+        ctx.closePath();
+        ctx.fillStyle = f.color || '#249bff';
+        ctx.strokeStyle = f.outline || '#12324f';
+        ctx.lineWidth = Math.max(1.5, radius * 0.2);
+        ctx.lineJoin = 'round';
+        ctx.fill(); ctx.stroke();
       } else if (f.kind === 'smoke') {
         ctx.globalAlpha = Math.max(0, (1 - t)) * 0.55;
         ctx.fillStyle = t < 0.3 ? '#4a4a52' : '#2b2b31';
@@ -885,7 +907,7 @@ class PlatformerEngine {
       if (canFly) {
         const fs = this.moveSpeed * 1.6;
         p.vel.x = ax * fs;
-        p.vel.y = this.input.jump ? -fs : fs * 0.25;
+        p.vel.y = this.input.jump ? -fs : this.input.down ? fs : 0;
         p.onGround = false;
         p.jumps = p.maxJumps ?? 1;
       } else if (p.taxiFly && p.alive !== false) {
@@ -1305,13 +1327,16 @@ class PlatformerEngine {
         // cower shake
         const scare = (b.cowering || b.tremble) ? Math.floor(Math.random() * 3) - 1 : 0;
         const fs = this.frameSize(b, img);
-        const dw = fs.dw, dh = fs.dh;
+        const scaleX = b.char === 'bear5' ? (b.bearDrawScaleX || 1) : 1;
+        const scaleY = b.char === 'bear5' ? (b.bearDrawScaleY || 1) : 1;
+        const dw = Math.max(1, Math.round(fs.dw * scaleX));
+        const dh = Math.max(1, Math.round(fs.dh * scaleY));
         // use visual center
         const box = this.contentBox(img);
         let offsetX = 0;
         if (box) {
           const base = this.baseFrame(b);
-          const scale = base ? (b.drawH || b.h) / base.h : 1;
+          const scale = (base ? (b.drawH || b.h) / base.h : 1) * scaleX;
           // content box center
           const contentCenterX = box.x + box.w / 2;
           // full image center
@@ -1352,7 +1377,18 @@ class PlatformerEngine {
           const tinted = (b.whiteFlash && strobe) ? this._whiteTint(img)
             : (b.redFlash && strobe) ? this._redTint(img)
             : (b.cyanFlash && strobe) ? this._cyanTint(img) : img;
-          this.blit(ctx, tinted, img, dx, dy, dw, dh);
+          if (b.char === 'bear5' && b.bearFold > 0.02) {
+            this.drawBearFold(ctx, tinted, img, dx, dy, dw, dh, b.bearFold, b.bearFoldX, b.bearFoldY, b.bearFoldReach);
+          } else if (b.char === 'bear5' && b.bearDrawAngle) {
+            ctx.save();
+            ctx.translate(cx, dy + dh);
+            ctx.rotate(b.bearDrawAngle);
+            ctx.translate(-cx, -(dy + dh));
+            this.blit(ctx, tinted, img, dx, dy, dw, dh);
+            ctx.restore();
+          } else {
+            this.blit(ctx, tinted, img, dx, dy, dw, dh);
+          }
           if (b.pulseWhite) {
             // stepped white pulse
             const levels = [0.08, 0.24, 0.42, 0.6];
@@ -1602,6 +1638,31 @@ class PlatformerEngine {
     if (!nw || !nh || dw <= 0 || dh <= 0) return;
     const sh = Math.max(1, nh - this.trimB(img));
     ctx.drawImage(tinted, 0, 0, nw, sh, dx, dy, dw, dh);
+  }
+
+  drawBearFold(ctx, tinted, img, dx, dy, dw, dh, fold, towardX, towardY, reach) {
+    const nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height;
+    const sourceHeight = Math.max(1, nh - this.trimB(img));
+    const strips = 12;
+    for (let i = 0; i < strips; i++) {
+      const top = i / strips, bottom = (i + 1) / strips;
+      const sourceTop = Math.floor(sourceHeight * top);
+      const sourceBottom = Math.min(sourceHeight, Math.ceil(sourceHeight * bottom));
+      const centerFromFeet = 1 - (top + bottom) / 2;
+      const angle = fold * (0.7 + centerFromFeet * 2.5) * Math.PI;
+      const cosine = Math.cos(angle);
+      const widthScale = 0.14 + 0.86 * Math.abs(cosine);
+      const stripWidth = dw * widthScale;
+      const bend = (towardX * 58 + towardY * 24) * (reach || 0) * centerFromFeet ** 1.35 * fold;
+      const centerX = dx + dw / 2 + bend;
+      const stripTop = dy + dh * top;
+      const stripHeight = dh * (bottom - top) + 1;
+      ctx.save();
+      ctx.translate(centerX, stripTop);
+      if (cosine < 0) ctx.scale(-1, 1);
+      ctx.drawImage(tinted, 0, sourceTop, nw, sourceBottom - sourceTop, -stripWidth / 2, 0, stripWidth, stripHeight);
+      ctx.restore();
+    }
   }
 
   // content feet

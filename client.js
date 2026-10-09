@@ -138,6 +138,7 @@ function loadImg(src) {
 
     // evil stats
     const EVIL = "./Assets/Images/Characters/Killers/Evil Lux/";
+    const bear5Image = loadImg("./Assets/Images/Characters/bear5/Bear5.png");
     const evilSprites = {
       idle: [loadImg(EVIL + "idle1.png"), loadImg(EVIL + "idle2.png")],
       walk: [loadImg(EVIL + "walk1.png"), loadImg(EVIL + "walk2.png")],
@@ -148,15 +149,15 @@ function loadImg(src) {
     };
     const evilM1 = [loadImg(EVIL + "m1walk.png"), loadImg(EVIL + "m1walk2.png"), loadImg(EVIL + "m1walk3.png")];
     const bear5Sprites = {
-      idle: evilSprites.idle,
-      walk: evilSprites.walk,
-      run: evilSprites.run,
-      jump: evilSprites.run[0],
-      fall: evilSprites.run[0],
-      stun: evilSprites.run[0],
-      struggle: evilSprites.run,
-      cower: evilSprites.run[0],
-      dash: evilSprites.run[0],
+      idle: bear5Image,
+      walk: bear5Image,
+      run: bear5Image,
+      jump: bear5Image,
+      fall: bear5Image,
+      stun: bear5Image,
+      struggle: bear5Image,
+      cower: bear5Image,
+      dash: bear5Image,
     };
     charSprites.evil = evilSprites;
     charSprites.bear5 = bear5Sprites;
@@ -352,8 +353,7 @@ function loadImg(src) {
         const me = await loadMe();
         if (!me.logged_in) { location.href = '/login'; return; } // formbar login
         if (me.needs_pin && !me.has_pin) {
-          pinRow.style.display = 'flex';
-          pinBanner.style.display = 'flex';
+          showPinPrompt();
           sayStatus('enter your digipog pin, then click again!!', 8);
           titleClicked = false;
           return;
@@ -386,6 +386,11 @@ function loadImg(src) {
     async function loadMe() {
       net.me = await (await fetch('/api/me')).json();
       return net.me;
+    }
+    function showPinPrompt() {
+      pinRow.style.display = 'flex';
+      pinBanner.style.display = 'flex';
+      pinBox.focus();
     }
     async function savePin() {
       const res = await fetch('/api/pin', {
@@ -557,7 +562,7 @@ function loadImg(src) {
       return true;
     }
     function runFrameFor(charId, evil) {
-      if (evil) return EVIL_RUN[csFrame % EVIL_RUN.length];
+      if (evil) return charId === 'bear5' ? bear5Image.src : EVIL_RUN[csFrame % EVIL_RUN.length];
       if (charId === 'supersonic') charId = 'sonic'; // disguised in select
       const set = charSprites[charId];
       let run = set && set.run && set.run[csFrame % set.run.length];
@@ -879,6 +884,7 @@ function loadImg(src) {
     const mapLoad = document.getElementById('mapLoad');
     const introWrap = document.getElementById('introWrap');
     const introVid = document.getElementById('introVid');
+    const bearIntro = document.getElementById('bearIntro');
     if (introVid) {
       const introDone = () => {
         if (net.id) {
@@ -963,6 +969,18 @@ function loadImg(src) {
         a.volume = (o && o.v) || 0.5;
         a.play().catch(() => {});
       } catch (e) { /* silent!! */ }
+    }
+    function spawnBearHitFx(x, y) {
+      const blues = ['#249bff', '#53bdff', '#1177dc'];
+      for (let i = 0; i < 18; i++) {
+        game.fx.push({
+          kind: 'splat', x, y,
+          vx: (Math.random() - 0.5) * 460, vy: (Math.random() - 0.75) * 360,
+          age: 0, life: 0.45 + Math.random() * 0.35, size: 5 + Math.random() * 8,
+          grow: 2, drag: 2.2, grav: 430, color: blues[Math.floor(Math.random() * blues.length)],
+          seed: Math.random() * 6.2832, spin: (Math.random() - 0.5) * 2,
+        });
+      }
     }
     // loop sounds
     function loopSfx(src, v) {
@@ -1178,8 +1196,8 @@ function loadImg(src) {
         game.setPlayerSprites(bear ? bear5Sprites : evilSprites);
         p.drawW = bear ? 76 : 50; p.drawH = bear ? 94 : 70; // full size
         p.maxHp = bear ? 999 : 250; p.hp = bear ? 999 : 250;
-        p.maxJumps = bear ? 20 : 2; // double jump
-        game.moveSpeed = bear ? 520 : 300; // evil speed
+        p.maxJumps = 2;
+        game.moveSpeed = bear ? 820 : 300; // evil speed
         game.fly = bear;
         game.noclip = bear;
         game.spawn = { x: game.evilSpawn.x, y: game.evilSpawn.y }; // far spawn
@@ -1240,27 +1258,13 @@ function loadImg(src) {
       // afk button
       afkBtn.style.display = (net.id && net.phase !== 'round') || net.afk ? 'block' : 'none';
     }
-    game.onUpdate = (dt) => {
-      const p = game.player;
-      if (!p || !p.evil || !p.alive || p.alive === false) return;
-      if (net.killerPick === 'bear5' || p.char === 'bear5') {
-        const speed = Math.abs(p.vel.x) + Math.abs(p.vel.y);
-        const squash = 1 - Math.min(0.35, speed / 1800);
-        const stretch = 1 + Math.min(0.5, speed / 1400);
-        p.drawW = 72 + Math.min(30, speed * 0.02);
-        p.drawH = Math.max(48, 94 * squash);
-        if (p.actionT > 0 && (p.actionImg || p.poseImg)) {
-          p.drawW = 80 + Math.min(42, speed * 0.03);
-          p.drawH = 72 + Math.min(22, speed * 0.012);
-        }
-      }
-    };
     setInterval(() => { if (game.player && net.id) abilTick(); }, 250);
     // pose flashes
     let poseName = null, poseUntil = 0;
     function setPose(name, ms) { poseName = name; poseUntil = Date.now() + ms; }
     function poseImage(isEvil, char, pose) {
       if (isEvil) {
+        if (char === 'bear5') return bear5Image;
         if (pose === 'swing') return evilM1[0];
         if (pose === 'spike') return evilAct.spike;
       } else if (char === 'toko') {
@@ -1328,6 +1332,61 @@ function loadImg(src) {
     const T = {
       kickCD: 0, jabCD: 0, kickUntil: 0, kickHit: false,
       jabUntil: 0, jabHit: false,
+    };
+    game.onUpdate = () => {
+      const player = game.player;
+      const survivors = game.remotes.filter((b) => !b.evil && b.alive && b.hp > 0);
+      if (player && !player.evil && player.alive !== false) survivors.push(player);
+      const bears = game.remotes.filter((b) => b.evil && b.char === 'bear5');
+      if (player && player.evil && player.char === 'bear5') bears.push(player);
+      const now = performance.now();
+      for (const bear of bears) {
+        const vx = bear.vel?.x || 0;
+        let vy = bear.vel?.y || 0;
+        if (bear !== player) {
+          const elapsed = Math.max(0.001, (now - (bear._bearMotionAt || now)) / 1000);
+          vy = ((bear.pos.y || 0) - (bear._bearMotionY ?? bear.pos.y)) / elapsed;
+          bear._bearMotionAt = now;
+          bear._bearMotionY = bear.pos.y;
+        }
+        const speed = Math.hypot(vx, vy);
+        const moving = Math.min(1, speed / 1050);
+        const pulse = Math.sin((bear.animTime || 0) * 22);
+        const rising = Math.min(1, Math.max(0, -vy / 1300));
+        const falling = Math.min(1, Math.max(0, vy / 1300));
+        bear.bearDrawScaleX = 1 + moving * (0.22 + pulse * 0.14) + falling * 0.16;
+        bear.bearDrawScaleY = 1 - moving * (0.12 + pulse * 0.08) + rising * 0.22 - falling * 0.1;
+        bear.bearDrawAngle = Math.max(-0.22, Math.min(0.22, vx / 1500 * 0.18 - vy / 2000 * 0.12));
+        bear.bearFold = 0;
+        if ((bear._bearFoldUntil || 0) > Date.now()) {
+          let target = null, nearest = Infinity;
+          for (const survivor of survivors) {
+            const dx = survivor.pos.x + survivor.w / 2 - (bear.pos.x + bear.w / 2);
+            const dy = survivor.pos.y + survivor.h / 2 - (bear.pos.y + bear.h / 2);
+            const distance = Math.hypot(dx, dy);
+            if (distance < nearest) { nearest = distance; target = { dx, dy }; }
+          }
+          if (target) {
+            const progress = 1 - (bear._bearFoldUntil - Date.now()) / (bear._bearFoldDuration || 440);
+            bear.bearFold = Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI);
+            bear.bearFoldX = Math.sign(target.dx || bear.facing || 1) * (bear.facing || 1);
+            bear.bearFoldY = Math.max(-1, Math.min(1, target.dy / 120));
+            bear.bearFoldReach = Math.min(1, nearest / 150);
+          }
+        }
+        if (bear === player && game.fly && speed > 250 && now - (bear._bearTrailAt || 0) > 60) {
+          const img = game._spriteFor(bear);
+          if (img && img.complete && img.naturalWidth) {
+            const frame = game.frameSize(bear, img);
+            game.afterimages.push({
+              x: bear.pos.x, y: bear.pos.y, w: bear.w, h: bear.h,
+              drawW: frame.dw * (bear.bearDrawScaleX || 1), drawH: frame.dh * (bear.bearDrawScaleY || 1),
+              facing: bear.facing, img, age: 0,
+            });
+            bear._bearTrailAt = now;
+          }
+        }
+      }
     };
     const isToko = () => effChar() === 'toko';
     const isSonic = () => effChar() === 'sonic';
@@ -1616,7 +1675,7 @@ function loadImg(src) {
           // no login
           const e = await res.json().catch(() => ({}));
           if (e.login) { location.href = '/login'; return; }
-          pinRow.style.display = 'flex';
+          showPinPrompt();
           sayStatus(e.error || 'enter your digipog pin!!', 8);
           return;
         }
@@ -1689,6 +1748,10 @@ function loadImg(src) {
       }
       loadMe().then((me) => {
         if (me.logged_in) sayStatus(`logged in as ${me.name}!! click the title to play!!`, 0);
+        if (me.logged_in && me.needs_pin && !me.has_pin) {
+          showPinPrompt();
+          sayStatus('enter your digipog pin!!', 0);
+        }
       }).catch(() => {});
     })();
     async function netTick() {
@@ -1789,7 +1852,7 @@ function loadImg(src) {
         }
         net.ekid = data.killer_id || null;
         net.amKillerElect = !!net.id && data.killer_id === net.id && data.phase !== 'round';
-        net.killerPick = you?.killer_char || 'evil';
+        net.killerPick = others[data.killer_id]?.killer_char || you?.killer_char || 'evil';
         // evil incoming
         // far exile
         if (net.amKillerElect && !net.wasElect) {
@@ -1812,7 +1875,7 @@ function loadImg(src) {
           if (fresh && data.phase === 'round') game.respawn(); // evil spawn
           clearTimeout(roleTimer);
           if (fresh && data.phase === 'round') fileSfx(SFX + 'going_into_round.wav', {});
-          if (fresh && data.phase === 'intro') fileSfx(vpick(VL_OPEN), {});
+          if (fresh && data.phase === 'intro' && net.killerPick !== 'bear5') fileSfx(vpick(VL_OPEN), {});
           roleBox.textContent = amEvil
             ? (net.killerPick === 'bear5' ? 'YOU ARE BEAR5!!' : fresh ? 'YOU ARE EVIL LUX!!' : 'YOU ARE EVIL NOW!!')
             : (fresh ? `you are ${(net.pick || 'lux').toUpperCase()}!! :D` : 'BACK TO NORMAL!!');
@@ -1841,13 +1904,22 @@ function loadImg(src) {
             setTimeout(() => {
               if (net._introRound === data.round && net.phase === 'intro' && introWrap.style.display !== 'block') {
                 introWrap.style.display = 'block';
-                try { introVid.currentTime = 0; } catch (_) { /* hush!! */ }
-                introVid.play().catch(() => { introWrap.style.display = 'none'; });
+                const isBearIntro = others[data.killer_id]?.killer_char === 'bear5';
+                introVid.style.display = isBearIntro ? 'none' : '';
+                bearIntro.style.display = isBearIntro ? 'flex' : 'none';
+                if (isBearIntro) {
+                  introVid.pause();
+                } else {
+                  try { introVid.currentTime = 0; } catch (_) { /* hush!! */ }
+                  introVid.play().catch(() => { introWrap.style.display = 'none'; });
+                }
               }
             }, 2000);
           } else if (data.phase !== 'intro' && introWrap.style.display !== 'none') {
             introWrap.style.display = 'none';
             try { introVid.pause(); } catch (_) { /* hush!! */ }
+            introVid.style.display = '';
+            bearIntro.style.display = 'none';
           }
         }
         // phase text
@@ -1965,7 +2037,7 @@ function loadImg(src) {
           if (d.windup) {
             if (!r._wasWindup) r._windupStart = Date.now();
             if (r.evil) {
-              r.poseImg = r.pullwindup ? evilAct.pullwindup : evilWindup[0];
+              r.poseImg = r.char === 'bear5' ? bear5Image : (r.pullwindup ? evilAct.pullwindup : evilWindup[0]);
             } else if (r.char === 'sonic') {
               // revving up
               if (r.spinwindup) {
@@ -1985,6 +2057,11 @@ function loadImg(src) {
             r.pose = d.pose;
             r.poseUntil = Date.now() + 350;
             r.poseImg = poseImage(r.evil, r.char, d.pose);
+            if (r.char === 'bear5' && d.pose === 'bear-fold') {
+              r._bearFoldStart = Date.now();
+              r._bearFoldDuration = 440;
+              r._bearFoldUntil = r._bearFoldStart + r._bearFoldDuration;
+            }
           } else if (!d.pose) {
             r.pose = null;
           }
@@ -2005,8 +2082,12 @@ function loadImg(src) {
             r.poseImg = superSprites.transform[Math.floor(Date.now() / 200) % superSprites.transform.length];
             r.poseUntil = Date.now() + 150;
           }
-          if (p.evil && r._lastHp !== undefined && r.hp < r._lastHp) {
-            fileSfx(SFX + 'm1_hit.wav', {}); // hit sound
+          const lostHp = r._lastHp !== undefined && r.hp < r._lastHp;
+          if (lostHp && !r.evil && data.phase === 'round' && others[data.killer_id]?.killer_char === 'bear5') {
+            spawnBearHitFx(r.pos.x + r.w / 2, r.pos.y + r.h / 2);
+          }
+          if (p.evil && lostHp) {
+            fileSfx(net.killerPick === 'bear5' ? SFX + 'jumpscare.mp3' : SFX + 'm1_hit.wav', {});
           }
           if (r._wasAlive && !r.alive && data.phase === 'round') {
             fileSfx(SFX + 'death.mp3', {}); // they died
@@ -2315,28 +2396,24 @@ function loadImg(src) {
                 Math.abs(r.pos.x - p.pos.x) < 120 &&
                 Math.abs((r.pos.y + r.h / 2) - (p.pos.y + p.h / 2)) < 110)
               .sort((a, b) => Math.abs(a.pos.x - p.pos.x) - Math.abs(b.pos.x - p.pos.x))[0];
-            const dir = victim ? (Math.sign(victim.pos.x + victim.w / 2 - (p.pos.x + p.w / 2)) || p.facing || 1) : (p.facing || 1);
+            const oldFacing = p.facing || 1;
+            const dir = victim ? (Math.sign(victim.pos.x + victim.w / 2 - (p.pos.x + p.w / 2)) || oldFacing) : oldFacing;
+            const foldedTurn = !!victim && dir !== oldFacing;
             p.facing = dir;
             p.rooted = true;
-            p.actionImg = evilM1[Math.floor(Math.random() * evilM1.length)]; p.actionT = 0.25;
-            setPose('swing', 180);
+            p.actionImg = bear5Image; p.actionT = 0.44;
+            if (foldedTurn) {
+              p._bearFoldStart = Date.now();
+              p._bearFoldDuration = 440;
+              p._bearFoldUntil = p._bearFoldStart + p._bearFoldDuration;
+            }
+            setPose(foldedTurn ? 'bear-fold' : 'swing', 440);
             if (victim) {
               fetch('/api/hit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: net.id, victim: victim.id, dmg: 999, stun: 0, kb: 3.5, stack: true }),
               }).catch(() => {});
-              const bloodX = victim.pos.x + victim.w / 2;
-              const bloodY = victim.pos.y + victim.h / 2;
-              for (let i = 0; i < 26; i++) {
-                game.fx.push({
-                  kind: 'fire', x: bloodX, y: bloodY,
-                  vx: (Math.random() - 0.5) * 520, vy: (Math.random() - 0.9) * 320,
-                  age: 0, life: 0.8 + Math.random() * 0.6, size: 6 + Math.random() * 12,
-                  grow: 10, drag: 1.5, grav: 520, color: '#ff1a1a',
-                });
-              }
-              fileSfx(SFX + 'jumpscare.mp3', {});
             }
             continue;
           }
@@ -2545,7 +2622,7 @@ function loadImg(src) {
             }
             const sx = Math.round(p.pos.x + p.w / 2), sy = Math.round(p.pos.y + p.h);
             K.spikeCD = now + 10000;
-            p.actionImg = evilAct.spike; p.actionT = 0.5;
+            p.actionImg = isBear5() ? bear5Image : evilAct.spike; p.actionT = 0.5;
             setPose('spike', 500);
             fileSfx(SFX + 'spike_place.wav', {});
             fetch('/api/spike', {
@@ -2686,7 +2763,7 @@ function loadImg(src) {
           }
         }
         // fast ghost
-        if (p.evil) game.moveSpeed = p.invis ? 430 : 300;
+        if (p.evil) game.moveSpeed = isBear5() ? 820 : p.invis ? 430 : 300;
         // lux dash
         if (!p.evil && !isToko() && !isSonic() && !isTails()) {
           if (S.windupUntil && now >= S.windupUntil) {

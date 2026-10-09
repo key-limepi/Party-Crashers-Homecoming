@@ -60,11 +60,15 @@
             play!!)<br>formbar login needed!!</span></div>
         <div id="deathStatic" style="display:none"></div>
         <div id="mapLoad" style="display:none"></div>
-        <div id="introWrap" style="display:none"><video id="introVid" src="./Assets/Videos/elux_killerintro.mp4" playsinline preload="auto"></video></div>
-        <div id="pinBanner" style="display:none"><span>ENTER YOUR PIN!!</span></div>
-        <div id="pinRow" style="display:none">
-          <input id="pinBox" type="password" inputmode="numeric" maxlength="8" placeholder="digipog pin!!">
-          <button id="pinBtn">save pin</button>
+        <div id="introWrap" style="display:none"><video id="introVid" src="./Assets/Videos/elux_killerintro.mp4" playsinline preload="auto"></video><div id="bearIntro" style="display:none"><img src="./Assets/Images/Characters/bear5/Bear5.png" alt="Bear 5"><strong>BEAR 5</strong></div></div>
+        <div id="pinBanner" style="display:none">
+          <div class="pinPrompt">
+            <span>ENTER YOUR PIN!!</span>
+            <div id="pinRow" style="display:none">
+              <input id="pinBox" type="password" inputmode="numeric" minlength="4" maxlength="8" placeholder="digipog pin!!">
+              <button id="pinBtn">save pin</button>
+            </div>
+          </div>
         </div>
         <div id="partyList" style="display:none"></div>
       </div>
