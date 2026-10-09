@@ -729,6 +729,7 @@
       color: #00e5ff;
       cursor: pointer;
     }
+    #chatBox:not(:read-only) { cursor: text; }
     /* changelog */
     #logModal {
       position: absolute;
