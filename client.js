@@ -305,7 +305,7 @@ function loadImg(src) {
 
     // needs server
     // die to spectate
-    const net = { id: null, timer: null, round: null, phase: null, ping: null, wasEvil: false, retry: null, mod: false, everOnline: false, wasElect: false, fail: 0 };
+    const net = { id: null, timer: null, round: null, phase: null, ping: null, wasEvil: false, retry: null, mod: false, everOnline: false, wasElect: false, fail: 0, killerPick: 'evil' };
     // unique tabs
     let tabId = '';
     for (let i = 0; i < 16; i++) tabId += '0123456789abcdef'[Math.floor(Math.random() * 16)];
@@ -492,10 +492,16 @@ function loadImg(src) {
     // dev roster
     let devChars = {};
     // Nyan Cyat is a dev-only survivor
-    const killerPicks = () => false;
+    const KILLER_ROSTER = [
+      { id: 'evil', name: 'EVIL LUX' },
+      { id: 'bear5', name: 'BEAR5', nameImg: CS + 'bear5name.jpeg', dev: true },
+    ];
     function visRoster() {
       const list = ROSTER.filter((c) => (net.mod || !devChars[c.id]));
       return list.length ? list : ROSTER.slice(0, 1);
+    }
+    function visKillerRoster() {
+      return KILLER_ROSTER.filter((c) => !c.dev || net.mod);
     }
     let revealUntil = 0; // reveal timer
     let selectClosedAt = 0, closeToken = 0;
@@ -593,49 +599,57 @@ function loadImg(src) {
       for (; si < 3; si++) fillSlot(csSlotEls.surv[si], `s${si}`, null);
       // killer only
       const kp = killerId && players[killerId];
-      if (kp) fillSlot(csSlotEls.killer, 'killer', 'evil', kp.name);
+      if (kp) fillSlot(csSlotEls.killer, 'killer', kp.killer_char || 'evil', kp.name);
       else fillSlot(csSlotEls.killer, 'killer', null);
     }
     function renderSelect() {
       // pick bar
-      const vis = visRoster();
+      const killerPicker = !!net.amKillerElect;
+      const vis = killerPicker ? visKillerRoster() : visRoster();
       selIdx = ((selIdx % vis.length) + vis.length) % vis.length;
       const cur = vis[selIdx];
       const csNameText = document.getElementById('csNameText');
-      csName.style.display = '';
-      csNameText.style.display = 'none';
-      if (csName.dataset.char !== cur.id) {
-        csName.dataset.char = cur.id;
-        csName.src = cur.nameImg;
-        csName.alt = cur.name;
+      if (killerPicker && !cur.nameImg) {
+        csName.style.display = 'none';
+        csNameText.style.display = '';
+        csNameText.textContent = cur.name;
+      } else {
+        csName.style.display = '';
+        csNameText.style.display = 'none';
+        if (csName.dataset.char !== cur.id) {
+          csName.dataset.char = cur.id;
+          csName.src = cur.nameImg;
+          csName.alt = cur.name;
+        }
       }
-      // no buttons
-      const evilLocked = !killerPicks() && (!!(game.player && game.player.evil) || net.phase === 'round' || !!net.amKillerElect);
+      const evilLocked = !!(game.player && game.player.evil) || net.phase === 'round';
       document.getElementById('csLeft').style.display = evilLocked ? 'none' : '';
       document.getElementById('csRight').style.display = evilLocked ? 'none' : '';
       csName.style.visibility = evilLocked ? 'hidden' : '';
+      csNameText.style.visibility = evilLocked ? 'hidden' : '';
     }
     function browseSelect(dir) {
-      const vis = visRoster();
+      const vis = net.amKillerElect ? visKillerRoster() : visRoster();
       selIdx = (selIdx + dir + vis.length) % vis.length;
       renderSelect();
       fileSfx(SFX + 'Character_advance.wav', {});
     }
     function lockPick() {
       if (net.phase !== 'select') return; // select only
-      if (net.amKillerElect) return; // killers are locked to the evil role
       if (game.player && game.player.evil) return; // killers skip
-      const vis = visRoster();
+      const killerPicker = !!net.amKillerElect;
+      const vis = killerPicker ? visKillerRoster() : visRoster();
       const cur = vis[((selIdx % vis.length) + vis.length) % vis.length];
       fetch('/api/pick', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: net.id, char: cur.id }),
+        body: JSON.stringify({ id: net.id, char: cur.id, role: killerPicker ? 'killer' : 'survivor' }),
       }).then((r) => r.json()).then((d) => {
         if (d && d.ok) {
-          net.pick = cur.id;
+          if (killerPicker) net.killerPick = cur.id;
+          else net.pick = cur.id;
           fileSfx(SFX + 'character_selection.wav', {});
-          if (!game.player.evil) wearChar(cur.id === 'supersonic' && !SS.transformed ? 'sonic' : cur.id);
+          if (!killerPicker && !game.player.evil) wearChar(cur.id === 'supersonic' && !SS.transformed ? 'sonic' : cur.id);
         }
       }).catch(() => {});
     }
@@ -676,18 +690,26 @@ function loadImg(src) {
     }, 180);
     // chat box
     const chatBox = document.getElementById('chatBox');
-    // readonly box
     const openFromBox = (e) => {
-      e.preventDefault();
-      chatBox.blur();
-      if (selectOpen) return;
+      if (selectOpen) {
+        if (e.type === 'focus') chatBox.blur();
+        return;
+      }
       if (chatBox.disabled) {
+        e.preventDefault();
+        chatBox.blur();
         sayStatus('muted!!', 3);
         fileSfx(SFX + 'denied.wav', {});
         return;
       }
       game.input.left = game.input.right = game.input.jump = false; // stop moving
-      openQuick();
+      if (net.mod) {
+        closeQuick();
+      } else {
+        e.preventDefault();
+        chatBox.blur();
+        openQuick();
+      }
     };
     chatBox.addEventListener('click', openFromBox);
     chatBox.addEventListener('focus', openFromBox);
@@ -717,12 +739,12 @@ function loadImg(src) {
       const b = document.createElement('button');
       b.className = 'quickBtn';
       b.textContent = `${QUICK_KEYS[i]} ${text}`;
-      b.addEventListener('click', () => { sendQuick(text); closeQuick(); });
+      b.addEventListener('click', () => { sendChat(text); closeQuick(); });
       quickPanel.appendChild(b);
     });
     function openQuick() { quickOpen = true; quickPanel.style.display = 'grid'; }
     function closeQuick() { quickOpen = false; quickPanel.style.display = 'none'; }
-    function sendQuick(text) {
+    function sendChat(text) {
       if (!text) return;
       if (net.mutedUntil && Date.now() < net.mutedUntil) {
         sayStatus('muted!!', 3);
@@ -765,7 +787,7 @@ function loadImg(src) {
           clearInterval(muteTimer);
           chatBox.disabled = false;
           net.mutedUntil = 0;
-          chatBox.placeholder = 'say something!! (enter)';
+          chatBox.placeholder = net.mod ? 'type a message!! (enter)' : 'say something!! (enter)';
         } else show();
       }, 5000);
     }
@@ -780,7 +802,7 @@ function loadImg(src) {
           const i = QUICK_KEYS.indexOf(e.key.toLowerCase());
           if (i >= 0 && i < QUICK.length) {
             e.preventDefault();
-            sendQuick(QUICK[i]);
+            sendChat(QUICK[i]);
             closeQuick();
           }
         }
@@ -789,7 +811,22 @@ function loadImg(src) {
       if (e.key === 'Enter' && !typing) {
         e.preventDefault();
         game.input.left = game.input.right = game.input.jump = false; // stop moving
-        openQuick();
+        if (net.mod) chatBox.focus();
+        else openQuick();
+      }
+    });
+    chatBox.addEventListener('keydown', (e) => {
+      if (!net.mod || selectOpen) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        chatBox.blur();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        e.stopPropagation();
+        const text = chatBox.value.trim();
+        if (text) sendChat(text);
+        chatBox.value = '';
       }
     });
     setInterval(() => {
@@ -1064,7 +1101,7 @@ function loadImg(src) {
       const p = game.player;
       if (!p) return;
       if (p.evil) {
-        if (net.pick === 'bear5') {
+        if (net.killerPick === 'bear5') {
           abilDefs = [{ key: 'Z', name: 'M1', icon: null, cd: () => 0 }];
         } else {
           abilDefs = [
@@ -1136,8 +1173,8 @@ function loadImg(src) {
       const p = game.player;
       p.evil = evil;
       if (evil) {
-        const bear = net.pick === 'bear5';
-        p.char = bear ? 'bear5' : p.char;
+        const bear = net.killerPick === 'bear5';
+        p.char = bear ? 'bear5' : 'evil';
         game.setPlayerSprites(bear ? bear5Sprites : evilSprites);
         p.drawW = bear ? 76 : 50; p.drawH = bear ? 94 : 70; // full size
         p.maxHp = bear ? 999 : 250; p.hp = bear ? 999 : 250;
@@ -1166,7 +1203,7 @@ function loadImg(src) {
       const now = Date.now();
       const p = game.player;
       if (!p || !net.id) return;
-      const role = p.evil ? 'evil' : (isNyan() ? 'nyan' : isToko() ? 'toko' : (isSonic() ? 'sonic' : (isSuper() ? (SS.transformed ? 'super' : 'super0') : (isTails() ? 'tails' : 'lux'))));
+      const role = p.evil ? (net.killerPick === 'bear5' ? 'bear5' : 'evil') : (isNyan() ? 'nyan' : isToko() ? 'toko' : (isSonic() ? 'sonic' : (isSuper() ? (SS.transformed ? 'super' : 'super0') : (isTails() ? 'tails' : 'lux'))));
       if (role !== abilRole) {
         abilRole = role;
         buildAbilities();
@@ -1206,7 +1243,7 @@ function loadImg(src) {
     game.onUpdate = (dt) => {
       const p = game.player;
       if (!p || !p.evil || !p.alive || p.alive === false) return;
-      if (net.pick === 'bear5' || p.char === 'bear5') {
+      if (net.killerPick === 'bear5' || p.char === 'bear5') {
         const speed = Math.abs(p.vel.x) + Math.abs(p.vel.y);
         const squash = 1 - Math.min(0.35, speed / 1800);
         const stretch = 1 + Math.min(0.5, speed / 1400);
@@ -1296,7 +1333,7 @@ function loadImg(src) {
     const isSonic = () => effChar() === 'sonic';
     const isSuper = () => effChar() === 'supersonic';
     const isTails = () => effChar() === 'tails';
-    const isBear5 = () => !!(game.player && game.player.evil && (net.pick === 'bear5' || (game.player.char || '') === 'bear5'));
+    const isBear5 = () => !!(game.player && game.player.evil && (net.killerPick === 'bear5' || (game.player.char || '') === 'bear5'));
     // costume counts
     function effChar() {
       if ((net.phase === 'intermission' || net.phase === 'lobby') && net.costume) return net.costume;
@@ -1611,6 +1648,8 @@ function loadImg(src) {
         }, Math.max(0, 3000 - held));
         clearTimeout(net.retry);
         net.mod = !!joined.mod;
+        chatBox.readOnly = !net.mod;
+        chatBox.placeholder = net.mod ? 'type a message!! (enter)' : 'say something!! (enter)';
         net.everOnline = true; // stay joined
         net.fid = joined.fid;
         sayStatus(`online as ${joined.name}!! friends can see you!! :D`, 4);
@@ -1750,6 +1789,7 @@ function loadImg(src) {
         }
         net.ekid = data.killer_id || null;
         net.amKillerElect = !!net.id && data.killer_id === net.id && data.phase !== 'round';
+        net.killerPick = you?.killer_char || 'evil';
         // evil incoming
         // far exile
         if (net.amKillerElect && !net.wasElect) {
@@ -1758,7 +1798,7 @@ function loadImg(src) {
           roleBox.style.color = '#ff4757';
           roleBox.style.display = 'block';
           roleTimer = setTimeout(() => { roleBox.style.display = 'none'; }, 3000);
-          sayStatus('you will be evil - no picking!!', 5);
+          sayStatus('pick your killer!!', 5);
           game.spawn = { x: 6650, y: 100 };
           game.respawn();
         }
@@ -1774,7 +1814,7 @@ function loadImg(src) {
           if (fresh && data.phase === 'round') fileSfx(SFX + 'going_into_round.wav', {});
           if (fresh && data.phase === 'intro') fileSfx(vpick(VL_OPEN), {});
           roleBox.textContent = amEvil
-            ? (fresh ? 'YOU ARE EVIL LUX!!' : 'YOU ARE EVIL NOW!!')
+            ? (net.killerPick === 'bear5' ? 'YOU ARE BEAR5!!' : fresh ? 'YOU ARE EVIL LUX!!' : 'YOU ARE EVIL NOW!!')
             : (fresh ? `you are ${(net.pick || 'lux').toUpperCase()}!! :D` : 'BACK TO NORMAL!!');
           roleBox.style.color = amEvil ? '#ff4757' : '#ffa502';
           roleBox.style.display = 'block';
@@ -1883,7 +1923,7 @@ function loadImg(src) {
           r.hist.push({ x: d.x, y: d.y, t: nowHist });
           while (r.hist.length > 4) r.hist.shift();
           r.name = d.name; r.facing = d.facing; r.hp = d.hp;
-          r.char = d.char || 'lux';
+          r.char = id === data.killer_id ? (d.killer_char || 'evil') : (d.char || 'lux');
           r.onGround = d.onGround ?? true;
           r.alive = d.alive ?? d.hp > 0;
           r.evil = id === data.killer_id;
@@ -1998,7 +2038,7 @@ function loadImg(src) {
         if (!statusUntil || Date.now() > statusUntil) {
           netStatus.style.color = ''; // no error
           const mc = (mePick && mePick.char) || net.pick;
-          netStatus.textContent = p.evil ? 'YOU ARE EVIL LUX!!'
+          netStatus.textContent = p.evil ? (net.killerPick === 'bear5' ? 'YOU ARE BEAR5!!' : 'YOU ARE EVIL LUX!!')
             : net.amKillerElect ? 'YOU WILL BE EVIL!!'
             : mc ? `you are ${mc.toUpperCase()}!! :D`
             : (net.id ? 'pick a character!!' : netStatus.textContent);

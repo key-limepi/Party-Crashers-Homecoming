@@ -103,6 +103,7 @@ alerts = [] # ping list
 announces = [] # mod shouts
 # pick pair
 CHARACTERS = [
+    {"id": "evil", "name": "EVIL LUX", "killer": True},
     {"id": "lux", "name": "LUX"},
     {"id": "toko", "name": "TOKO"},
     {"id": "sonic", "name": "SONIC"},
@@ -486,7 +487,7 @@ def start_intermission():
     print("[GAME] State: INTERMISSION (30s)", flush=True)
 
 
-def start_select():
+def start_select(free=False):
     # pick phase
     global phase, phase_end, killer_id
     here = _here_players()
@@ -497,12 +498,13 @@ def start_select():
         return
     for pl in players.values():
         pl["char"] = None # fresh picks
+        pl["killer_char"] = None
         pl["paid"] = False
     for pid, pl in here.items():
         # awaiting formbar payment
-        pl["paid"] = None if ROUND_COST > 0 else True
+        pl["paid"] = None if ROUND_COST > 0 and not free else True
         pl["pay_msg"] = ""
-        if ROUND_COST > 0:
+        if ROUND_COST > 0 and not free:
             threading.Thread(target=charge_player, args=(pid,), daemon=True).start()
     killer_id = pick_killer(here)
     print(f"[GAME] preselected evil: {players[killer_id]['name']} "
@@ -532,8 +534,10 @@ def start_round():
     print(f"[ROUND] roster: {roster} | all players: {_player_activity()}", flush=True)
     # random picks
     for pid, pl in eligible.items():
-        if pl.get("char") not in [c["id"] for c in CHARACTERS]:
-            pool = [c for c in CHARACTERS if c["id"] not in ("nyan", "bear5") and (not c.get("dev") or is_admin(pl.get("fid")))]
+        survivor_ids = [c["id"] for c in CHARACTERS if not c.get("killer")]
+        if pl.get("char") not in survivor_ids:
+            pool = [c for c in CHARACTERS if not c.get("killer") and c["id"] != "nyan"
+                    and (not c.get("dev") or is_admin(pl.get("fid")))]
             pl["char"] = random.choice(pool or CHARACTERS)["id"]
     for pl in eligible.values():
         pl["alive"] = True
@@ -549,6 +553,8 @@ def start_round():
     if killer_id not in round_players:
         killer_id = pick_killer({pid: players[pid] for pid in round_players})
         print(f"!! fallback - {players[killer_id]['name']} is EVIL LUX!!", flush=True)
+    if not players[killer_id].get("killer_char"):
+        players[killer_id]["killer_char"] = "evil"
     set_malice(players[killer_id]["fid"], 0) # killer starts over
     current_round += 1
     intro_len = min(ROUND_MAX, ROUND_BASE + ROUND_PER_PLAYER * len(round_players))
@@ -650,6 +656,7 @@ def game_tick():
                         print("!! not enough players - back to lobby!!", flush=True)
                     elif (all(pl.get("char") for pid, pl in here.items()
                               if pid != killer_id and pl.get("paid") is not False)
+                          and players.get(killer_id, {}).get("killer_char")
                           and not any(pl.get("paid") is None for pl in here.values())):
                         # quick start
                         print("[GAME] everyone picked - starting early!!", flush=True)
@@ -1261,13 +1268,17 @@ class Handler(SimpleHTTPRequestHandler):
             with lock:
                 me = players.get(data.get("id"))
                 want = data.get("char")
-                ids = [c["id"] for c in CHARACTERS]
-                dev = next((c.get("dev", False) for c in CHARACTERS if c["id"] == want), False)
-                if want == "bear5" and (not me or not is_admin(me.get("fid"))):
-                    self._send_json({"ok": False, "reason": "bear5 is dev-only!!"})
-                    return
-                if me and data.get("id") in _here_players() and phase == "select" and want in ids and ((not dev) or is_admin(me.get("fid"))):
-                    me["char"] = want
+                character = next((c for c in CHARACTERS if c["id"] == want), None)
+                killer_pick = data.get("role") == "killer"
+                is_elected = data.get("id") == killer_id
+                allowed_role = character and bool(character.get("killer")) == killer_pick
+                allowed_dev = bool(character and (not character.get("dev") or (me and is_admin(me.get("fid")))))
+                if (me and data.get("id") in _here_players() and phase == "select"
+                        and allowed_role and allowed_dev and is_elected == killer_pick):
+                    if killer_pick:
+                        me["killer_char"] = want
+                    else:
+                        me["char"] = want
                     print(f"!! {me['name']} picked {want}!!", flush=True)
                     self._send_json({"ok": True, "char": want})
                 else:
@@ -1343,27 +1354,33 @@ class Handler(SimpleHTTPRequestHandler):
                     elif phase == "intermission" and len(_here_players()) >= 2:
                         start_select()
                     elif phase == "select" and len(_here_players()) >= 2:
-                        start_round()
+                        if players.get(killer_id, {}).get("killer_char"):
+                            start_round()
+                        else:
+                            print("!! skip wait is waiting for the killer pick!!", flush=True)
                     print(f"!! mod skipped the wait!!", flush=True)
                 elif action == "forcestart":
                     if len(_here_players()) >= 2:
-                        for pl in _here_players().values():
-                            pl["paid"] = True # mod matches are free
-                        start_round()
-                        print(f"!! mod forced a match!!", flush=True)
+                        start_select(free=True)
+                        print(f"!! mod forced character select!!", flush=True)
                     else:
                         self._send_json({"ok": False, "reason": "need two active players!!"})
                         return
                 elif action == "makekiller":
                     target = data.get("target")
-                    if target == "random" or target not in players:
-                        cand = [pid for pid, pl in players.items() if pl.get("alive", True)]
-                        if cand:
-                            killer_id = random.choice(cand)
-                    else:
-                        killer_id = target
-                    if killer_id in players:
-                        print(f"!! mod made {players[killer_id]['name']} EVIL!!", flush=True)
+                    here = _here_players()
+                    if target == "random":
+                        candidates = [pid for pid, pl in here.items() if pl.get("alive", True)]
+                        target = random.choice(candidates) if candidates else None
+                    if target not in here:
+                        self._send_json({"ok": False, "reason": "bad target"})
+                        return
+                    set_malice(here[target]["fid"], 9999)
+                    if phase == "select" and len(here) >= 2:
+                        killer_id = pick_killer(here)
+                        for pl in here.values():
+                            pl["killer_char"] = None
+                    print(f"!! mod gave {here[target]['name']} 9999 malice!!", flush=True)
                 elif action == "clearspikes":
                     spikes.clear()
                     bombs.clear()
@@ -1525,6 +1542,7 @@ class Handler(SimpleHTTPRequestHandler):
                         d["kb"] = None
                     d["idle"] = round(now - pl.get("last", now), 1)
                     d["char"] = pl.get("char")
+                    d["killer_char"] = pl.get("killer_char")
                     d["malice"] = malice.get(pl["fid"], 0)
                     d["paid"] = pl.get("paid")
                     d["pay_msg"] = pl.get("pay_msg", "")
