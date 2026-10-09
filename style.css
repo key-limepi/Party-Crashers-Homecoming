@@ -609,25 +609,24 @@
 
     /* pin entry */
     #pinRow {
-      position: absolute;
-      top: 58%;
-      left: 50%;
-      transform: translateX(-50%);
       display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
       gap: 8px;
-      z-index: 75;
       line-height: normal;
     }
     #pinRow #pinBox {
-      font-size: 28px;
-      padding: 8px 14px;
-      width: 220px;
+      box-sizing: border-box;
+      font-size: 24px;
+      padding: 8px 12px;
+      width: min(220px, 56vw);
       text-align: center;
     }
     #pinRow #pinBtn {
-      font-size: 24px;
+      font-size: 20px;
+      margin: 0;
     }
-    #pinRow { z-index: 102; }
     /* map loading */
     #mapLoad {
       position: absolute;
@@ -661,23 +660,34 @@
     /* pin banner */
     #pinBanner {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       text-align: center;
-      pointer-events: none;
+      padding: 16px;
+      box-sizing: border-box;
+      background: rgba(0, 0, 0, 0.68);
+      pointer-events: auto;
       line-height: normal;
-      z-index: 101;
+      z-index: 110;
     }
-    #pinBanner span {
+    #pinBanner .pinPrompt {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      width: min(520px, 100%);
+      padding: 24px 20px;
+      box-sizing: border-box;
+      background: #0a0a2e;
+      border: 4px outset #c0c0f0;
+    }
+    #pinBanner .pinPrompt > span {
       color: #fff;
-      font-size: 44px;
+      font-size: clamp(24px, 5vw, 40px);
       font-style: italic;
-      padding: 0 24px;
+      overflow-wrap: anywhere;
     }
 
     /* death static */
