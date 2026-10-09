@@ -75,8 +75,9 @@ ROUND_MAX = 600
 ROUND_TIME = 300 # backup time
 INTER_TIME = 30 # break time
 SELECT_TIME = 30 # pick time
+INTRO_TIME = 12 # killer intro video
 GRACE_TIME = 5 # safe start
-LMS_DURATIONS = {"lux": 209.712, "sonic": 266.904, "supersonic": 266.904} # anthem lengths; default 105s
+LMS_DURATIONS = {"lux": 209.736, "sonic": 266.928, "supersonic": 266.928, "tails": 166.872, "nyan": 181.656} # anthem lengths; default 105s
 TOUCH_DIST = 55 # touch range
 TOUCH_DMG = 25 # hit damage
 TOUCH_COOLDOWN = 1.0
@@ -99,6 +100,7 @@ rockets = {} # nyan rockets in the air
 blasts = [] # fresh rocket blasts, everyone shakes
 last_rocket = {} # launch guard
 alerts = [] # ping list
+announces = [] # mod shouts
 # pick pair
 CHARACTERS = [
     {"id": "lux", "name": "LUX"},
@@ -254,6 +256,8 @@ last_killer_name = "EVIL"
 lms_set = False # once only
 lms_notice_until = 0.0 # duel banner
 round_start = 0.0
+intro_len = 120 # round length after intro
+intro_start = 0.0 # video window opened
 killer_id = None
 current_round = 0
 result = None # last result
@@ -261,7 +265,7 @@ round_players = set() # current round players
 
 STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
               "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing",
-              "peeling", "spinning", "spinwindup", "pullwindup", "lift", "super", "forming")
+              "peeling", "spinning", "spinwindup", "pullwindup", "lift", "super", "forming", "holding", "whipuntil")
 # fresh stamps
 
 
@@ -509,7 +513,7 @@ def start_select():
 
 
 def start_round():
-    global phase, phase_end, round_start, killer_id, current_round, result, pending_end
+    global phase, phase_end, round_start, killer_id, current_round, result, pending_end, intro_len, intro_start
     global lms_set, lms_notice_until
     global round_players
     pending_end = 0
@@ -547,12 +551,21 @@ def start_round():
         print(f"!! fallback - {players[killer_id]['name']} is EVIL LUX!!", flush=True)
     set_malice(players[killer_id]["fid"], 0) # killer starts over
     current_round += 1
-    phase = "round"
-    round_start = time.time()
-    # flex time
-    phase_end = round_start + min(ROUND_MAX, ROUND_BASE + ROUND_PER_PLAYER * len(round_players))
+    intro_len = min(ROUND_MAX, ROUND_BASE + ROUND_PER_PLAYER * len(round_players))
+    phase = "intro"
+    phase_end = time.time() + INTRO_TIME
+    intro_start = time.time()
     result = None
-    print(f"!! round {current_round} starts - {players[killer_id]['name']} is EVIL LUX!!", flush=True)
+    print(f"!! round {current_round} intro - {players[killer_id]['name']} is EVIL LUX!!", flush=True)
+
+
+def begin_round():
+    # intro over, fight
+    global phase, phase_end, round_start, intro_len
+    round_start = time.time()
+    phase_end = round_start + intro_len
+    phase = "round"
+    print(f"!! round {current_round} starts!!", flush=True)
 
 
 def end_round(winner):
@@ -601,11 +614,12 @@ def game_tick():
                     print(f"!! {players[pid]['name']} timed out", flush=True)
                     del players[pid]
                     last_hit.pop(pid, None)
-                for sid in [s for s in spikes if now - spikes[s]["at"] > SPIKE_LIFE]:
-                    del spikes[sid] # old traps
+                # spikes never rot now
                 
                 while alerts and now - alerts[0]["at"] > 5:
                     alerts.pop(0)
+                while announces and now - announces[0]["at"] > 8:
+                    announces.pop(0)
                 while chat_log and now - chat_log[0]["at"] > CHAT_LIFE:
                     chat_log.pop(0)
                 if killer_id not in players:
@@ -646,6 +660,18 @@ def game_tick():
                         else:
                             phase = "lobby"
                             killer_id = None
+                elif phase == "intro":
+                    # killer intro video
+                    if len(round_players.intersection(players)) < 2:
+                        for pl in players.values():
+                            pl["alive"] = True
+                            pl["hp"] = pl.get("maxhp", 100)
+                        killer_id = None
+                        round_players.clear()
+                        phase = "lobby"
+                        print("!! not enough players - back to lobby!!", flush=True)
+                    elif now >= phase_end:
+                        begin_round()
                 elif phase == "round":
                     if len(round_players.intersection(players)) < 2:
                         for pl in players.values():
@@ -686,7 +712,7 @@ def game_tick():
                                     # death duel
                                     lms_set = True
                                     _lc = players.get(survs[0], {}).get("char")
-                                    phase_end = now + LMS_DURATIONS.get(_lc, 105.091)
+                                    phase_end = now + LMS_DURATIONS.get(_lc, 105.117)
                                     lms_notice_until = now + 5
                                     print(f"!! LMS ({_lc} vs evil) - fight!!", flush=True)
                             # manual swings
@@ -937,6 +963,16 @@ class Handler(SimpleHTTPRequestHandler):
             self._send_json({"ok": True})
             return
 
+        if self.path == "/api/intro":
+            # video over, roll early
+            data = self._read_json()
+            with lock:
+                if (phase == "intro" and data.get("id") in round_players
+                        and time.time() - intro_start > 4):
+                    begin_round()
+            self._send_json({"ok": True})
+            return
+
         if self.path == "/api/spike":
             # trap or trip
             global spike_seq
@@ -984,13 +1020,16 @@ class Handler(SimpleHTTPRequestHandler):
                     if not (x == x and y == y and vx == vx and vy == vy):
                         self._send_json({"ok": False, "reason": "bad throw"})
                         return
+                    # nerfed toss, short lob only
+                    vx = max(-600, min(600, vx))
+                    vy = max(-400, min(200, vy))
                     while len(bomb_tosses) >= 50:
                         oldest = min(bomb_tosses, key=lambda s: bomb_tosses[s]["at"])
                         del bomb_tosses[oldest]
                     bomb_toss_seq += 1
                     tid = f"t{bomb_toss_seq}"
                     toss = {"id": tid, "x": x, "y": y, "vx": vx, "vy": vy,
-                            "by": me["name"], "at": time.time()}
+                            "by": me["name"], "owner": data.get("id"), "at": time.time()}
                     bomb_tosses[tid] = toss
                     self._send_json({"ok": True, "toss": toss})
                     return
@@ -1005,6 +1044,11 @@ class Handler(SimpleHTTPRequestHandler):
                     if x < -400 or x > 3300 or y < -2000 or y > 2600:
                         self._send_json({"ok": False, "reason": "bad spot"})
                         return
+                    # bombs need elbow room
+                    for ob in bombs.values():
+                        if (x - ob["x"]) ** 2 + (y - ob["y"]) ** 2 < 100 ** 2:
+                            self._send_json({"ok": False, "reason": "too close!!"})
+                            return
                     while len(bombs) >= 5:
                         oldest = min(bombs, key=lambda s: bombs[s]["at"])
                         del bombs[oldest]
@@ -1012,6 +1056,34 @@ class Handler(SimpleHTTPRequestHandler):
                     bid = f"b{bomb_seq}"
                     bombs[bid] = {"x": x, "y": y, "by": me["name"], "at": time.time()}
                     self._send_json({"ok": True, "bomb": dict(bombs[bid], id=bid)})
+                    return
+                if data.get("action") == "airburst" and me and phase == "round" \
+                        and me.get("char") == "tails" and not me.get("evil"):
+                    try:
+                        x, y = float(data.get("x", 0)), float(data.get("y", 0))
+                    except (ValueError, TypeError):
+                        self._send_json({"ok": False, "reason": "bad burst"})
+                        return
+                    now = time.time()
+                    k = players.get(killer_id)
+                    if k and k.get("alive", True) and k.get("hp", 250) > 0 \
+                            and (x - k.get("x", 0)) ** 2 + (y - k.get("y", 0)) ** 2 < 150 ** 2 \
+                            and _grace_over(now):
+                        for tid in [t for t, o in bomb_tosses.items()
+                                    if (x - o["x"]) ** 2 + (y - o["y"]) ** 2 < 200 ** 2]:
+                            del bomb_tosses[tid]
+                        k["hp"] = max(0, k.get("hp", 250) - 30)
+                        k["stun_until"] = max(k.get("stun_until", 0), now + 5)
+                        _dx = k.get("x", 0) - x
+                        _dy = k.get("y", 0) - y
+                        _dist = (_dx * _dx + _dy * _dy) ** 0.5 or 1
+                        k["kb"] = {"x": _dx / _dist, "y": _dy / _dist, "at": now, "s": 2}
+                        if k["hp"] <= 0:
+                            k["alive"] = False
+                        print(f"!! {k['name']} ate a midair bomb!!", flush=True)
+                        self._send_json({"ok": True})
+                        return
+                    self._send_json({"ok": False, "reason": "no hit"})
                     return
                 if data.get("action") == "trip" and data.get("bomb") in bombs:
                     bb = bombs.pop(data["bomb"])
@@ -1295,6 +1367,12 @@ class Handler(SimpleHTTPRequestHandler):
                 elif action == "clearspikes":
                     spikes.clear()
                     bombs.clear()
+                elif action == "announce":
+                    text = str(data.get("text", ""))[:120].strip()
+                    if text and me:
+                        announces.append({"text": text, "by": me["name"], "at": time.time()})
+                        del announces[:-5]
+                        print(f"!! mod {me['name']} announced: {text}!!", flush=True)
                 elif action == "givemalice":
                     try:
                         amount = max(0, int(data.get("amount", 0)))
@@ -1470,6 +1548,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "rockets": [dict(r, age=round(now - r["at"], 2)) for r in rockets.values()],
                     "blasts": [dict(b, age=round(now - b["at"], 2)) for b in blasts],
                     "alerts": list(alerts),
+                    "announces": [{"text": a["text"], "by": a.get("by", "?"), "age": round(now - a["at"], 2)} for a in announces],
                     "chat": [dict(m) for m in chat_log],
                     "chars": [dict(c, taken=c["id"] in taken) for c in CHARACTERS],
                     "players": snapshot,

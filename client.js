@@ -79,6 +79,12 @@ function loadImg(src) {
       airthrow: [loadImg(TAILS + "airthrow.png"), loadImg(TAILS + "airthrow2.png")],
       bomb: loadImg(TAILS + "bomb.png"),
     };
+    const tailsCarrySprites = { ...tailsSprites,
+      idle: [loadImg(TAILS + "bombcarry.png")],
+      walk: [loadImg(TAILS + "bombcarry.png"), loadImg(TAILS + "bombcarry2.png"), loadImg(TAILS + "bombcarry3.png"), loadImg(TAILS + "bombcarry4.png"), loadImg(TAILS + "bombcarry5.png"), loadImg(TAILS + "bombcarry6.png")],
+      run: [loadImg(TAILS + "bombcarry.png"), loadImg(TAILS + "bombcarry2.png"), loadImg(TAILS + "bombcarry3.png"), loadImg(TAILS + "bombcarry4.png"), loadImg(TAILS + "bombcarry5.png"), loadImg(TAILS + "bombcarry6.png")],
+      jump: loadImg(TAILS + "jumpcarry.png"),
+    };
     const SSP = "./Assets/Images/Characters/Survivors/Super Sonic/";
     const superSprites = {
       idle: [loadImg(SSP + "idle1.png"), loadImg(SSP + "idle2.png"), loadImg(SSP + "idle3.png")],
@@ -275,6 +281,12 @@ function loadImg(src) {
     document.getElementById('hpAllBtn').addEventListener('click', () => mod('sethealth', { target: 'all', hp: hpBox.value }));
     document.getElementById('devOnBtn').addEventListener('click', () => mod('makedev', { char: devBox.value.trim().toLowerCase() }));
     document.getElementById('devOffBtn').addEventListener('click', () => mod('unmakedev', { char: devBox.value.trim().toLowerCase() }));
+    const announceBox = document.getElementById('announceBox');
+    const announceEl = document.getElementById('announce');
+    document.getElementById('announceBtn').addEventListener('click', () => {
+      mod('announce', { text: announceBox.value.trim().slice(0, 120) });
+      announceBox.value = '';
+    });
     if (new URLSearchParams(location.search).has('debug')) {
       // mod check
       window.__wantDebug = true;
@@ -288,7 +300,7 @@ function loadImg(src) {
         `vel: ${Math.round(p.vel.x)}, ${Math.round(p.vel.y)}\n` +
         `ground: ${p.onGround ? 'yep!!' : 'nope!!'}\n` +
         `phase: ${net.phase}\n` +
-        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} lmstails=${beds.lmstails.volume.toFixed(2)} hero=${beds.hero.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
+        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} lmstails=${beds.lmstails.volume.toFixed(2)} lmsnyan=${beds.lmsnyan.volume.toFixed(2)} hero=${beds.hero.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
     }, 100);
 
     // needs server
@@ -340,7 +352,7 @@ function loadImg(src) {
         const me = await loadMe();
         if (!me.logged_in) { location.href = '/login'; return; } // formbar login
         if (me.needs_pin && !me.has_pin) {
-          pinRow.style.display = 'block';
+          pinRow.style.display = 'flex';
           pinBanner.style.display = 'flex';
           sayStatus('enter your digipog pin, then click again!!', 8);
           titleClicked = false;
@@ -607,6 +619,7 @@ function loadImg(src) {
       const vis = visRoster();
       selIdx = (selIdx + dir + vis.length) % vis.length;
       renderSelect();
+      fileSfx(SFX + 'Character_advance.wav', {});
     }
     function lockPick() {
       if (net.phase !== 'select') return; // select only
@@ -621,6 +634,7 @@ function loadImg(src) {
       }).then((r) => r.json()).then((d) => {
         if (d && d.ok) {
           net.pick = cur.id;
+          fileSfx(SFX + 'character_selection.wav', {});
           if (!game.player.evil) wearChar(cur.id === 'supersonic' && !SS.transformed ? 'sonic' : cur.id);
         }
       }).catch(() => {});
@@ -796,6 +810,58 @@ function loadImg(src) {
       return a;
     }
     const MUS = './Assets/Musics/';
+    const HERO_LYRICS = [
+      [21, "You can feel me"], [24, "You can see me clear"],
+      [26, "I don't whisper, yes"], [28, "I shout!"], [29, "SHOUT!"],
+      [32, "And in my dust"], [34, "I leave you doubt"],
+      [37, "And you know me"], [40, "Yes you do!"],
+      [42, "And you can hear me coming light years away..."],
+      [47, "Faster than light"], [48, "In a world you wonder..."],
+      [53, "You can feel"], [54, "A super sonic power over you"],
+      [57, "Yes, I'm real"], [59, "I will speed my way right through you!"],
+      [62, "Here I am!"], [64, "I'm the super sonic power that you fear"],
+      [68, "Yes I am!"], [70, "I'm the super sonic hero that you know"],
+      [74, "Ohhohh ohhh ohhhhh"], [80, "Super sonic hero!"],
+      [89, "You know me, I'm a super sonic hero!"],
+      [99, "I keep moving"], [101, "You know I'll never stop"],
+      [104, "Blink once and I'm gone"], [108, "GONE!"],
+      [109, "Through the dark"], [110, "Through the light"],
+      [112, "Through the night you know..."],
+      [115, "I keep rising"], [117, "Always striking"],
+      [120, "And you can hear me coming light years away"],
+      [124, "Faster than light"], [127, "In a world you wonder"],
+      [130, "You can feel"], [132, "A super sonic power over you"],
+      [135, "Yes, I'm real"], [138, "I will speed my way right through you!"],
+      [140, "Here I am!"], [142, "I'm the super sonic power that you fear"],
+      [146, "Yes I am!"], [148, "I'm the super sonic force you can't outrun!"],
+      [152, "Ohhohh ohhh ohhhhh"], [158, "Super sonic hero!"],
+      [166, "Super sonic, super sonic hero!"],
+      [197, "I am the super sonic hero that you know"],
+    ];
+    const lyricBar = document.getElementById('lyricBar');
+    const mapLoad = document.getElementById('mapLoad');
+    const introWrap = document.getElementById('introWrap');
+    const introVid = document.getElementById('introVid');
+    if (introVid) {
+      const introDone = () => {
+        if (net.id) {
+          fetch('/api/intro', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: net.id }),
+          }).catch(() => {});
+        }
+      };
+      introVid.addEventListener('ended', () => {
+        introWrap.style.display = 'none';
+        introDone();
+      });
+      introWrap.addEventListener('click', () => {
+        introWrap.style.display = 'none';
+        try { introVid.pause(); } catch (_) { /* hush!! */ }
+        introDone();
+      });
+    }
     const beds = {
       map: loopTrack(MUS + 'map_musicV2.mp3'),
       wait: loopTrack(MUS + 'waiting4players.mp3'),
@@ -804,6 +870,7 @@ function loadImg(src) {
       lmslux: loopTrack(MUS + 'lux_lms.mp3', false), // lux anthem
       lmssonic: loopTrack(MUS + 'sonic_lms.mp3', false), // sonic anthem
       lmstails: loopTrack(MUS + 'tails_lms.mp3', false), // tails anthem
+      lmsnyan: loopTrack(MUS + 'nyanlms.mp3', false), // nyan anthem
       hero: loopTrack(MUS + 'supersonichero.mp3'), // super sonic theme
       chase: loopTrack(MUS + 'chase_elux.mp3'),
       terror: loopTrack(MUS + 'terror_radius_elux.mp3'),
@@ -817,12 +884,12 @@ function loadImg(src) {
     // lms rules
     let lmsTrack = null; // track ids
     let lmsEnded = false;
-    for (const key of ['lms', 'lmslux', 'lmssonic', 'lmstails']) {
+    for (const key of ['lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan']) {
       beds[key].addEventListener('ended', () => {
         if (lmsTrack === key) lmsEnded = true;
       });
     }
-    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'hero', 'chase', 'terror', 'charselect'];
+    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan', 'hero', 'chase', 'terror', 'charselect'];
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.key.toLowerCase() !== 'm') return;
       soloIdx = soloIdx >= soloOrder.length - 1 ? -1 : soloIdx + 1;
@@ -882,6 +949,17 @@ function loadImg(src) {
     }
     const cowerLoop = loopSfx(SFX + 'cower_loop.wav', 0.35);
     const pullLoop = loopSfx(SFX + 'pull_loop.wav', 0.35);
+    const flyLoop = loopSfx(SFX + 'tailsflightloop.mp3', 0.35);
+    // evil lux talks
+    const VL = './Assets/Sounds/Evil Lux Voicelines/';
+    const vpick = (a) => a[Math.floor(Math.random() * a.length)];
+    const VL_KILL = [VL + 'elux_kill.mp3', VL + 'elux_kill2.mp3', VL + 'elux_kill3.mp3', VL + 'elux_kill4.mp3'];
+    const VL_OPEN = [VL + 'elux_opener.mp3', VL + 'elux_opener2.mp3'];
+    const VL_PULL = [VL + 'elux_pull.mp3', VL + 'elux_pull2.mp3', VL + 'elux_pull4.mp3', VL + 'elux_pull5.mp3', VL + 'elux_pull7.mp3'];
+    const VL_RUSH = [VL + 'elux_rush.mp3', VL + 'elux_rush3.mp3', VL + 'elux_rush5.mp3'];
+    const VL_SNEAK = [VL + 'elux_sneak.mp3', VL + 'elux_sneak2.mp3', VL + 'elux_sneak3.mp3'];
+    const VL_STUN = [VL + 'elux_stunned.mp3', VL + 'elux_stunned2.mp3', VL + 'elux_stunned3.mp3', VL + 'elux_stunned4.mp3', VL + 'elux_stunned5.mp3', VL + 'elux_stunned6.mp3'];
+    const sneakLoop = loopSfx(VL + 'elux_sneak_loop.mp3', 0.3);
     // evil kit
     // weak pull
     // wound ticking ropes
@@ -920,7 +998,7 @@ function loadImg(src) {
       const chasedAt = (x, y) => kx !== null && Math.hypot(kx - x, ky - y) < 260;
       const add = (name, char, hp, maxhp, alive, me, evil, x, y) => {
         const row = document.createElement('div');
-        row.className = 'pRow' + (alive ? '' : ' dead') + (me ? ' me' : '') + (!evil && alive && chasedAt(x, y) ? ' chased' : '');
+        row.className = 'pRow' + (alive ? '' : ' dead') + (me ? ' me' : '') + (!evil && alive && chasedAt(x, y) ? ' chased' : '') + (char === 'supersonic' ? ' super' : '');
         const img = document.createElement('img');
         img.src = evil ? EVIL + 'idle1.png' : (CHAR_ICON[char] || CHAR_ICON.lux);
         img.alt = '';
@@ -952,6 +1030,8 @@ function loadImg(src) {
     // spike pips
     const spikeBar = document.getElementById('spikeBar');
     const spikePips = document.getElementById('spikePips');
+    const bombBar = document.getElementById('bombBar');
+    const bombPips = document.getElementById('bombPips');
     const PIP_FULL = './Assets/Images/UI/spikepip_full.png';
     const PIP_EMPTY = './Assets/Images/UI/spikepip_empty.png';
     for (let i = 0; i < 5; i++) {
@@ -959,6 +1039,10 @@ function loadImg(src) {
       im.src = PIP_FULL;
       im.alt = '';
       spikePips.appendChild(im);
+      const bm = document.createElement('img');
+      bm.src = PIP_FULL;
+      bm.alt = '';
+      bombPips.appendChild(bm);
     }
     // blank slots
     const AB = './Assets/Images/UI/Abillities/';
@@ -1106,6 +1190,16 @@ function loadImg(src) {
           if (el.getAttribute('src') !== src) el.src = src;
         });
       }
+      // bomb stash
+      const showBombs = !!(!p.evil && isTails() && p.alive !== false && net.phase === 'round');
+      bombBar.style.display = showBombs ? 'flex' : 'none';
+      if (showBombs) {
+        const left = Math.max(0, Math.min(5, TW.bombsLeft));
+        [...bombPips.children].forEach((el, i) => {
+          const src = i < left ? PIP_FULL : PIP_EMPTY;
+          if (el.getAttribute('src') !== src) el.src = src;
+        });
+      }
       // afk button
       afkBtn.style.display = (net.id && net.phase !== 'round') || net.afk ? 'block' : 'none';
     }
@@ -1149,23 +1243,39 @@ function loadImg(src) {
     }
     // clear evil
     function clearEvil(p) {
-      p.invis = false; p.rooted = false; p.chargeDir = 0;
+      p.invis = false; p.rooted = false; p.chargeDir = 0; p.chargeSpeed = 0;
       p.cowerT = 0; p.cowering = false; p.stunT = 0;
+      p.peeling = false; p.spinning = false; p.spinWindup = false;
+      p.lift = false; p.dashing = false; p.pull = false; p.pullwindup = false;
+      p.windupUntil = false; p.kickUntil = false; p.jabUntil = false;
+      p.whipUntil = false; p.throwUntil = false;
+      p.fatigue = 0; p.actionT = 0; p._wore = null;
+      game.moveSpeed = 240; // base speed
       K.charging = false; K.pullUntil = 0; K.pullWindup = 0; K.windupUntil = 0;
+      K.spikeCD = 0; K.sneakCD = 0; K.pullCD = 0; K.rushCD = 0; K.m1CD = 0;
+      K.penaltyUntil = 0; K.invisUntil = 0; K.pullHit = false;
       S.windupUntil = 0; S.dashing = false;
+      S.dashCD = 0; S.cowerCD = 0; S.dashUntil = 0; S.dashHit = false;
+      S.countered = false; S.wasCowering = false; S.dashTouching = false;
       T.kickUntil = 0; T.jabUntil = 0;
+      T.kickCD = 0; T.jabCD = 0; T.kickHit = false; T.jabHit = false;
       SN.windupUntil = 0; SN.peelUntil = 0; SN.peeling = false;
       SN.spinWindup = 0; SN.spinUntil = 0; SN.spinning = false;
+      SN.peelCD = 0; SN.spinCD = 0; SN.spinHits = 0; SN.spinTouching = false;
+      SN.spinHitCD = 0; SN.dir = 0;
       SS.transformed = false; SS.formUntil = 0;
       SS.boostCD = 0; SS.boostWindup = 0; SS.boostUntil = 0; SS.boosting = false;
       SS.blockCD = 0; SS.wasBlocking = false;
       SS.spinCD = 0; SS.spinWindup = 0; SS.spinUntil = 0; SS.spinning = false;
+      p.superFly = false;
       SS.formUntil = 0; SS.focusUntil = 0;
-      p.tremble = false; p.rainbow = false; p.whiteFlash = false;
-      TW.flying = false; TW.flyLeft = 0; TW.whipUntil = 0; TW.holding = false;
+      p.tremble = false; p.rainbow = false; p.whiteFlash = false; p.pulseWhite = false;
+      sneakLoop.stop();
+      TW.flying = false; TW.flyLeft = 0; TW.whipUntil = 0; TW.holding = false; TW.whipHit = false;
+      p.holdingBomb = false;
       p.sneakColor = null;
-      TW.bombCD = 0; TW.flyCD = 0; TW.whipCD = 0; TW.throwUntil = 0;
-      NY.rocketCD = 0; NY.dashCD = 0; NY.dashUntil = 0; NY.dashing = false;
+      TW.bombCD = 0; TW.flyCD = 0; TW.whipCD = 0; TW.throwUntil = 0; TW.bombsLeft = 5; flyLoop.stop();
+      NY.rocketCD = 0; NY.dashCD = 0; NY.dashUntil = 0; NY.dashing = false; NY.dashHit = false;
       p.taxiFly = false;
       p.rooted = false;
       p.actionImg = null;
@@ -1189,8 +1299,15 @@ function loadImg(src) {
     const isBear5 = () => !!(game.player && game.player.evil && (net.pick === 'bear5' || (game.player.char || '') === 'bear5'));
     // costume counts
     function effChar() {
-      if (net.phase === 'intermission' && net.costume) return net.costume;
+      if ((net.phase === 'intermission' || net.phase === 'lobby') && net.costume) return net.costume;
       return net.pick || 'lux';
+    }
+    function lobbyCostume(id) {
+      // same face on all screens
+      const ids = ['lux', 'toko', 'sonic', 'tails'];
+      let h = 0;
+      for (const ch of String(id || '')) h = ((h * 31 + ch.charCodeAt(0)) >>> 0);
+      return ids[h % ids.length];
     }
     // sonic peelout
     const SN = {
@@ -1204,12 +1321,12 @@ function loadImg(src) {
       blockCD: 0, wasBlocking: false,
       spinCD: 0, spinWindup: 0, spinUntil: 0, spinning: false, spinStart: 0, spinHits: 0, spinTouching: false, spinHitCD: 0, dir: 0, lastX: 0,
     };
-    const SUPER_HP = 550; // juggernaut health
+    const SUPER_HP = 550; // super health
     const SUPER_SPEED = 360; // super run speed
     // tails kit
     const TW = {
       flyCD: 0, flyLeft: 0, flying: false,
-      bombCD: 0, holding: false, throwUntil: 0,
+      bombCD: 0, holding: false, throwUntil: 0, bombsLeft: 5,
       whipCD: 0, whipUntil: 0, whipHit: false,
     };
     // nyan cyat dev kit, survivor only
@@ -1251,6 +1368,9 @@ function loadImg(src) {
       fileSfx(SFX + 'dash_release.wav', {});
     }
     // caster calls the hit, server does the damage
+    game.onRocketHome = (rk, rate) => {
+      fileSfx(SFX + 'nyan_homing.wav', { rate: rate || 1 });
+    };
     game.onRocketBoom = (rk) => {
       fetch('/api/rocket', {
         method: 'POST',
@@ -1293,7 +1413,7 @@ function loadImg(src) {
     const FLY_MAX = 10000; // meter
     const FLY_DRAIN = 95; // meter burns fast
     const FLY_COLOR = '#ff8c1a'; // orange
-    const FLY_CD = 25000; // after flight
+    const FLY_CD = 30000; // after flight
     const BOMB_CD = 15000; // trap wait
     const WHIP_CD = 15000; // whip wait
     game.onCounter = () => {
@@ -1398,23 +1518,43 @@ function loadImg(src) {
     // touchdown kills the wings
     game.onFlyLand = () => {
       TW.flying = false;
-      TW.flyCD = Date.now() + FLY_CD;
+      TW.flyCD = Date.now() + FLY_CD * (1 - TW.flyLeft / FLY_MAX);
       if (game.player) game.player.taxiFly = false;
-      sayStatus('landed - wings folded!!', 1.5);
+      sayStatus('landed - tails folded!!', 1.5);
     };
     // bomb stays landed
     game.onTossLand = (t) => {
       if (t.dead || !net.id) return;
+      if (t.throwerId && t.throwerId !== net.id) return; // owner places only
       const bx = Math.round(t.x), by = Math.round(t.groundY ?? t.y);
+      if (net.phase === 'round') fileSfx(SFX + 'bomb_land.wav', {});
+      // bombs need elbow room
+      for (const ob of (game.bombs || [])) {
+        if ((bx - ob.x) ** 2 + (by - ob.y) ** 2 < 100 ** 2) {
+          sayStatus('too close!!', 2);
+          TW.holding = true; // take it back
+          TW.bombsLeft = Math.min(5, TW.bombsLeft + 1); // refund
+          TW.bombCD = Date.now() + 2000;
+          return;
+        }
+      }
       fetch('/api/bomb', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: net.id, action: 'place', x: bx, y: by }),
+      }).then((r) => r.json()).then((d) => {
+        if (d && !d.ok) TW.bombsLeft = Math.min(5, TW.bombsLeft + 1); // refund
       }).catch(() => {});
     };
     // spring boing
     game.onSpring = () => {
       if (net.phase === 'round') fileSfx(SFX + 'spring.wav', {});
+    };
+    game.onTossBounce = () => {
+      if (net.phase === 'round') fileSfx(SFX + 'spring.wav', {});
+    };
+    game.onTossBoom = () => {
+      fileSfx(SFX + 'explode.mp3', {});
     };
     async function joinOnline() {
       // rejoin first
@@ -1439,7 +1579,7 @@ function loadImg(src) {
           // no login
           const e = await res.json().catch(() => ({}));
           if (e.login) { location.href = '/login'; return; }
-          pinRow.style.display = 'block';
+          pinRow.style.display = 'flex';
           sayStatus(e.error || 'enter your digipog pin!!', 8);
           return;
         }
@@ -1541,7 +1681,7 @@ function loadImg(src) {
             moving: Math.abs(p.vel.x) > 10, onGround: p.onGround,
             alive: p.alive !== false,
             invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true, spinwindup: !!SN.spinWindup,
-            lift: TW.flying === true, super: SS.transformed === true, forming: !!SS.formUntil, whipUntil: !!TW.whipUntil, kickUntil: !!T.kickUntil, jabUntil: !!T.jabUntil, throwUntil: !!TW.throwUntil,
+            lift: TW.flying === true, super: SS.transformed === true, forming: !!SS.formUntil, holding: TW.holding === true, whipuntil: !!TW.whipUntil, kickUntil: !!T.kickUntil, jabUntil: !!T.jabUntil, throwUntil: !!TW.throwUntil,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
             cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup || !!K.pullWindup, pullwindup: !!K.pullWindup,
             dashing: !!S.dashing || NY.dashing,
@@ -1567,17 +1707,19 @@ function loadImg(src) {
           net.phase = data.phase;
           soloIdx = -1; // reset ears
           lmsTrack = null; lmsEnded = false; // reset lms
-          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.chase.pause(); beds.terror.pause();
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause(); beds.chase.pause(); beds.terror.pause();
           clearEvil(p);
           trippedIds.clear();
+          if (data.phase === 'select' || data.phase === 'round') net.costume = null; // picks rule now
           if (data.phase !== 'round' || you?.in_round) {
             if (data.phase === 'round') game.switchMap('main', 100, 880);
             else {
               game.switchMap('inter', 6120, 100); // island map
-              if (data.phase === 'intermission' && !p.evil) {
-                // random look
-                const ids = ['lux', 'toko', 'sonic', 'tails'];
-                wearChar(ids[Math.floor(Math.random() * ids.length)]);
+              if ((data.phase === 'intermission' || data.phase === 'lobby') && !p.evil) {
+                // random fighter, kit and all
+                net.costume = lobbyCostume(net.id);
+                wearChar(net.costume);
+                game.moveSpeed = net.costume === 'sonic' ? 270 : 240;
               }
             }
             if (!p.evil) { p.maxHp = data.phase === 'round' ? survHp() : 100; } // drop buffs, nyan keeps its hp
@@ -1630,12 +1772,43 @@ function loadImg(src) {
           if (fresh && data.phase === 'round') game.respawn(); // evil spawn
           clearTimeout(roleTimer);
           if (fresh && data.phase === 'round') fileSfx(SFX + 'going_into_round.wav', {});
+          if (fresh && data.phase === 'intro') fileSfx(vpick(VL_OPEN), {});
           roleBox.textContent = amEvil
             ? (fresh ? 'YOU ARE EVIL LUX!!' : 'YOU ARE EVIL NOW!!')
-            : (fresh ? 'SURVIVE!!' : 'BACK TO NORMAL!!');
-          roleBox.style.color = amEvil ? '#ff4757' : '#2ed573';
+            : (fresh ? `you are ${(net.pick || 'lux').toUpperCase()}!! :D` : 'BACK TO NORMAL!!');
+          roleBox.style.color = amEvil ? '#ff4757' : '#ffa502';
           roleBox.style.display = 'block';
           roleTimer = setTimeout(() => { roleBox.style.display = 'none'; }, 3000);
+        }
+        if (fresh && data.phase === 'round') {
+          net.wasEvil = amEvil;
+          applyRole(amEvil); // fresh stats even if role kept
+          game.respawn(); // evil spawn
+        }
+        // black while map loads
+        if (mapLoad) {
+          const art = game.levelArt, bd = game.levelBackdrop;
+          const loading = (game.activeMap === 'main' &&
+            ((art && !art.complete) || (bd && !bd.complete))) ||
+            data.phase === 'intro';
+          mapLoad.style.display = loading ? 'block' : 'none';
+        }
+        // killer intro video
+        if (introWrap) {
+          if (data.phase === 'intro' && data.round !== net._introRound) {
+            net._introRound = data.round;
+            // 2s breather, then show
+            setTimeout(() => {
+              if (net._introRound === data.round && net.phase === 'intro' && introWrap.style.display !== 'block') {
+                introWrap.style.display = 'block';
+                try { introVid.currentTime = 0; } catch (_) { /* hush!! */ }
+                introVid.play().catch(() => { introWrap.style.display = 'none'; });
+              }
+            }, 2000);
+          } else if (data.phase !== 'intro' && introWrap.style.display !== 'none') {
+            introWrap.style.display = 'none';
+            try { introVid.pause(); } catch (_) { /* hush!! */ }
+          }
         }
         // phase text
         let phaseText = 'lobby!!';
@@ -1651,11 +1824,18 @@ function loadImg(src) {
           const who = r && r.winner === 'killer' ? `EVIL ${r.killer_name} WINS!!` : 'SURVIVORS WIN!!';
           const fee = net.me && net.me.round_cost ? ` (${net.me.round_cost} digipogs a round)` : '';
           phaseText = `${who} picks open in ${t}s!!${fee}`;
+          // countdown tick, intermission only
+          if (t <= 5 && t > 0 && t !== net._tickSec) {
+            net._tickSec = t;
+            fileSfx(SFX + 'timertick.wav', {});
+          }
         } else if (data.phase === 'select') {
           const t = Math.max(0, data.time_left || 0);
           phaseText = you && you.paid === null ? 'paying the round fee...'
             : you && you.paid === false && net.me && net.me.round_cost ? `NOT PLAYING: ${you.pay_msg || 'round fee failed'}!!`
             : `PICK YOUR CHARACTER!! (${t}s)`;
+        } else if (data.phase === 'intro') {
+          phaseText = 'GET READY!!';
         } else if (data.phase === 'round') {
           const t = Math.max(0, data.time_left || 0);
           const mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
@@ -1710,15 +1890,18 @@ function loadImg(src) {
           r.maxHp = d.maxhp || (r.evil && r.char === 'bear5' ? 999 : (r.evil ? 250 : 100)); // true bars
           r.super = !!d.super; // glowing or not
           r.rainbow = !!d.super; // gold bar
+          r.pulseWhite = !!d.super; // glow pulse
           r.forming = !!d.forming; // mid glow up
           r.tremble = !!d.forming;
           r.whiteFlash = !!d.forming;
-          r.sprites = r.evil ? (r.char === 'bear5' ? bear5Sprites : evilSprites) : (r.char === 'supersonic' && !r.super && !r.forming ? sonicSprites : (charSprites[r.char] || luxSprites)); // see all
+          // lobby face, matches all screens
+          const rface = (!d.char && (net.phase === 'lobby' || net.phase === 'intermission')) ? lobbyCostume(id) : (r.char || 'lux');
+          r.sprites = r.evil ? (r.char === 'bear5' ? bear5Sprites : evilSprites) : (r.char === 'supersonic' && !r.super && !r.forming ? sonicSprites : (r.char === 'tails' && r.holdingBomb ? tailsCarrySprites : (charSprites[rface] || luxSprites))); // see all
           // true size
-          const rkey = r.char + (r.evil ? '*' : '') + (r.super ? '!' : '') + (r.forming ? '?' : '');
+          const rkey = rface + (r.evil ? '*' : '') + (r.super ? '!' : '') + (r.forming ? '?' : '') + (r.holdingBomb ? 'h' : '');
           if (r._lastChar !== rkey) { r._baseFrame = null; r._lastChar = rkey; }
           r.drawW = r.char === 'bear5' ? 76 : 50;
-          r.drawH = r.char === 'bear5' ? 94 : (r.char === 'nyan' ? NYAN_H : (!r.evil && (r.char === 'sonic' || r.char === 'supersonic' || r.char === 'tails')) ? 64 : 70);
+          r.drawH = r.char === 'bear5' ? 94 : (r.char === 'nyan' ? NYAN_H : (!r.evil && (rface === 'sonic' || rface === 'supersonic' || rface === 'tails')) ? 64 : 70);
           r.invis = !!d.invis;
           r.stunned = !!d.stunned;
           r.pull = !!d.pull;
@@ -1727,10 +1910,11 @@ function loadImg(src) {
           r.spinwindup = !!d.spinwindup;
           r.pullwindup = !!d.pullwindup;
           r.lift = !!d.lift;
-          r.whipUntil = !!d.whipUntil;
+          r.whipUntil = !!d.whipuntil;
           r.kickUntil = !!d.kickUntil;
           r.jabUntil = !!d.jabUntil;
           r.throwUntil = !!d.throwUntil;
+          r.holdingBomb = !!d.holding;
           r.dashing = !!d.dashing;
           r.away = !!d.away;
           r.inRound = !!d.in_round;
@@ -1786,6 +1970,7 @@ function loadImg(src) {
           }
           if (r._wasAlive && !r.alive && data.phase === 'round') {
             fileSfx(SFX + 'death.mp3', {}); // they died
+            if (!r.evil) fileSfx(vpick(VL_KILL), {}); // killer brags
           }
           r._wasAlive = !!r.alive;
           r._lastHp = r.hp;
@@ -1880,11 +2065,12 @@ function loadImg(src) {
         const luxLMS = isLMS && lmsChar === 'lux';
         const sonicLMS = isLMS && lmsChar === 'sonic';
         const tailsLMS = isLMS && lmsChar === 'tails';
+        const nyanLMS = isLMS && lmsChar === 'nyan';
         const superLMS = isLMS && lmsChar === 'supersonic';
-        const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : (tailsLMS ? 'lmstails' : (superLMS ? 'lmssonic' : 'lms')));
+        const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : (tailsLMS ? 'lmstails' : (nyanLMS ? 'lmsnyan' : (superLMS ? 'lmssonic' : 'lms'))));
         if (isLMS && lmsTrack !== lmsKey) {
           // start anthem
-          for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic', 'lmstails']) {
+          for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan']) {
             beds[k].pause();
             try { beds[k].currentTime = 0; } catch (_) { /* hush!! */ }
           }
@@ -1896,7 +2082,7 @@ function loadImg(src) {
             const superGlow = isSuper() && SS.transformed;
             const lmsHp = Math.max(LMS_HP, survHp());
             p.maxHp = superGlow ? SUPER_HP : lmsHp; p.hp = superGlow ? SUPER_HP : lmsHp;
-            S.dashCD = 0; S.cowerCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0;
+            S.dashCD = 0; S.cowerCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0; TW.bombsLeft = 5;
             NY.rocketCD = 0; NY.dashCD = 0;
             SS.boostCD = 0; SS.blockCD = 0; SS.spinCD = 0;
             fetch('/api/heal', {
@@ -1907,7 +2093,7 @@ function loadImg(src) {
           }
         } else if (!isLMS && lmsTrack) {
           // lms over
-          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause();
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause();
           lmsTrack = null; lmsEnded = false;
           if (!p.evil) {
             // drop buffs except super
@@ -1925,7 +2111,8 @@ function loadImg(src) {
           ['lmslux', luxLMS ? 1 : 0, 0.25],
           ['lmssonic', (sonicLMS || superLMS) ? 1 : 0, 0.25],
           ['lmstails', tailsLMS ? 1 : 0, 0.25],
-          ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS && !superLMS ? 1 : 0, 0.25],
+          ['lmsnyan', nyanLMS ? 1 : 0, 0.25],
+          ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS && !nyanLMS && !superLMS ? 1 : 0, 0.25],
           ['chase', chaseT, 0.5],
           ['terror', terrorT, 0.5],
           ['inter', data.phase === 'intermission' ? 1 : 0, 0.3],
@@ -1933,7 +2120,7 @@ function loadImg(src) {
           ['map', data.phase === 'round' ? 1 : 0, 0.12],
           ['wait', data.phase === 'lobby' ? 1 : 0, 0.3],
         ];
-        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, hero: 0, chase: 0, terror: 0, charselect: 0 };
+        const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, lmsnyan: 0, hero: 0, chase: 0, terror: 0, charselect: 0 };
         const win = cands.find((c) => c[1] > 0.05);
         if (win) bedT[win[0]] = win[2] * (win[0] === 'chase' || win[0] === 'terror' ? win[1] : 1);
         if (document.hidden) for (const k in bedT) bedT[k] = 0; // mute hidden
@@ -1950,6 +2137,28 @@ function loadImg(src) {
             if (a.volume < 0.02) a.pause();
           }
         }
+        // hero lyrics
+        {
+          const hb = beds.hero;
+          let line = '';
+          if (hb && !hb.paused && hb.volume > 0.05 && hb.currentTime > 0) {
+            const t = hb.currentTime;
+            for (const [lt, lx] of HERO_LYRICS) {
+              if (t < lt) break;
+              line = lx;
+            }
+            const lastT = HERO_LYRICS[HERO_LYRICS.length - 1][0];
+            if (t > lastT + 10) line = '';
+          }
+          if (line) {
+            // rainbow super sonic
+            const html = line.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+              .replace(/(super sonic)/gi, '<span class="lyr-rainbow">$1</span>');
+            if (lyricBar._html !== html) { lyricBar.innerHTML = html; lyricBar._html = html; }
+          } else {
+            lyricBar._html = '';
+          }
+          lyricBar.style.display = line ? 'block' : 'none';        }
         // feel stuns
         if (you && (you.stun || 0) > (p.stunT || 0)) p.stunT = you.stun;
         // stun sting
@@ -1957,6 +2166,11 @@ function loadImg(src) {
           fileSfx(SFX + 'basic_hit.wav', {});
         }
         p._lastStun = p.stunT || 0;
+        // recovers with words, not whimpers
+        if (p.evil && (p._wasStun || 0) > 0 && (p.stunT || 0) <= 0 && p.alive !== false && data.phase === 'round') {
+          fileSfx(vpick(VL_STUN), {});
+        }
+        p._wasStun = p.stunT || 0;
         // ate hits
         if (you && you.countered && !p.evil) {
           S.countered = true; // shorter wait
@@ -1991,10 +2205,43 @@ function loadImg(src) {
           if (!seenTosses.has(toss.id)) {
             seenTosses.add(toss.id);
             // pass throwerId for arc
-            game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id, toss.throwerId);
+            game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id, toss.owner);
+          }
+        }
+        // midair bombs burst on evil
+        if (data.phase === 'round') {
+          const foes = game.remotes.filter((r) => r.evil && r.alive && r.hp > 0);
+          if (p.evil && p.alive !== false) foes.push(p);
+          for (const t of (game.tosses || [])) {
+            if (t.landed || t.dead || t.boomed) continue;
+            for (const f of foes) {
+              const fx = f.pos.x + f.w / 2, fy = f.pos.y + f.h / 2;
+              if (Math.abs(t.x - fx) < 40 && Math.abs(t.y - fy) < 50) {
+                t.boomed = true; t.landed = true; t.dead = true;
+                game.addBoom(t.x, t.y);
+                fileSfx(SFX + 'explode.mp3', {});
+                if (t.throwerId && t.throwerId === net.id) {
+                  fetch('/api/bomb', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: net.id, action: 'airburst', x: Math.round(t.x), y: Math.round(t.y) }),
+                  }).then((r) => r.json()).then((d) => {
+                    if (d && d.ok) TW.bombsLeft = Math.min(5, TW.bombsLeft + 1); // midair refund
+                  }).catch(() => {});
+                }
+                break;
+              }
+            }
           }
         }
         game.alerts = data.alerts || [];
+        // mod announcement
+        {
+          const fresh = (data.announces || []).filter((a) => (a.age || 99) < 8);
+          const top = fresh.length ? fresh[fresh.length - 1].text : '';
+          if (top && announceEl.textContent !== top) announceEl.textContent = top;
+          announceEl.style.display = top ? 'block' : 'none';
+        }
         syncRockets(data);
         // chat log
         for (const m of (data.chat || [])) {
@@ -2148,27 +2395,46 @@ function loadImg(src) {
               if (ab === 'Z') {
                 if (TW.flying) {
                   TW.flying = false; // drop out
-                  TW.flyCD = now + FLY_CD * (isLMS ? LMS_CD : 1);
+                  TW.flyCD = now + FLY_CD * (1 - TW.flyLeft / FLY_MAX) * (isLMS ? LMS_CD : 1);
                 } else if (now >= TW.flyCD && !TW.whipUntil) {
                   TW.flying = true;
                   TW.flyLeft = FLY_MAX; // meter
+                  if (p.onGround) {
+                    // ground launch, costs a quarter tank
+                    TW.flyLeft = FLY_MAX * 0.75;
+                    p.vel.y = Math.min(p.vel.y || 0, -600);
+                    p.onGround = false;
+                  }
                   fileSfx(SFX + 'dash_release.wav', {});
                 }
-              } else if (ab === 'X' && now >= TW.bombCD && !TW.flying && !TW.throwUntil) {
-                // bomb toss
+              } else if (ab === 'X' && !TW.flying && !TW.throwUntil) {
+                // bomb arm, press again to toss
                 const dir = p.facing || 1;
                 if (!TW.holding) {
-                  sayStatus('no bomb to place!!', 2);
+                  if (TW.bombsLeft <= 0) {
+                    sayStatus('out of bombs!!', 2);
+                    fileSfx(SFX + 'denied.wav', {});
+                  } else if (now < TW.bombCD) {
+                    fileSfx(SFX + 'denied.wav', {});
+                  } else {
+                    TW.holding = true;
+                    fileSfx(SFX + 'bomb_grab.wav', {});
+                    sayStatus('bomb out!!', 1.5);
+                  }
+                } else if (TW.bombsLeft <= 0) {
+                  sayStatus('out of bombs!!', 2);
+                  fileSfx(SFX + 'denied.wav', {});
                 } else {
                   TW.holding = false;
+                  TW.bombsLeft--;
                   TW.bombCD = now + BOMB_CD * (isLMS ? LMS_CD : 1);
                   TW.throwUntil = now + 300;
                   setPose('throw', 300);
-                  // throw it far
+                  // short lob now
                   const throwX = p.pos.x + p.w / 2 + dir * 16;
                   const throwY = p.pos.y + 8;
-                  const throwVx = dir * 1100;
-                  const throwVy = -350;
+                  const throwVx = dir * 500;
+                  const throwVy = -320;
                   // add toss with throwerId
                   game.addToss(throwX, throwY, throwVx, throwVy, game.bombImg, null, net.id);
                   fetch('/api/bomb', {
@@ -2178,14 +2444,14 @@ function loadImg(src) {
                   }).then((response) => response.json()).then((payload) => {
                     if (payload.toss?.id) seenTosses.add(payload.toss.id);
                   }).catch(() => {});
-                  fileSfx(SFX + 'spike_place.wav', {});
+                  fileSfx(SFX + 'bomb_grab.wav', {});
                 }
               } else if (ab === 'C' && now >= TW.whipCD && !TW.whipUntil && !TW.flying) {
                 // tailwhip
                 TW.whipUntil = now + 400; TW.whipHit = false;
                 p.rooted = true;
                 setPose('whip', 400);
-                fileSfx(SFX + 'jab_hit.wav', {});
+                fileSfx(SFX + 'tailwhip.wav', {});
               }
               continue;
             }
@@ -2251,6 +2517,8 @@ function loadImg(src) {
             // ghost mode
             p.invis = true;
             K.invisUntil = now + 10000; K.sneakCD = now + 20000;
+            fileSfx(vpick(VL_SNEAK), {});
+            sneakLoop.start();
           } else if (ab === 'V' && now >= K.pullCD && !K.pullWindup) {
             // wound up ropes
             const kx = p.pos.x + p.w / 2, ky = p.pos.y + p.h / 2;
@@ -2275,6 +2543,7 @@ function loadImg(src) {
             K.windupUntil = now + 3000; // rooted windup
             K.rushCD = now + 15000;
             p.rooted = true;
+            fileSfx(vpick(VL_RUSH), {});
             p.actionImg = evilAct.windup; p.actionT = 3.1;
             fileSfx(SFX + 'dash_charge.wav', {});
           } else if (ab === 'N' && isNyan() && now >= NY.rocketCD && data.phase === 'round' && !data.grace) {
@@ -2290,6 +2559,7 @@ function loadImg(src) {
         }
         // loud reveal
         if (K.wasInvis && !p.invis) fileSfx(SFX + 'sneak_reveal.mp3', {});
+        if (K.wasInvis && !p.invis) sneakLoop.stop();
         K.wasInvis = !!p.invis;
         if (p.evil && p.alive !== false && now < K.pullUntil) { p.actionImg = evilAct.pull; p.actionT = 0.15; pullLoop.start(); }
         else pullLoop.stop();
@@ -2364,7 +2634,7 @@ function loadImg(src) {
             const pullD = Math.hypot(kx - rx, ky - ry);
             if (pullD >= PULL_RANGE) continue;
             // through walls now
-            if (!K.pullHit) fileSfx(SFX + 'basic_hit.wav', {}); // caught one
+            if (!K.pullHit) { fileSfx(SFX + 'basic_hit.wav', {}); fileSfx(vpick(VL_PULL), {}); } // caught one
             K.pullHit = true;
             // closer burns more
             const tickDmg = Math.round(2 + 8 * (1 - pullD / PULL_RANGE));
@@ -2591,6 +2861,7 @@ function loadImg(src) {
           else if (!SS.transformed && !SS.formUntil && p._wore !== 'sonic') { wearChar('sonic'); p._wore = 'sonic'; }
           game.moveSpeed = SS.transformed ? SUPER_SPEED : 270;
           p.rainbow = SS.transformed === true;
+          p.pulseWhite = SS.transformed === true;
           // glowing up
           if (SS.formUntil) {
             p.rooted = true;
@@ -2697,11 +2968,11 @@ function loadImg(src) {
             p.rooted = false;
             fileSfx(SFX + 'dash_release.wav', {});
           }
-          if (!SS.spinning) p.spinning = false;
+          if (!SS.spinning) { p.spinning = false; p.superFly = false; }
           if (SS.spinning) {
             const spinOver = now >= SS.spinUntil || p.alive === false || now - (SS.spinStart || now) > 7000;
             if (spinOver) {
-              SS.spinning = false; p.spinning = false;
+              SS.spinning = false; p.spinning = false; p.superFly = false;
               p.chargeDir = 0; p.chargeSpeed = 0;
               p.actionImg = null;
               SS.spinCD = now + (SS.spinHits > 0 ? 18000 : 25000) * (isLMS ? LMS_CD : 1);
@@ -2748,7 +3019,8 @@ function loadImg(src) {
                   body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 25, stun: 3, stack: true, kb: 2.5 }),
                 }).catch(() => {});
                 if (SS.spinHits >= 5) {
-                  SS.spinning = false; p.chargeDir = 0; p.chargeSpeed = 0;
+                  SS.spinning = false; p.spinning = false; p.superFly = false;
+                  p.chargeDir = 0; p.chargeSpeed = 0;
                   p.actionImg = null;
                   SS.spinCD = now + 18000 * (isLMS ? LMS_CD : 1);
                 }
@@ -2865,10 +3137,14 @@ function loadImg(src) {
           // stunned drops the flight
           if (TW.flying && ((p.stunT || 0) > 0 || p.alive === false || data.phase !== 'round')) {
             TW.flying = false;
-            TW.flyCD = now + FLY_CD * (isLMS ? LMS_CD : 1);
+            TW.flyCD = now + FLY_CD * (1 - TW.flyLeft / FLY_MAX) * (isLMS ? LMS_CD : 1);
           }
           // bomb in hand
-          if (!TW.holding && now >= TW.bombCD) TW.holding = true;
+          game.moveSpeed = TW.holding ? 140 : 240; // heavy carry
+          p.holdingBomb = TW.holding === true;
+          // carry art
+          if (TW.holding && p._wore !== 'carry') { game.setPlayerSprites(tailsCarrySprites); p._wore = 'carry'; }
+          else if (!TW.holding && p._wore === 'carry') { wearChar('tails'); p._wore = 'tails'; }
           if (TW.throwUntil) {
             // winding the toss
             p.throwUntil = true; // engine flag
@@ -2882,6 +3158,7 @@ function loadImg(src) {
           // fly meter
           if (TW.flying) {
             TW.flyLeft -= FLY_DRAIN; // burns fast
+            flyLoop.start();
             p.taxiFly = true;
             p.lift = true; // engine flag
             p.sneakFrac = Math.max(0, TW.flyLeft / FLY_MAX);
@@ -2893,10 +3170,10 @@ function loadImg(src) {
             }
           } else {
             p.taxiFly = false;
+            flyLoop.stop();
             p.lift = false; // engine flag
             p.sneakColor = FLY_COLOR;
-            if (!TW.holding && !TW.throwUntil) p.sneakFrac = Math.max(0, TW.flyLeft / FLY_MAX);
-            if (!TW.holding && TW.flyLeft <= 0) p.sneakFrac = 0;
+            p.sneakFrac = 0; // bar only mid flight
           }
           // tailwhip
           if (TW.whipUntil) {
@@ -2907,24 +3184,24 @@ function loadImg(src) {
                 Math.abs((ek.pos.x + ek.w / 2) - (p.pos.x + p.w / 2)) < 90 &&
                 Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 80) {
               TW.whipHit = true;
-              TW.whipUntil = 0;
-              p.whipUntil = false; // engine flag
-              p.rooted = false;
               TW.whipCD = now + WHIP_CD * (isLMS ? LMS_CD : 1);
               const away = (p.pos.x + p.w / 2) >= (ek.pos.x + ek.w / 2) ? 1 : -1;
               p.vel.x = away * 500;
               fetch('/api/hit', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 0, stun: 1.5 }),
+                body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 0, stun: 2.5 }),
               }).catch(() => {});
-            } else if (now >= TW.whipUntil) {
+            }
+            if (now >= TW.whipUntil) {
               TW.whipUntil = 0;
               p.whipUntil = false; // engine flag
               p.rooted = false;
-              TW.whipCD = now + 25000 * (isLMS ? LMS_CD : 1); // slow whiff
-              p.stunT = Math.max(p.stunT || 0, 1);
-              fileSfx(SFX + 'denied.wav', {}); // missed whip
+              if (!TW.whipHit) {
+                TW.whipCD = now + 25000 * (isLMS ? LMS_CD : 1); // slow whiff
+                p.stunT = Math.max(p.stunT || 0, 1);
+                fileSfx(SFX + 'denied.wav', {}); // missed whip
+              }
             }
           } else {
             p.whipUntil = false; // engine flag
