@@ -49,6 +49,44 @@ tmp/
 *.tmp
 *.bak
 
+# macOS
+.AppleDouble
+.LSOverride
+*.DS_Store
+
+# Windows
+.VisualStudioCode/
+
+# Package managers (additional)
+.pnpm-store/
+.yarn/cache/
+.eslintignore
+
+# Environment-specific
+.env.local
+.env.*.local
+
+# IDE extensions/settings beyond .vscode
+.vim/
+.emacs.d/
+*.sublime-project
+
+# Build artifacts and caches
+.turbo/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# Testing coverage
+coverage/
+.nyc_output/
+
+# Lock files (optional - uncomment if you want to track these)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
 # Local server config (uncomment to keep your own admin IDs out of the repo)
 # admins.txt
 

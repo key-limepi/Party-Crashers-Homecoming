@@ -1610,7 +1610,11 @@ function loadImg(src) {
       if (!me || !me.evil) return;
       boomedIds.add(bb.id);
       fileSfx(SFX + 'explode.mp3', {});
-      game.addBoom(bb.x, bb.y - 20);
+      // calculate stun strength from bomb age to scale explosion
+      const bombAge = Math.max(0, Date.now() / 1000 - (bb.at || 0));
+      const bombStun = Math.max(2.0, 5.0 - (bombAge / 15));
+      const explosionScale = bombStun / 4.0; // 2.0 stun = 0.5 scale, 5.0 stun = 1.25 scale
+      game.addBoom(bb.x, bb.y - 20, explosionScale);
       me.stunT = Math.max(me.stunT || 0, 5); // long stun
       me.rooted = true;
       if (net.id) {
@@ -1650,7 +1654,10 @@ function loadImg(src) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: net.id, action: 'place', x: bx, y: by }),
       }).then((r) => r.json()).then((d) => {
-        if (d && !d.ok) TW.bombsLeft = Math.min(5, TW.bombsLeft + 1); // refund
+        if (d && !d.ok) {
+          if (d.reason === 'bomb limit reached!!') sayStatus('max 5 bombs!!', 2);
+          TW.bombsLeft = Math.min(5, TW.bombsLeft + 1); // refund
+        }
       }).catch(() => {});
     };
     // spring boing
