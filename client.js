@@ -2329,13 +2329,13 @@ function loadImg(src) {
         for (const sp of (data.spikes || [])) if (trippedIds.has(sp.id)) sp.tripped = true;
         game.spikes = data.spikes || [];
         // bomb sync
-        for (const bb of (data.bombs || [])) bombPos[bb.id] = { x: bb.x, y: bb.y };
+        for (const bb of (data.bombs || [])) bombPos[bb.id] = { x: bb.x, y: bb.y, owner: bb.owner || null, refunded: !!bombPos[bb.id]?.refunded };
         for (const bid of Object.keys(bombPos)) {
           if (!(data.bombs || []).some((bb) => bb.id === bid)) {
             const bp = bombPos[bid];
-            if (data.phase === 'round' && !boomedIds.has(bid)) {
-              game.addBoom(bp.x - 28, bp.y - 28);
-              fileSfx(SFX + 'explode.mp3', {});
+            if (!bp.refunded && data.phase === 'round' && bp.owner === net.id && isTails() && !p.evil && p.alive !== false) {
+              TW.bombsLeft = Math.min(5, TW.bombsLeft + 1);
+              bp.refunded = true;
             }
             boomedIds.delete(bid);
             delete bombPos[bid];

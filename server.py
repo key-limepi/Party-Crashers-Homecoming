@@ -1061,7 +1061,7 @@ class Handler(SimpleHTTPRequestHandler):
                         del bombs[oldest]
                     bomb_seq += 1
                     bid = f"b{bomb_seq}"
-                    bombs[bid] = {"x": x, "y": y, "by": me["name"], "at": time.time()}
+                    bombs[bid] = {"x": x, "y": y, "by": me["name"], "owner": me["id"], "at": time.time()}
                     self._send_json({"ok": True, "bomb": dict(bombs[bid], id=bid)})
                     return
                 if data.get("action") == "airburst" and me and phase == "round" \
@@ -1106,6 +1106,11 @@ class Handler(SimpleHTTPRequestHandler):
                         if me["hp"] <= 0:
                             me["alive"] = False
                         print(f"!! {me['name']} ate a bomb!!", flush=True)
+                    owner = bb.get("owner")
+                    if owner and isinstance(owner, str):
+                        owner_player = players.get(owner)
+                        if owner_player and owner_player.get("char") == "tails" and not owner_player.get("evil"):
+                            owner_player["bombs_left"] = min(5, owner_player.get("bombs_left", 5) + 1)
                     self._send_json({"ok": True})
                     return
             self._send_json({"ok": False})
