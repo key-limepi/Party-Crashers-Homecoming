@@ -905,6 +905,8 @@ function loadImg(src) {
         introDone();
       });
     }
+    const MUSIC_VOLUME_SCALE = 0.68;
+    const VOICE_VOLUME_SCALE = 1.35;
     const beds = {
       map: loopTrack(MUS + 'map_musicV2.mp3'),
       wait: loopTrack(MUS + 'waiting4players.mp3'),
@@ -970,6 +972,15 @@ function loadImg(src) {
         a.play().catch(() => {});
       } catch (e) { /* silent!! */ }
     }
+    function voiceSfx(src, rate = 1) {
+      if (!audioStarted || titleLive) return;
+      try {
+        const a = new Audio(src);
+        a.playbackRate = rate;
+        a.volume = 0.5 * VOICE_VOLUME_SCALE;
+        a.play().catch(() => {});
+      } catch (e) { /* silent!! */ }
+    }
     function spawnBearHitFx(x, y) {
       const blues = ['#249bff', '#53bdff', '#1177dc'];
       for (let i = 0; i < 18; i++) {
@@ -1014,7 +1025,7 @@ function loadImg(src) {
     const VL_RUSH = [VL + 'elux_rush.mp3', VL + 'elux_rush3.mp3', VL + 'elux_rush5.mp3'];
     const VL_SNEAK = [VL + 'elux_sneak.mp3', VL + 'elux_sneak2.mp3', VL + 'elux_sneak3.mp3'];
     const VL_STUN = [VL + 'elux_stunned.mp3', VL + 'elux_stunned2.mp3', VL + 'elux_stunned3.mp3', VL + 'elux_stunned4.mp3', VL + 'elux_stunned5.mp3', VL + 'elux_stunned6.mp3'];
-    const sneakLoop = loopSfx(VL + 'elux_sneak_loop.mp3', 0.3);
+    const sneakLoop = loopSfx(VL + 'elux_sneak_loop.mp3', 0.45);
     // evil kit
     // weak pull
     // wound ticking ropes
@@ -1649,7 +1660,15 @@ function loadImg(src) {
     game.onTossBounce = () => {
       if (net.phase === 'round') fileSfx(SFX + 'spring.wav', {});
     };
-    game.onTossBoom = () => {
+    game.onTossBoom = (a, c) => {
+      if (game.player && !game.player.evil && isTails()) {
+        for (const t of [a, c]) {
+          if (t && t.throwerId === net.id) {
+            TW.holding = true;
+            TW.bombsLeft = Math.min(5, TW.bombsLeft + 1);
+          }
+        }
+      }
       fileSfx(SFX + 'explode.mp3', {});
     };
     async function joinOnline() {
@@ -1875,7 +1894,7 @@ function loadImg(src) {
           if (fresh && data.phase === 'round') game.respawn(); // evil spawn
           clearTimeout(roleTimer);
           if (fresh && data.phase === 'round') fileSfx(SFX + 'going_into_round.wav', {});
-          if (fresh && data.phase === 'intro' && net.killerPick !== 'bear5') fileSfx(vpick(VL_OPEN), {});
+          if (fresh && data.phase === 'intro' && net.killerPick !== 'bear5') voiceSfx(vpick(VL_OPEN));
           roleBox.textContent = amEvil
             ? (net.killerPick === 'bear5' ? 'YOU ARE BEAR5!!' : fresh ? 'YOU ARE EVIL LUX!!' : 'YOU ARE EVIL NOW!!')
             : (fresh ? `you are ${(net.pick || 'lux').toUpperCase()}!! :D` : 'BACK TO NORMAL!!');
@@ -2091,7 +2110,7 @@ function loadImg(src) {
           }
           if (r._wasAlive && !r.alive && data.phase === 'round') {
             fileSfx(SFX + 'death.mp3', {}); // they died
-            if (!r.evil) fileSfx(vpick(VL_KILL), {}); // killer brags
+            if (!r.evil) voiceSfx(vpick(VL_KILL)); // killer brags
           }
           r._wasAlive = !!r.alive;
           r._lastHp = r.hp;
@@ -2249,6 +2268,7 @@ function loadImg(src) {
           // pause means silent
           // title mutes
           let target = soloIdx >= 0 ? (key === soloOrder[soloIdx] ? 0.8 : 0) : (bedT[key] || 0);
+          target *= MUSIC_VOLUME_SCALE;
           if (titleLive) target = 0;
           if (target > 0.01) {
             if (a.paused && !(key === lmsTrack && lmsEnded)) a.play().catch(() => {});
@@ -2289,7 +2309,7 @@ function loadImg(src) {
         p._lastStun = p.stunT || 0;
         // recovers with words, not whimpers
         if (p.evil && (p._wasStun || 0) > 0 && (p.stunT || 0) <= 0 && p.alive !== false && data.phase === 'round') {
-          fileSfx(vpick(VL_STUN), {});
+          voiceSfx(vpick(VL_STUN));
         }
         p._wasStun = p.stunT || 0;
         // ate hits
@@ -2634,7 +2654,7 @@ function loadImg(src) {
             // ghost mode
             p.invis = true;
             K.invisUntil = now + 10000; K.sneakCD = now + 20000;
-            fileSfx(vpick(VL_SNEAK), {});
+            voiceSfx(vpick(VL_SNEAK));
             sneakLoop.start();
           } else if (ab === 'V' && now >= K.pullCD && !K.pullWindup) {
             // wound up ropes
@@ -2660,7 +2680,7 @@ function loadImg(src) {
             K.windupUntil = now + 3000; // rooted windup
             K.rushCD = now + 15000;
             p.rooted = true;
-            fileSfx(vpick(VL_RUSH), {});
+            voiceSfx(vpick(VL_RUSH));
             p.actionImg = evilAct.windup; p.actionT = 3.1;
             fileSfx(SFX + 'dash_charge.wav', {});
           } else if (ab === 'N' && isNyan() && now >= NY.rocketCD && data.phase === 'round' && !data.grace) {
@@ -2751,7 +2771,7 @@ function loadImg(src) {
             const pullD = Math.hypot(kx - rx, ky - ry);
             if (pullD >= PULL_RANGE) continue;
             // through walls now
-            if (!K.pullHit) { fileSfx(SFX + 'basic_hit.wav', {}); fileSfx(vpick(VL_PULL), {}); } // caught one
+            if (!K.pullHit) { fileSfx(SFX + 'basic_hit.wav', {}); voiceSfx(vpick(VL_PULL)); } // caught one
             K.pullHit = true;
             // closer burns more
             const tickDmg = Math.round(2 + 8 * (1 - pullD / PULL_RANGE));
