@@ -1082,7 +1082,7 @@ class Handler(SimpleHTTPRequestHandler):
                         return
                     bomb_seq += 1
                     bid = f"b{bomb_seq}"
-                    bombs[bid] = {"x": x, "y": y, "by": me["name"], "owner": me["id"], "at": time.time()}
+                    bombs[bid] = {"x": x, "y": y, "by": me["name"], "owner": data.get("id"), "at": time.time()}
                     self._send_json({"ok": True, "bomb": dict(bombs[bid], id=bid)})
                     return
                 if data.get("action") == "airburst" and me and phase == "round" \
@@ -1115,8 +1115,8 @@ class Handler(SimpleHTTPRequestHandler):
                     return
                 if data.get("action") == "trip" and data.get("bomb") in bombs:
                     bb = bombs.pop(data["bomb"])
+                    now = time.time()
                     if data.get("id") == killer_id and me:
-                        now = time.time()
                         me["hp"] = max(0, me.get("hp", 250) - 30)
                         # bomb stun decays over 45 seconds: 5s fresh → 2s at 45s
                         bomb_age = max(0, now - bb.get("at", now))
