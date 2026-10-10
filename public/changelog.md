@@ -1,5 +1,10 @@
 # changelog
 
+## v0.87 - the great organization
+- fixed tails' bombs vanishing the moment they land (they now stay and can be tripped)
+- code reorganized: python server and the client/engine js split into small focused files
+- only public/ is served now (.env, server.py, admins.txt and malice.json are no longer downloadable)
+
 ## v0.86
 -todo: fix this
 ## earlier
