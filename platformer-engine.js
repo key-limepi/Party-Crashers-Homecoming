@@ -329,7 +329,7 @@ class PlatformerEngine {
   stepTosses(dt) {
     for (const t of this.tosses) {
       t.age += dt;
-      if (t.landed) continue;
+      if (t.landed) { t.landedAge = (t.landedAge ?? 0) + dt; continue; }
       const b = t.body;
       
       // Apply gravity
@@ -387,7 +387,9 @@ class PlatformerEngine {
         }
       }
     }
-    this.tosses = this.tosses.filter((t) => !(t.landed && t.age > 0.6));
+    // a landed bomb lingers 0.6s after it lands (not 0.6s after it was thrown,
+    // or any throw that was airborne longer than that vanished the instant it landed)
+    this.tosses = this.tosses.filter((t) => !(t.landed && (t.landedAge ?? 0) > 0.6));
   }
 
   // compute arc for drawing

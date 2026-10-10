@@ -2352,6 +2352,10 @@ function loadImg(src) {
         for (const toss of (data.tosses || [])) {
           if (!seenTosses.has(toss.id)) {
             seenTosses.add(toss.id);
+            // my own throws are already flying locally (added the moment I threw).
+            // spawning the server's copy too made a duplicate that "collided" with
+            // the original in midair and popped the bomb, whenever the throw reply was slow
+            if (toss.owner === net.id) continue;
             // pass throwerId for arc
             game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id, toss.owner);
           }
