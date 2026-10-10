@@ -34,11 +34,7 @@ We are remaking the whole game from the ground up in Javascript.
 
 ## Setup
 
-<<<<<<< HEAD
-1. Set these environment variables: `FORMBAR_ADDRESS`, `URL`, `POOL_ID` and `SESSION_SECRET` (any long random text, it signs the login cookie and must be the same on every Vercel instance). Locally you can put them in a `.env` file, on Vercel add them in Project Settings > Environment Variables.
-=======
-1. Copy `.env-template` to `.env` and fill in `FORMBAR_ADDRESS`, `URL` and `POOL_ID`.
->>>>>>> parent of 06629b0 (Node rewrite)
+1. Open `.env` and fill in `FORMBAR_ADDRESS`, `POOL_ID` and (optionally) `URL`. Don't commit real secrets.
 2. Add your Formbar user ID to `admins.txt` if you want the mod menu.
 3. Players log in with Formbar and enter their digipog PIN once. The PIN is kept in server memory only.
 
@@ -64,3 +60,32 @@ python3 server.py 8080     # custom port
 ```
  
 Then open **http://localhost:8000** in your browser.
+
+## Project layout
+
+```
+server.py            tiny launcher -> backend.main
+backend/             the Python server (standard library only)
+  config.py          paths, .env, constants, character list
+  state.py           shared mutable game state (access as state.x)
+  game.py            round flow: lobby -> intermission -> select -> round -> result
+  formbar.py         Formbar login + digipog payments
+  malice_store.py    malice and killer selection
+  chat_filter.py     profanity / spam filter
+  admins.py          admins.txt
+  web/handler.py     HTTP handler, serves public/ only
+  routes/            one module per group of /api/* endpoints
+  data/              word blacklists
+public/              everything the browser downloads (the only folder served)
+  index.html         page + script load order
+  css/ js/           styles and scripts
+  js/engine/         platformer engine (physics, input, tosses, rockets, rendering)
+  js/client/         game client, loaded in numeric order (setup, UI, audio, then the network tick)
+  js/levels/         level data
+  Assets/            images, audio, video
+tools/build_level.py level converter
+```
+
+Classic `<script>` tags share one scope, so the files in `js/engine/` and `js/client/` must stay in
+the order listed in `public/index.html`.
+
