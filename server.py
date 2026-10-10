@@ -23,6 +23,8 @@ from fnmatch import fnmatchcase
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+PUBLIC_DIR = os.path.join(HERE, "public") # the only folder served to browsers
+DATA_DIR = os.path.join(HERE, "backend", "data")
 
 
 def load_env():
@@ -173,7 +175,7 @@ def _norm_words(text):
 
 try:
     for _fn in ("slurs.txt", "family-friendly.txt", "l33t-speak.txt"):
-        with open(os.path.join(HERE, "blacklist", _fn), encoding="utf-8", errors="replace") as _f:
+        with open(os.path.join(DATA_DIR, "blacklist", _fn), encoding="utf-8", errors="replace") as _f:
             for _line in _f:
                 _sq = "".join(_norm_words(_line))
                 if not _sq:
@@ -197,7 +199,7 @@ def _folder_hit(text):
     return False
 BLACKLIST = []
 try:
-    with open(os.path.join(HERE, "blacklist.json"), encoding="utf-8") as _f:
+    with open(os.path.join(DATA_DIR, "blacklist.json"), encoding="utf-8") as _f:
         _entries = list(json.load(_f)) + EXTRA_FILTER
         for _entry in _entries:
             _alts = [a.strip().lower() for a in str(_entry.get("match", "")).split("|") if a.strip()]
@@ -768,6 +770,9 @@ class DualStackServer(ThreadingHTTPServer):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+
     def end_headers(self):
         # fresh files
         if self.path.split("?")[0].endswith((".html", ".js", ".css")):
