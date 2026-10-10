@@ -124,10 +124,17 @@
   <div id="stats">fps: -- | ping: --</div>
   <div id="posdbg" style="display:none"></div>
   <div id="errScreen"><span id="errText"></span></div>
+  <!-- engine -->
   <script src="./js/engine/_engine_original.js?v=89"></script>
+  <!-- /engine -->
   <script src="./js/filter-words.js?v=1"></script>
   <script src="./js/levels/level_rough_draft.js?v=2"></script>
-  <script src="./js/client/_client_original.js?v=78"></script>
+  <!-- client: setup (sprites, ui, audio, character state) -->
+  <script src="./js/client/_client_top.js?v=78"></script>
+  <!-- /client: setup -->
+  <!-- client: network loop (joinOnline + netTick) -->
+  <script src="./js/client/_client_net.js?v=78"></script>
+  <!-- /client: network loop -->
 </body>
 
 </html>
