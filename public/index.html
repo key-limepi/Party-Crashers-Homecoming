@@ -135,14 +135,26 @@
   <script src="./js/engine/sprites.js?v=90"></script>
   <script src="./js/engine/render.js?v=90"></script>
   <!-- /engine -->
-  <script src="./js/filter-words.js?v=1"></script>
   <script src="./js/levels/level_rough_draft.js?v=2"></script>
-  <!-- client: setup (sprites, ui, audio, character state) -->
-  <script src="./js/client/_client_top.js?v=78"></script>
-  <!-- /client: setup -->
-  <!-- client: network loop (joinOnline + netTick) -->
-  <script src="./js/client/_client_net.js?v=78"></script>
-  <!-- /client: network loop -->
+  <!-- client (order matters: classic scripts share one scope) -->
+  <script src="./js/client/01-core.js?v=91"></script> <!-- core: canvas + game + player -->
+  <script src="./js/client/02-sprites.js?v=91"></script> <!-- character sprite tables -->
+  <script src="./js/client/03-world.js?v=91"></script> <!-- level, springs, start -->
+  <script src="./js/client/04-debug-ui.js?v=91"></script> <!-- fullscreen, mod menu, debug readout -->
+  <script src="./js/client/05-net-state.js?v=91"></script> <!-- net state, title screen, pin + malice shop -->
+  <script src="./js/client/06-char-select.js?v=91"></script> <!-- character select UI -->
+  <script src="./js/client/07-chat.js?v=91"></script> <!-- chat, changelog, quick chat -->
+  <script src="./js/client/08-audio.js?v=91"></script> <!-- music + sfx + voicelines -->
+  <script src="./js/client/09-hud.js?v=91"></script> <!-- party list + ability bar -->
+  <script src="./js/client/10-kit-helpers.js?v=91"></script> <!-- poses + kit state helpers -->
+  <script src="./js/client/11-rockets.js?v=91"></script> <!-- rockets -->
+  <script src="./js/client/12-game-hooks.js?v=91"></script> <!-- game event hooks -->
+  <script src="./js/client/13-join.js?v=91"></script> <!-- joinOnline + autojoin -->
+  <script src="./js/client/14-ability-casts.js?v=91"></script> <!-- per-character ability casts -->
+  <script src="./js/client/15-tick-sync.js?v=91"></script> <!-- netTick stages: server sync -->
+  <script src="./js/client/16-tick-kits.js?v=91"></script> <!-- netTick stages: ability input + kit ticks -->
+  <script src="./js/client/17-net-tick.js?v=91"></script> <!-- netTick itself + start -->
+  <!-- /client -->
 </body>
 
 </html>
