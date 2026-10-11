@@ -23,6 +23,8 @@ def players_snapshot(h, url):
             d["in_round"] = state.phase == "round" and pid in state.round_players
             d["stun"] = round(max(0, pl.get("stun_until", 0) - now), 2)
             d["maxhp"] = pl.get("maxhp", 100) # true bars
+            d["aura"] = pl.get("aura_tier", 0) # shard drain
+            d["aura_hot"] = pl.get("aura_hot_until", 0) > now # healing others
             d["countered"] = bool(pl.pop("countered", False)) # once flag
             # fresh shoves
             _kb = pl.get("kb")

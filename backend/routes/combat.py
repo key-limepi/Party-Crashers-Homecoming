@@ -31,11 +31,16 @@ def hit(h, data):
             # 25% damage reduction
             if state.lms_set and not vic_evil:
                 dmg = (dmg * 3 + 3) // 4
+            # prayer/shelter/frailty legs
+            dmg = int(round(dmg * vic.get("dtmult", 1.0)))
+            # fat with hp takes more
+            if vic.get("hp", 0) > vic.get("maxhp", 100):
+                dmg = int(round(dmg * 1.25))
             try:
                 stun = max(0, min(5, float(data.get("stun", 0))))
             except (ValueError, TypeError):
                 stun = 0
-            # nyan mid rocket, nothing lands
+            # rocketing blocks damage
             if is_rocketing(data["victim"]):
                 h.send_json({"ok": True})
                 return

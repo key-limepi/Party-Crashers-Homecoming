@@ -17,13 +17,13 @@
           else {
             game.switchMap('inter', 6120, 100); // island map
             if ((data.phase === 'intermission' || data.phase === 'lobby') && !p.evil) {
-              // random fighter, kit and all
+              // random fighter kit
               net.costume = lobbyCostume(net.id);
               wearChar(net.costume);
               game.moveSpeed = net.costume === 'sonic' ? 270 : 240;
             }
           }
-          if (!p.evil) { p.maxHp = data.phase === 'round' ? survHp() : 100; } // drop buffs, nyan keeps its hp
+          if (!p.evil) { p.maxHp = data.phase === 'round' ? survHp() : 100; } // drop buffs, keep nyan
           p.hp = p.maxHp;
           game.respawn();
           justRevived = true;
@@ -46,8 +46,12 @@
       }
       net.round = data.round;
       // take hits
-      if (!justRevived && you && data.round === prevRound && you.hp < p.hp && p.alive !== false) {
+      if (!justRevived && you && data.round === prevRound && you.hp < p.hp && you.hp < (you.maxhp || 100) && (you.maxhp || 100) >= p.maxHp && p.alive !== false) {
         game.hurtPlayer(Math.ceil(p.hp - you.hp), 'killer');
+      }
+      // take heals, server first
+      if (!justRevived && you && data.round === prevRound && you.hp > p.hp && p.alive !== false) {
+        p.hp = you.hp;
       }
       net.ekid = data.killer_id || null;
       net.amKillerElect = !!net.id && data.killer_id === net.id && data.phase !== 'round';
@@ -89,7 +93,7 @@
       }
       if (fresh && data.phase === 'round') {
         net.wasEvil = amEvil;
-        applyRole(amEvil); // fresh stats even if role kept
+        applyRole(amEvil); // fresh stats always
         game.respawn(); // evil spawn
       }
       // black while map loads
@@ -212,17 +216,19 @@
         r.alive = d.alive ?? d.hp > 0;
         r.evil = id === data.killer_id;
         r.maxHp = d.maxhp || (r.evil && r.char === 'bear5' ? 999 : (r.evil ? 250 : 100)); // true bars
+        r.shield = d.shield || 0; // temp hp
         r.super = !!d.super; // glowing or not
         r.rainbow = !!d.super; // gold bar
         r.pulseWhite = !!d.super; // glow pulse
         r.forming = !!d.forming; // mid glow up
         r.tremble = !!d.forming;
         r.whiteFlash = !!d.forming;
-        // lobby face, matches all screens
+        // lobby face sync
         const rface = (!d.char && (net.phase === 'lobby' || net.phase === 'intermission')) ? lobbyCostume(id) : (r.char || 'lux');
-        r.sprites = r.evil ? (r.char === 'bear5' ? bear5Sprites : evilSprites) : (r.char === 'supersonic' && !r.super && !r.forming ? sonicSprites : (r.char === 'tails' && r.holdingBomb ? tailsCarrySprites : (charSprites[rface] || luxSprites))); // see all
+        const luxDim = !r.evil && rface === 'lux' && !!d.aura_hot;
+        r.sprites = r.evil ? (r.char === 'bear5' ? bear5Sprites : evilSprites) : (r.char === 'supersonic' && !r.super && !r.forming ? sonicSprites : (r.char === 'tails' && r.holdingBomb ? tailsCarrySprites : (luxDim ? luxDimSprites : (charSprites[rface] || luxSprites)))); // see all
         // true size
-        const rkey = rface + (r.evil ? '*' : '') + (r.super ? '!' : '') + (r.forming ? '?' : '') + (r.holdingBomb ? 'h' : '');
+        const rkey = rface + (r.evil ? '*' : '') + (r.super ? '!' : '') + (r.forming ? '?' : '') + (r.holdingBomb ? 'h' : '') + (luxDim ? 'd' : '');
         if (r._lastChar !== rkey) { r._baseFrame = null; r._lastChar = rkey; }
         r.drawW = r.char === 'bear5' ? 76 : 50;
         r.drawH = r.char === 'bear5' ? 94 : (r.char === 'nyan' ? NYAN_H : (!r.evil && (rface === 'sonic' || rface === 'supersonic' || rface === 'tails')) ? 64 : 70);
@@ -235,6 +241,9 @@
         r.pullwindup = !!d.pullwindup;
         r.lift = !!d.lift;
         r.whipUntil = !!d.whipuntil;
+        r.praying = !!d.praying;
+        r.rushing = !!d.rushing;
+        r.panting = !!d.panting;
         r.kickUntil = !!d.kickUntil;
         r.jabUntil = !!d.jabUntil;
         r.throwUntil = !!d.throwUntil;
@@ -295,10 +304,11 @@
           r.poseUntil = Date.now() + 150;
         }
         const lostHp = r._lastHp !== undefined && r.hp < r._lastHp;
-        if (lostHp && !r.evil && data.phase === 'round' && others[data.killer_id]?.killer_char === 'bear5') {
+        const realHit = lostHp && r.hp < (r.maxHp || 100);
+        if (realHit && !r.evil && data.phase === 'round' && others[data.killer_id]?.killer_char === 'bear5') {
           spawnBearHitFx(r.pos.x + r.w / 2, r.pos.y + r.h / 2);
         }
-        if (p.evil && lostHp) {
+        if (p.evil && realHit) {
           fileSfx(net.killerPick === 'bear5' ? SFX + 'jumpscare.mp3' : SFX + 'm1_hit.wav', {});
         }
         if (r._wasAlive && !r.alive && data.phase === 'round') {
@@ -324,6 +334,9 @@
       let { p, data, prevPhase, you } = t;
       // learn picks
       const mePick = (data.players || {})[net.id];
+      if (mePick && typeof mePick.aura === 'number') L.tier = mePick.aura;
+      if (mePick) L.hot = !!mePick.aura_hot;
+      if (mePick) p.shield = mePick.shield || 0;
       if (mePick && mePick.char && mePick.char !== net.pick) {
         net.pick = mePick.char;
         if (!p.evil) wearChar(mePick.char === 'supersonic' && !SS.transformed ? 'sonic' : mePick.char);
@@ -423,7 +436,7 @@
           const superGlow = isSuper() && SS.transformed;
           const lmsHp = Math.max(LMS_HP, survHp());
           p.maxHp = superGlow ? SUPER_HP : lmsHp; p.hp = superGlow ? SUPER_HP : lmsHp;
-          S.dashCD = 0; S.cowerCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0; TW.bombsLeft = 5;
+          S.dashCD = 0; S.cowerCD = 0; L.prayCD = 0; L.adCD = 0; L.shieldCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0; TW.bombsLeft = 5;
           NY.rocketCD = 0; NY.dashCD = 0;
           SS.boostCD = 0; SS.blockCD = 0; SS.spinCD = 0;
           fetch('/api/heal', {
@@ -513,7 +526,7 @@
         fileSfx(SFX + 'basic_hit.wav', {});
       }
       p._lastStun = p.stunT || 0;
-      // recovers with words, not whimpers
+      // words on recovery
       if (p.evil && (p._wasStun || 0) > 0 && (p.stunT || 0) <= 0 && p.alive !== false && data.phase === 'round') {
         voiceSfx(vpick(VL_STUN));
       }
@@ -555,15 +568,14 @@
       for (const toss of (data.tosses || [])) {
         if (!seenTosses.has(toss.id)) {
           seenTosses.add(toss.id);
-          // my own throws are already flying locally (added the moment I threw).
-          // spawning the server's copy too made a duplicate that "collided" with
-          // the original in midair and popped the bomb, whenever the throw reply was slow
+          // own throws already fly
+          // server echo would dupe-pop
           if (toss.owner === net.id) continue;
           // pass throwerId for arc
           game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id, toss.owner);
         }
       }
-      // midair bombs burst on evil
+      // midair bursts hit evil
       if (data.phase === 'round') {
         const foes = game.remotes.filter((r) => r.evil && r.alive && r.hp > 0);
         if (p.evil && p.alive !== false) foes.push(p);

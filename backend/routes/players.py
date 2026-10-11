@@ -5,7 +5,7 @@ import time
 
 from .. import state
 from ..admins import is_admin
-from ..config import DIGIPOGS_ON, FORMBAR_MODE, STATE_KEYS
+from ..config import DIGIPOGS_ON, FORMBAR_MODE, TEAMHEAL_GAP, TEAMHEAL_HP, TEAMHEAL_RADIUS, STATE_KEYS
 
 
 def join(h, data):
@@ -38,7 +38,7 @@ def join(h, data):
                     state.killer_id = pid
                 del state.players[_old]
         else:
-            # local testing: every tab is its own player, ?name=bob picks a name
+            # local tabs are players
             fid = f"{fid}:{tab}"
             name = str(data.get("name") or "").strip()[:20] or f"guest {tab[:3]}"
             taken = {pl["name"] for pl in state.players.values()}
@@ -77,6 +77,14 @@ def state_post(h, data):
             for key in STATE_KEYS:
                 if key in data:
                     pl[key] = data[key]
+            try:
+                pl["dtmult"] = max(0.1, min(3.0, float(data.get("dtmult", 1.0))))
+            except (ValueError, TypeError):
+                pl["dtmult"] = 1.0
+            try:
+                pl["healmult"] = max(0.1, min(3.0, float(data.get("healmult", 1.0))))
+            except (ValueError, TypeError):
+                pl["healmult"] = 1.0
             # fresh posts
             if data.get("r") == state.current_round:
                 try:
@@ -142,9 +150,41 @@ def heal(h, data):
                 cap = max(1, int(data.get("max", 100)))
             except (ValueError, TypeError):
                 cap = 100
-            pl["hp"] = max(0, min(cap, pl.get("hp", 100) + amount))
+            pl["hp"] = max(0, min(cap, pl.get("hp", 100) + int(amount * pl.get("healmult", 1.0))))
             pl["last"] = time.time()
             h.send_json({"ok": True, "hp": pl["hp"]})
+        else:
+            h.send_json({"ok": False})
+    return
+
+
+def teamheal(h, data):
+    """POST /api/teamheal"""
+    # lux channel heals the team
+    now = time.time()
+    with state.lock:
+        me = state.players.get(data.get("id"))
+        if (me and state.phase == "round" and me.get("alive", True)
+                and me.get("char") == "lux" and data.get("id") != state.killer_id
+                and data.get("id") in state.round_players
+                and now - me.get("heal_cd", 0) >= TEAMHEAL_GAP):
+            me["heal_cd"] = now
+            n = 0
+            for pid, pl in state.players.items():
+                if pid == data.get("id") or pid not in state.round_players:
+                    continue
+                if not pl.get("alive", True) or pid == state.killer_id:
+                    continue
+                dx = pl.get("x", 0) - me.get("x", 0)
+                dy = pl.get("y", 0) - me.get("y", 0)
+                if dx * dx + dy * dy > TEAMHEAL_RADIUS * TEAMHEAL_RADIUS:
+                    continue
+                cap = pl.get("maxhp", 100)
+                if pl.get("hp", 100) < cap:
+                    pl["hp"] = min(cap, pl.get("hp", 100) + int(TEAMHEAL_HP * pl.get("healmult", 1.0)))
+                    n += 1
+            print(f"!! {me['name']} teamhealed {n}!!", flush=True)
+            h.send_json({"ok": True, "n": n})
         else:
             h.send_json({"ok": False})
     return

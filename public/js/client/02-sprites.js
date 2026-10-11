@@ -1,12 +1,21 @@
     // lux sprites
     const luxSprites = {
       idle: [loadImg(LUX + "idle1.png"), loadImg(LUX + "idle2.png")],
-      walk: [loadImg(LUX + "walk1.png"), loadImg(LUX + "walksmear.png"), loadImg(LUX + "walksmear2.png"), loadImg(LUX + "walksmear.png")],
+      walk: [loadImg(LUX + "walk1.png"), loadImg(LUX + "walk2.png")],
       run: [loadImg(LUX + "run1.png"), loadImg(LUX + "run2.png")], // run cycle
-      jump: loadImg(LUX + "jump1.png"),
+      jump: loadImg(LUX + "jump.png"),
       stun: loadImg(LUX + "hit.png"),
       struggle: [loadImg(LUX + "struggle1.png"), loadImg(LUX + "struggle2.png")],
       cower: loadImg(LUX + "cower.png"),
+      pray: [loadImg(LUX + "pray.png")],
+      prayend: loadImg(LUX + "prayend.png"),
+      adrun: [loadImg(LUX + "adrun1.png"), loadImg(LUX + "adrun2.png")],
+      pant: [loadImg(LUX + "pant.png"), loadImg(LUX + "pant2.png")],
+    };
+    const luxDimSprites = { ...luxSprites,
+      idle: [loadImg(LUX + "idle1d2.png")],
+      walk: [loadImg(LUX + "walk1d.png"), loadImg(LUX + "walk1d2.png")],
+      jump: loadImg(LUX + "jumpd3.png"),
     };
     const luxDash = loadImg(LUX + "dash.png");
     // pick roster
@@ -95,7 +104,7 @@
       fall: loadImg(SSP + "roll1.png"),
     };
     const NYAN = "./Assets/Images/Characters/Survivors/Nyan Cyat/";
-    const nyanRun = [1, 2, 3, 4, 5, 6].map((n) => loadImg(NYAN + `main-${n}.png`)); // one loop does it all
+    const nyanRun = [1, 2, 3, 4, 5, 6].map((n) => loadImg(NYAN + `main-${n}.png`)); // one loop fits all
     const nyanSprites = {
       idle: nyanRun,
       idleFps: 10,
@@ -109,11 +118,11 @@
       struggle: [nyanRun[0], nyanRun[1]],
       cower: nyanRun[0],
       dash: nyanRun[0],
-      trail: loadImg(NYAN + "rainbow.png"), // drawn behind the cat by the engine
+      trail: loadImg(NYAN + "rainbow.png"), // cat rainbow trail
     };
     game.rocketImgs = [1, 2, 3, 4].map((n) => loadImg(NYAN + `rocket-${n}.png`));
     const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, supersonic: superSprites, tails: tailsSprites, nyan: nyanSprites, evil: null }; // evil later
-    const NYAN_H = 50; // the cat is wide and low
+    const NYAN_H = 50; // low wide cat
     function wearChar(id) {
       game.setPlayerSprites(charSprites[id] || luxSprites);
       // true size

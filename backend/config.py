@@ -3,7 +3,7 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # repo root
-PUBLIC_DIR = os.path.join(HERE, "public") # the only folder served to browsers
+PUBLIC_DIR = os.path.join(HERE, "public") # browser-facing folder only
 DATA_DIR = os.path.join(HERE, "backend", "data")
 MALICE_FILE = os.path.join(HERE, "malice.json")
 ADMINS_FILE = os.path.join(HERE, "admins.txt")
@@ -59,10 +59,10 @@ SPIKE_LIFE = 45 # trap rot
 SPIKE_DMG = 30
 ROCKET_DMG = 50 # rocket hit
 ROCKET_RADIUS = 170 # blast reach
-ROCKET_UP = 1.1 # climb time, same as the client
+ROCKET_UP = 1.1 # climb time, mirrored
 ROCKET_LIFE = 12 # stale rockets drop
 ROCKET_GAP = 3.0 # launch spam guard
-BLAST_LIFE = 4 # blasts linger so everyone sees them
+BLAST_LIFE = 4 # blasts linger visibly
 STUN_IFRAMES = 3.0 # stun gap
 CHAT_LIFE = 12 # chat life
 CHAT_COOLDOWN = 1.5
@@ -88,6 +88,16 @@ QUICK_CHAT = (
 # fresh stamps
 STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
               "invis", "m1", "stunned", "pull", "cower", "windup", "pose", "dashing",
-              "peeling", "spinning", "spinwindup", "pullwindup", "lift", "super", "forming", "holding", "whipuntil")
+              "peeling", "spinning", "spinwindup", "pullwindup", "lift", "super", "forming", "holding", "whipuntil",
+              "dtmult", "healmult", "praying", "rushing", "panting")
 
-LOCAL_SESSION = {"sid": "local", "fid": "local", "name": "guest", "pin": None} # stands in for a login when FORMBAR_MODE is off
+# lux lightshard tuning
+AURA_RADIUS = 260 # conversion reach
+AURA_T1 = 60 # fresh until here
+AURA_T2 = 120 # drained after here
+AURA_TICKS = ((2, 1.0), (2, 1.0), (2, 1.0)) # hp, seconds per tier
+TEAMHEAL_RADIUS = 300 # channel reach
+TEAMHEAL_HP = 25 # per tick
+TEAMHEAL_GAP = 0.4 # tick pacing guard
+
+LOCAL_SESSION = {"sid": "local", "fid": "local", "name": "guest", "pin": None} # local login stand-in

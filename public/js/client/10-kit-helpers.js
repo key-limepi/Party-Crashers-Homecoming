@@ -26,6 +26,7 @@
       p.invis = false; p.rooted = false; p.chargeDir = 0; p.chargeSpeed = 0;
       p.cowerT = 0; p.cowering = false; p.stunT = 0;
       p.peeling = false; p.spinning = false; p.spinWindup = false;
+      p.luxFloat = 0;
       p.lift = false; p.dashing = false; p.pull = false; p.pullwindup = false;
       p.windupUntil = false; p.kickUntil = false; p.jabUntil = false;
       p.whipUntil = false; p.throwUntil = false;
@@ -37,6 +38,10 @@
       S.windupUntil = 0; S.dashing = false;
       S.dashCD = 0; S.cowerCD = 0; S.dashUntil = 0; S.dashHit = false;
       S.countered = false; S.wasCowering = false; S.dashTouching = false;
+      L.prayCD = 0; L.prayUntil = 0; L.prayer = null;
+      L.adCD = 0; L.adUntil = 0; L.pantUntil = 0; L.rushing = false; L.panting = false;
+      L.shieldCD = 0; L.dt = 1; L.heal = 1; L.tier = 0; L.shieldUntil = 0;
+      p.praying = false; p.rushing = false; p.panting = false;
       T.kickUntil = 0; T.jabUntil = 0;
       T.kickCD = 0; T.jabCD = 0; T.kickHit = false; T.jabHit = false;
       SN.windupUntil = 0; SN.peelUntil = 0; SN.peeling = false;
@@ -68,6 +73,15 @@
       dashUntil: 0, dashing: false, dashHit: false,
       countered: false, wasCowering: false,
     };
+    // lux lightshard kit
+    const L = {
+      prayCD: 0, prayUntil: 0, prayer: null,
+      adCD: 0, adUntil: 0, pantUntil: 0, rushing: false, panting: false, adDir: 0,
+      shieldCD: 0, shieldUntil: 0, shieldNext: 0, shieldHp: 0,
+      dt: 1, heal: 1, tier: 0,
+    };
+    const PRAYERS = ['grace', 'haste', 'shelter', 'burden', 'frailty'];
+    const PRAY_SPD = { grace: 0.9, haste: 1.25, shelter: 0.85, burden: 0.8, frailty: 1.15 };
     const T = {
       kickCD: 0, jabCD: 0, kickUntil: 0, kickHit: false,
       jabUntil: 0, jabHit: false,
@@ -131,6 +145,7 @@
     const isSonic = () => effChar() === 'sonic';
     const isSuper = () => effChar() === 'supersonic';
     const isTails = () => effChar() === 'tails';
+    const isLux = () => !isToko() && !isSonic() && !isSuper() && !isTails() && !isNyan();
     const isBear5 = () => !!(game.player && game.player.evil && (net.killerPick === 'bear5' || (game.player.char || '') === 'bear5'));
     // costume counts
     function effChar() {
@@ -138,7 +153,7 @@
       return net.pick || 'lux';
     }
     function lobbyCostume(id) {
-      // same face on all screens
+      // same face everywhere
       const ids = ['lux', 'toko', 'sonic', 'tails'];
       let h = 0;
       for (const ch of String(id || '')) h = ((h * 31 + ch.charCodeAt(0)) >>> 0);
@@ -164,7 +179,7 @@
       bombCD: 0, holding: false, throwUntil: 0, bombsLeft: 5,
       whipCD: 0, whipUntil: 0, whipHit: false,
     };
-    // nyan cyat dev kit, survivor only
+    // nyan dev survivor kit
     const NY = { rocketCD: 0, dashCD: 0, dashUntil: 0, dashing: false, dashHit: false };
     const isNyan = () => effChar() === 'nyan';
     const NYAN_HP = 200; // survivor nyan is tanky
@@ -172,7 +187,7 @@
     const NYAN_DASH_CD = 6000; // rainbow dash wait
     const NYAN_DASH_MS = 700; // dash length
     const NYAN_DASH_SPEED = 950;
-    const BLAST_RANGE = 1800; // shake falls off over this far
-    // lms and nyan both set max hp
+    const BLAST_RANGE = 1800; // shake falloff range
+    // lms/nyan max hp
     const survHp = () => (net.pick === 'nyan' ? NYAN_HP : 100);
     const seenBlasts = new Set();

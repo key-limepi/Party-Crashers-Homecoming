@@ -5,7 +5,7 @@ import time
 
 from . import state
 from .admins import is_admin
-from .config import (BLAST_LIFE, CHARACTERS, CHAT_LIFE, GRACE_TIME, INTER_TIME, INTRO_TIME,
+from .config import (AURA_RADIUS, AURA_T1, AURA_T2, AURA_TICKS, BLAST_LIFE, CHARACTERS, CHAT_LIFE, GRACE_TIME, INTER_TIME, INTRO_TIME,
                      LMS_DURATIONS, MALICE_PER_ROUND, ROCKET_LIFE, ROCKET_UP, ROUND_BASE,
                      ROUND_COST, ROUND_MAX, ROUND_PER_PLAYER, SELECT_TIME, TIMEOUT)
 from .formbar import charge_player
@@ -56,7 +56,7 @@ def update_rockets(now):
         if now - rk["at"] >= ROCKET_UP:
             foes = enemies_of(rk["by"])
             if rk.get("target") not in foes:
-                # nearest to where it launched
+                # nearest launch spot
                 rk["target"] = min(foes, key=lambda p: (foes[p].get("x", 0) - rk["x"]) ** 2
                                    + (foes[p].get("y", 0) - rk["y"]) ** 2) if foes else None
     while blasts and now - blasts[0]["at"] > BLAST_LIFE:
@@ -124,6 +124,9 @@ def start_round():
         pl["alive"] = True
         pl["hp"] = pl.get("maxhp", 100)
         pl["stun_until"] = 0
+        pl["aura_tier"] = 0
+        pl["aura_next"] = 0
+        pl["aura_hot_until"] = 0
     state.spikes.clear()
     state.bombs.clear()
     state.pending_bomb_refunds.clear()
@@ -165,6 +168,9 @@ def end_round(winner):
         pl["hp"] = pl.get("maxhp", 100)
         pl["stun_until"] = 0
         pl["char"] = None # fresh picks
+        pl["aura_tier"] = 0
+        pl["aura_next"] = 0
+        pl["aura_hot_until"] = 0
     state.spikes.clear()
     state.bombs.clear()
     state.pending_bomb_refunds.clear()
@@ -189,7 +195,7 @@ def grace_over(now):
     return now >= state.round_start + GRACE_TIME
 
 
-# ---- game_tick pieces (all run with the lock held)
+# ---- tick pieces, locked
 
 def _drop_timed_out(now):
     players = state.players
@@ -214,7 +220,7 @@ def _expire_lists(now):
 
 def _expire_bombs(now):
     players, bombs, refunds = state.players, state.bombs, state.pending_bomb_refunds
-    # clean up expired bombs and refund immediately
+    # expire bombs, refund fast
     for bid in list(bombs):
         bb = bombs[bid]
         if now - bb.get("at", now) > 45:
@@ -231,6 +237,55 @@ def _expire_bombs(now):
             if owner_player and owner_player.get("char") == "tails" and not owner_player.get("evil"):
                 owner_player["bombs_left"] = min(5, owner_player.get("bombs_left", 5) + 1)
             refunds.remove(refund)
+
+
+def _tick_lux_aura(now):
+    # conversion tick, round only
+    if state.phase != "round":
+        return
+    t = now - state.round_start
+    for pid, pl in state.players.items():
+        if (pid not in state.round_players or not pl.get("alive", True)
+                or pl.get("char") != "lux" or pid == state.killer_id):
+            continue
+        tier = 0 if t < AURA_T1 else (1 if t < AURA_T2 else 2)
+        pl["aura_tier"] = tier
+        amt, iv = AURA_TICKS[tier]
+        if now >= pl.get("aura_next", 0):
+            # only convert when hungry
+            needy = False
+            for qid, q in state.players.items():
+                if qid == pid:
+                    continue # never self
+                if qid not in state.round_players or not q.get("alive", True):
+                    continue
+                if qid == state.killer_id:
+                    continue
+                dx = q.get("x", 0) - pl.get("x", 0)
+                dy = q.get("y", 0) - pl.get("y", 0)
+                if dx * dx + dy * dy > AURA_RADIUS * AURA_RADIUS:
+                    continue
+                if q.get("hp", 100) < q.get("maxhp", 100):
+                    needy = True
+                    break
+            if not needy:
+                continue
+            pl["aura_next"] = now + iv
+            for qid, q in state.players.items():
+                if qid == pid:
+                    continue # never self
+                if qid not in state.round_players or not q.get("alive", True):
+                    continue
+                if qid == state.killer_id:
+                    continue
+                dx = q.get("x", 0) - pl.get("x", 0)
+                dy = q.get("y", 0) - pl.get("y", 0)
+                if dx * dx + dy * dy > AURA_RADIUS * AURA_RADIUS:
+                    continue
+                if q.get("hp", 100) < q.get("maxhp", 100):
+                    q["hp"] = min(q.get("maxhp", 100), q.get("hp", 100) + int(amt * q.get("healmult", 1.0)))
+                    if qid != pid:
+                        pl["aura_hot_until"] = now + iv # healing others
 
 
 def _tick_lobby(now):
@@ -355,6 +410,7 @@ def game_tick():
                 _drop_timed_out(now)
                 _expire_lists(now)
                 _expire_bombs(now)
+                _tick_lux_aura(now)
                 handler = PHASE_TICKS.get(state.phase)
                 if handler:
                     handler(now)

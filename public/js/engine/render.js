@@ -282,7 +282,7 @@ Object.assign(PlatformerEngine.prototype, {
       if (bx < stackX1 && Math.abs(by - stackY) < 16) by = stackY - 16;
       stackX1 = bx + bw; stackY = by;
       {
-        const frac = Math.max(0, (b.hp ?? 100) / (b.maxHp ?? 100));
+        const frac = Math.min(1, Math.max(0, (b.hp ?? 100) / (b.maxHp ?? 100)));
         ctx.fillStyle = '#000';
         ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
         ctx.fillStyle = '#000';

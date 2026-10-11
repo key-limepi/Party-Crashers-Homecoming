@@ -50,6 +50,7 @@
         fill.className = 'pFill';
         const frac = Math.max(0, Math.min(1, (hp || 0) / (maxhp || 100)));
         fill.style.width = `${Math.round(frac * 100)}%`;
+        fill.style.background = (hp || 0) <= 30 ? '#8e0000' : frac > 0.5 ? '#2ed573' : frac > 0.25 ? '#ffa502' : '#8e0000';
         bar.appendChild(fill);
         col.appendChild(tx);
         col.appendChild(bar);
@@ -145,8 +146,9 @@
         ];
       } else {
         abilDefs = [
-          { key: 'Z', name: 'DASH', icon: ABIL_ICONS.dash, cd: () => S.dashCD },
-          { key: 'X', name: 'COWER', icon: ABIL_ICONS.cower, cd: () => S.cowerCD },
+          { key: 'Z', name: 'PRAY', icon: ABIL_ICONS.sneak, cd: () => L.prayCD },
+          { key: 'X', name: 'ADRENALINE', icon: ABIL_ICONS.rush, cd: () => L.adCD },
+          { key: 'C', name: 'HEAL', icon: ABIL_ICONS.cower, cd: () => L.shieldCD },
         ];
       }
       abilBar.innerHTML = '';

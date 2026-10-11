@@ -324,6 +324,11 @@ class PlatformerEngine {
         if (this.input.consumeJumpPressed()) p.vel.y = -620; // flap up
         else p.vel.y += this.gravity * dt; // normal sink
         p.jumps = p.maxJumps ?? 1;
+      } else if (p.luxFloat && p.alive !== false) {
+        // light float
+        p.vel.y += (-p.luxFloat - p.vel.y) * Math.min(8 * dt, 1);
+        p.onGround = false;
+        p.jumps = p.maxJumps ?? 1;
       } else {
         p.vel.y += this.gravity * dt;
       }

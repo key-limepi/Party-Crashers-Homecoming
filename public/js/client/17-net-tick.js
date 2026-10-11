@@ -29,8 +29,10 @@ async function netTick() {
             invis: p.invis === true, m1: K.m1ok !== false, peeling: SN.peeling === true, spinning: SN.spinning === true, spinwindup: !!SN.spinWindup,
             lift: TW.flying === true, super: SS.transformed === true, forming: !!SS.formUntil, holding: TW.holding === true, whipuntil: !!TW.whipUntil, kickUntil: !!T.kickUntil, jabUntil: !!T.jabUntil, throwUntil: !!TW.throwUntil,
             stunned: (p.stunT || 0) > 0, pull: Date.now() < K.pullUntil,
-            cower: (p.cowerT || 0) > 0, windup: !!S.windupUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup || !!K.pullWindup, pullwindup: !!K.pullWindup,
-            dashing: !!S.dashing || NY.dashing,
+            cower: (p.cowerT || 0) > 0, windup: !!L.prayUntil || !!K.windupUntil || !!SN.windupUntil || !!SN.spinWindup || !!K.pullWindup, pullwindup: !!K.pullWindup,
+            dashing: NY.dashing,
+            dtmult: isLux() ? (L.dt || 1) : 1, healmult: isLux() ? (L.heal || 1) : 1,
+            praying: isLux() && !!L.prayUntil, rushing: isLux() && !!L.rushing, panting: isLux() && (!!L.panting || (p.hp ?? 0) > (p.maxHp ?? 100)),
             pose: (poseName && Date.now() < poseUntil) ? poseName : null,
           }),
         });

@@ -121,6 +121,12 @@
     // sound files
     function fileSfx(src, o) {
       if (!audioStarted || titleLive) return; // title mutes
+      if (/m1_hit|basic_hit/.test(src)) {
+        // hurt stings cap here
+        const now = performance.now();
+        if (now - (fileSfx._t || 0) < 250) return;
+        fileSfx._t = now;
+      }
       try {
         const a = new Audio(src);
         a.playbackRate = (o && o.rate) || 1;

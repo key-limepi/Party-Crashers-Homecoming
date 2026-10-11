@@ -1,4 +1,4 @@
-// PlatformerEngine mixin: tint caches, sprite picking, blit/crop/content-box helpers. Expects engine.js loaded before it.
+// tint/sprite mixins
 Object.assign(PlatformerEngine.prototype, {
   // hot tint
   _redTint(img) {
@@ -229,6 +229,16 @@ Object.assign(PlatformerEngine.prototype, {
     // spindash windup animation
     if ((b.spinWindup || (b.isRemote && b.spinwindup)) && s.spin && s.spin.length) {
       return s.spin[Math.floor(b.animTime * 10) % s.spin.length];
+    }
+    // lux pray/rush/pant animation
+    if ((b.praying || (b.isRemote && b.praying)) && s.pray && s.pray.length) {
+      return s.pray[Math.floor(b.animTime * 4) % s.pray.length];
+    }
+    if ((b.rushing || (b.isRemote && b.rushing)) && s.adrun && s.adrun.length) {
+      return s.adrun[Math.floor(b.animTime * 12) % s.adrun.length];
+    }
+    if ((b.panting || (b.isRemote && b.panting)) && s.pant && s.pant.length) {
+      return s.pant[Math.floor(b.animTime * 4) % s.pant.length];
     }
     // tails fly animation
     if ((b.lift || (b.isRemote && b.lift)) && s.fly && s.fly.length) {

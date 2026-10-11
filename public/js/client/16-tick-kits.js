@@ -3,7 +3,7 @@
       // evil keys
       const now = Date.now();
       // picking locks abilities
-      const canCast = p.alive !== false && (p.stunT || 0) <= 0 && !selectOpen && !p.rocketing; // a rocket can't do anything else
+      const canCast = p.alive !== false && (p.stunT || 0) <= 0 && !selectOpen && !p.rocketing; // rockets lock abilities
       if (!canCast) while (game.input.consumeAbility()) {} // clear queue
       const m1Muted = now < K.penaltyUntil; // sneak mute
       let ab;
@@ -56,17 +56,27 @@
               castTails(p, isLMS, now, ab);
               continue;
             }
-          if (ab === 'Z' && now >= S.dashCD && !S.windupUntil && !S.dashing) {
-            // dash zoom
-            S.windupUntil = now + 3000;
+          const luxCdMult = () => (L.prayer === 'haste' ? 1.5 : L.prayer === 'burden' ? 0.7 : 1) * (isLMS ? LMS_CD : 1);
+          if (ab === 'Z' && now >= L.prayCD && !L.prayUntil && !L.rushing && !L.panting) {
+            // kneel and pray, exposed
+            L.prayUntil = now + 5000;
             p.rooted = true;
-            p.actionImg = luxDash; p.actionT = 3.1;
-            fileSfx(SFX + 'dash_charge.wav', {});
-          } else if (ab === 'X' && now >= S.cowerCD && (p.cowerT || 0) <= 0) {
-            // eat stuns
-            p.cowerT = 1.5;
-            p.rooted = true; // stay still
-            S.countered = false;
+            p.actionImg = luxSprites.pray[0]; p.actionT = 0.15;
+            sayStatus('praying...', 2);
+          } else if (ab === 'X' && now >= L.adCD && !L.prayUntil && !L.rushing && !L.panting) {
+            // adrenaline sprint, locked line
+            L.rushing = true; L.adUntil = now + 6000;
+            L.adDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
+            p.chargeDir = L.adDir; p.facing = L.adDir;
+            p.chargeSpeed = 750 * (PRAY_SPD[L.prayer] || 1); // peelout pace
+            p.rooted = false;
+            fileSfx(SFX + 'super_dash.wav', {});
+          } else if (ab === 'C' && now >= L.shieldCD && !L.prayUntil && !L.rushing && !L.panting && !L.shieldUntil && data.phase === 'round') {
+            // team heal cast
+            L.shieldCD = now + 15000 * luxCdMult();
+            L.shieldUntil = now + 5000; L.shieldNext = 0; L.shieldHp = p.hp; L.shieldTold = false;
+            p.actionImg = luxSprites.pray[0]; p.actionT = 0.4;
+            fileSfx(SFX + 'spike_place.wav', {});
           }
           continue;
         }
@@ -148,7 +158,7 @@
           p.actionImg = evilAct.windup; p.actionT = 3.1;
           fileSfx(SFX + 'dash_charge.wav', {});
         } else if (ab === 'N' && isNyan() && now >= NY.rocketCD && data.phase === 'round' && !data.grace) {
-          // killer rocket goes for the nearest survivor
+          // killer rocket seeks survivor
           NY.rocketCD = now + ROCKET_CD * (isLMS ? LMS_CD : 1);
           fireRocket();
         }
@@ -257,84 +267,112 @@
 
     function tickLux(t) {
       let { p, isLMS, now } = t;
-      // lux dash
-      if (!p.evil && !isToko() && !isSonic() && !isTails()) {
-        if (S.windupUntil && now >= S.windupUntil) {
-          S.windupUntil = 0;
-          S.dashing = true; S.dashUntil = now + 2000; S.dashHit = false;
-          S.dashTouching = false;
-          S.lastX = p.pos.x;
-          p.chargeDir = game.input.left ? -1 : (game.input.right ? 1 : (p.facing || 1));
-          p.facing = p.chargeDir;
-          p.rooted = false;
-          fileSfx(SFX + 'dash_release.wav', {});
+      // lux lightshard kit
+      if (!p.evil && isLux()) {
+        const luxCdMult = () => (L.prayer === 'haste' ? 1.5 : L.prayer === 'burden' ? 0.7 : 1) * (isLMS ? LMS_CD : 1);
+        // dim look, shard drains
+        const dim = !!L.hot;
+        if (dim && p._wore !== 'luxdim') { game.setPlayerSprites(luxDimSprites); p._wore = 'luxdim'; }
+        else if (!dim && p._wore && p._wore !== 'lux') { wearChar('lux'); p._wore = 'lux'; }
+        // slow body, prayer legs
+        // half speed while converting
+        let needy = false;
+        {
+          const px = p.pos.x, py = p.pos.y;
+          for (const r of game.remotes) {
+            if (r.evil || !r.alive || (r.hp ?? 0) <= 0) continue;
+            if ((r.hp ?? 0) >= (r.maxHp || 100)) continue;
+            const dx = r.pos.x - px, dy = r.pos.y - py;
+            if (dx * dx + dy * dy < 260 * 260) { needy = true; break; }
+          }
         }
-        if (S.dashing) {
-          // steer dash
-          if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
-          else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
-          // bonked a wall
-          const dashAge = 2000 - (S.dashUntil - now);
-          const stuck = dashAge > 300 && Math.abs(p.pos.x - (S.lastX ?? p.pos.x)) < 2 && p.alive !== false;
-          S.lastX = p.pos.x;
-          if (now >= S.dashUntil || p.alive === false || stuck) {
-            if (stuck) {
-              // bonk stun
-              p.facing = -(p.chargeDir || p.facing || 1);
-              p.vel.x = p.facing * 400;
-              p.stunT = Math.max(p.stunT || 0, 2);
-              fileSfx(SFX + 'basic_hit.wav', { v: 0.5 });
-            }
-            S.dashing = false; p.chargeDir = 0; S.dashTouching = false;
-            S.dashCD = now + (S.dashHit ? 15000 : 25000) * (isLMS ? LMS_CD : 1); // dash waits
+        game.moveSpeed = 240 * (needy ? 0.5 : 1) * (PRAY_SPD[L.prayer] || 1);
+        // prayer lands
+        if (L.prayUntil && now >= L.prayUntil) {
+          L.prayUntil = 0;
+          const opts = PRAYERS.filter((x) => x !== L.prayer);
+          L.prayer = opts[Math.floor(Math.random() * opts.length)];
+          L.prayCD = now + 10000 * luxCdMult();
+          p.rooted = false;
+          p.actionImg = luxSprites.prayend; p.actionT = 0.6;
+          sayStatus('prayer of ' + L.prayer + '!!', 3);
+        }
+        if (L.prayUntil) {
+          p.actionImg = luxSprites.pray[0]; p.actionT = 0.15;
+          p.rooted = true;
+        }
+        // light float, prayer or overheal
+        p.luxFloat = L.prayUntil ? 70 : ((p.hp ?? 0) > (p.maxHp ?? 100) ? 40 : 0);
+        // adrenaline sprint
+        if (L.rushing) {
+          if (now >= L.adUntil || p.alive === false) {
+            L.rushing = false; L.panting = true; L.pantUntil = now + 3000;
+            p.chargeDir = 0; p.chargeSpeed = 0; p.rooted = true;
           } else {
+            if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
+            else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
+            p.actionImg = luxSprites.adrun[Math.floor(now / 80) % 2]; p.actionT = 0.15;
             const gi = game._spriteFor(p);
             const fs = game.frameSize(p, gi);
             game.afterimages.push({
               x: p.pos.x, y: p.pos.y, w: p.w, h: p.h,
               drawW: fs.dw, drawH: fs.dh, facing: p.facing,
-              img: gi, age: 0,
+              img: gi, age: 0, plain: true,
             });
-            const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
-            const touching = !!(ek &&
-                Math.abs(ek.pos.x - p.pos.x) < 55 &&
-                Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 70);
-            if (touching && !S.dashTouching) {
-              // stack tags
-              S.dashTouching = true;
-              S.dashHit = true;
-              fileSfx(SFX + 'basic_hit.wav', {}); // tag sound
-              fetch('/api/hit', {
+          }
+        }
+        // panting halt
+        if (L.panting) {
+          p.actionImg = luxSprites.pant[Math.floor(now / 200) % 2]; p.actionT = 0.15;
+          p.rooted = true;
+          if (now >= L.pantUntil || p.alive === false) {
+            L.panting = false; p.rooted = false; p.actionImg = null;
+            L.adCD = now + 20000 * luxCdMult();
+          }
+        }
+        // heal channel, breaks on real hits
+        if (L.shieldUntil) {
+          if (now >= L.shieldUntil || p.alive === false) {
+            L.shieldUntil = 0;
+          } else if ((p.hp ?? 0) < (L.shieldHp ?? 0) - 10) {
+            L.shieldUntil = 0; // hit taken
+          } else {
+            // channel pulse, no prayer
+            p.actionImg = (Math.floor(now / 400) % 2) ? luxSprites.prayend : luxSprites.pray[0];
+            p.actionT = 0.15;
+            if (now >= (L.shieldNext || 0)) {
+              L.shieldNext = now + 1000;
+              fetch('/api/teamheal', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: net.id, victim: ek.id, dmg: isLMS ? 6 : 2, stun: 2, stack: true }),
+                body: JSON.stringify({ id: net.id }),
+              }).then((r) => r.json()).then((d) => {
+                if (!L.shieldTold) {
+                  L.shieldTold = true;
+                  sayStatus(d && d.ok && d.n ? `healing ${d.n}!!` : 'no allies near!!', 2);
+                }
               }).catch(() => {});
-            } else if (!touching) {
-              S.dashTouching = false; // next pass
             }
           }
         }
-        // cower ends
-        // dazed whiff
-        if (S.wasCowering && (p.cowerT || 0) <= 0) {
-          S.cowerCD = now + (S.countered ? 15000 : 25000) * (isLMS ? LMS_CD : 1);
-          if (!S.countered) p.stunT = Math.max(p.stunT || 0, 1);
-          cowerLoop.stop();
+        // engine flags, all screens
+        p.praying = !!L.prayUntil;
+        p.rushing = !!L.rushing;
+        p.panting = !!L.panting;
+        // overhealed lux pants too
+        if (!L.prayUntil && !L.rushing && !L.panting && (p.hp ?? 0) > (p.maxHp ?? 100)) {
+          p.actionImg = luxSprites.pant[Math.floor(now / 200) % 2]; p.actionT = 0.15;
         }
-        S.wasCowering = (p.cowerT || 0) > 0;
-        if ((p.cowerT || 0) > 0 && p.alive !== false) cowerLoop.start();
-        p.rooted = !!S.windupUntil || (p.cowerT || 0) > 0;
-        // blurry legs
-        if (S.windupUntil) {
-          const run = luxSprites.run;
-          p.actionImg = run[Math.floor(now / 90) % run.length];
-          p.actionT = 0.15;
-          p.cyanFlash = true;
-        } else {
-          p.cyanFlash = false;
-        }
-        // pose all
-        p.cowering = (p.cowerT || 0) > 0;
+        p.cyanFlash = false;
+        if (!L.prayUntil && !L.rushing && !L.panting) p.rooted = (p.hp ?? 0) > (p.maxHp ?? 100); // fat stays put
+        // taken mults
+        let dt = 1;
+        if (L.prayUntil) dt *= 1.25;
+        if (L.panting) dt *= 1.2;
+        if (L.prayer === 'shelter') dt *= 0.7;
+        if (L.prayer === 'frailty') dt *= 1.3;
+        L.dt = dt;
+        L.heal = L.prayer === 'grace' ? 2 : 1;
       }
     }
 

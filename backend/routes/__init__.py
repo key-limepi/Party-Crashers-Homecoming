@@ -5,7 +5,7 @@ h.session, h.ip, h.redirect, h.headers) plus either the decoded JSON body (POST)
 """
 from . import auth, combat, lobby, mod, players, snapshot, traps
 
-# POST routes, matched against the full request path
+# POST path table
 POST_ROUTES = {
     "/api/pin": auth.pin,
     "/api/join": players.join,
@@ -22,15 +22,16 @@ POST_ROUTES = {
     "/api/chat": lobby.chat,
     "/api/mod": mod.mod_action,
     "/api/heal": players.heal,
+    "/api/teamheal": players.teamheal,
 }
 
-# GET routes that ignore the query string (formbar's login redirect carries ?token=...)
+# GET paths, ignore query
 GET_PATH_ROUTES = {
     "/login": auth.login,
     "/logout": auth.logout,
 }
 
-# GET routes matched against the full request path
+# GET full-path routes
 GET_ROUTES = {
     "/api/me": auth.me,
     "/api/players": snapshot.players_snapshot,
