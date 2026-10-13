@@ -8,6 +8,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from .. import state
 from ..config import FORMBAR_MODE, LOCAL_SESSION, PUBLIC_DIR
 from ..routes import GET_PATH_ROUTES, GET_ROUTES, POST_ROUTES
+from ..routes import bundle
 
 
 class DualStackServer(ThreadingHTTPServer):
@@ -87,6 +88,9 @@ class Handler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
+        if url.path == "/js/bundle.js":
+            bundle.serve(self) # one file, slow tunnels
+            return
         if url.path in GET_PATH_ROUTES:
             if not FORMBAR_MODE:
                 self.redirect("/") # nothing to log into

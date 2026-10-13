@@ -3,6 +3,7 @@
       const a = new Audio(src);
       a.loop = looped;
       a.volume = 0;
+      a.preload = 'none'; // gesture loads it
       // loop backup
       if (looped) a.addEventListener('ended', () => { a.currentTime = 0; a.play().catch(() => {}); });
       return a;
@@ -40,7 +41,7 @@
     const mapLoad = document.getElementById('mapLoad');
     const introWrap = document.getElementById('introWrap');
     const introVid = document.getElementById('introVid');
-    const bearIntro = document.getElementById('bearIntro');
+    const bearVid = document.getElementById('bearVid');
     if (introVid) {
       const introDone = () => {
         if (net.id) {
@@ -55,9 +56,14 @@
         introWrap.style.display = 'none';
         introDone();
       });
+      if (bearVid) bearVid.addEventListener('ended', () => {
+        introWrap.style.display = 'none';
+        introDone();
+      });
       introWrap.addEventListener('click', () => {
         introWrap.style.display = 'none';
         try { introVid.pause(); } catch (_) { /* hush!! */ }
+        try { bearVid.pause(); } catch (_) { /* hush!! */ }
         introDone();
       });
     }
@@ -73,11 +79,12 @@
       lmstails: loopTrack(MUS + 'tails_lms.mp3', false), // tails anthem
       lmsnyan: loopTrack(MUS + 'nyanlms.mp3', false), // nyan anthem
       hero: loopTrack(MUS + 'supersonichero.mp3'), // super sonic theme
-      chase: loopTrack(MUS + 'chase_elux.mp3'),
-      terror: loopTrack(MUS + 'terror_radius_elux.mp3'),
+      chase: loopTrack(MUS + 'elux_chasenew.mp3'),
+      bear5chase: loopTrack(MUS + 'bear5chase.mp3'),
+      terror: loopTrack(MUS + 'elux_terrorradius_new.mp3'),
       charselect: loopTrack(MUS + 'charselect.mp3'),
     };
-    const chaseAudio = beds.chase, terrorAudio = beds.terror;
+    const chaseAudio = beds.chase, terrorAudio = beds.terror, bear5chaseAudio = beds.bear5chase;
     let audioStarted = false;
     let titleLive = true; // locked audio
     // debug solo
@@ -90,7 +97,7 @@
         if (lmsTrack === key) lmsEnded = true;
       });
     }
-    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan', 'hero', 'chase', 'terror', 'charselect'];
+    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan', 'hero', 'chase', 'bear5chase', 'terror', 'charselect'];
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.key.toLowerCase() !== 'm') return;
       soloIdx = soloIdx >= soloOrder.length - 1 ? -1 : soloIdx + 1;
@@ -100,6 +107,7 @@
       if (audioStarted) return;
       audioStarted = true;
       for (const a of Object.values(beds)) {
+        a.preload = 'auto'; // fetch now
         a.play().then(() => a.pause()).catch(() => {});
       }
     }
@@ -130,20 +138,22 @@
       try {
         const a = new Audio(src);
         a.playbackRate = (o && o.rate) || 1;
-        a.volume = (o && o.v) || 0.5;
+        a.volume = ((o && o.v) || 0.5) * ((window.SFX_VOL ?? 50) / 50);
         a.play().catch(() => {});
       } catch (e) { /* silent!! */ }
     }
     function voiceSfx(src, rate = 1) {
+      if (window.VOICE_ON === false) return; // settings mute
       if (!audioStarted || titleLive) return;
       try {
         const a = new Audio(src);
         a.playbackRate = rate;
-        a.volume = 0.5 * VOICE_VOLUME_SCALE;
+        a.volume = 0.5 * VOICE_VOLUME_SCALE * ((window.VVL_VOL ?? 100) / 100);
         a.play().catch(() => {});
       } catch (e) { /* silent!! */ }
     }
     function spawnBearHitFx(x, y) {
+      if (window.FX_ON === false) return; // settings hush
       const blues = ['#249bff', '#53bdff', '#1177dc'];
       for (let i = 0; i < 18; i++) {
         game.fx.push({
@@ -165,8 +175,13 @@
         start() {
           if (!on && audioStarted && !titleLive) {
             on = true;
+            a.volume = (v || 0.4) * ((window.SFX_VOL ?? 50) / 50); // live level
             a.play().catch(() => { on = false; });
           }
+        },
+        rate(r) {
+          // pace the loop
+          try { a.playbackRate = Math.max(0.5, Math.min(2, r || 1)); } catch (_) { /* hush!! */ }
         },
         stop() {
           if (!on) return;
@@ -178,8 +193,9 @@
     const cowerLoop = loopSfx(SFX + 'cower_loop.wav', 0.35);
     const pullLoop = loopSfx(SFX + 'pull_loop.wav', 0.35);
     const flyLoop = loopSfx(SFX + 'tailsflightloop.mp3', 0.35);
+    const stepLoop = loopSfx(SFX + 'footsteploop.mp3', 0.25); // walking feet
     // evil lux talks
-    const VL = './Assets/Sounds/Evil Lux Voicelines/';
+    const VL = './Assets/Sounds/EvilLuxVoicelines/';
     const vpick = (a) => a[Math.floor(Math.random() * a.length)];
     const VL_KILL = [VL + 'elux_kill.mp3', VL + 'elux_kill2.mp3', VL + 'elux_kill3.mp3', VL + 'elux_kill4.mp3'];
     const VL_OPEN = [VL + 'elux_opener.mp3', VL + 'elux_opener2.mp3'];

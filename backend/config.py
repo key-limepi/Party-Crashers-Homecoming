@@ -91,13 +91,30 @@ STATE_KEYS = ("x", "y", "facing", "moving", "onGround",
               "peeling", "spinning", "spinwindup", "pullwindup", "lift", "super", "forming", "holding", "whipuntil",
               "dtmult", "healmult", "praying", "rushing", "panting")
 
-# lux lightshard tuning
+# lux overheal tuning
 AURA_RADIUS = 260 # conversion reach
 AURA_T1 = 60 # fresh until here
 AURA_T2 = 120 # drained after here
-AURA_TICKS = ((2, 1.0), (2, 1.0), (2, 1.0)) # hp, seconds per tier
-TEAMHEAL_RADIUS = 300 # channel reach
-TEAMHEAL_HP = 25 # per tick
-TEAMHEAL_GAP = 0.4 # tick pacing guard
+AURA_TICKS = ((2, 4.0), (2, 6.0), (1, 8.0)) # hp, seconds per tier
+OVERHEAL_RADIUS = 300 # pick reach
+OVERHEAL_BONUS = 50 # blue hp granted
+OVERHEAL_CD = 15.0 # cast wait
+OVERHEAL_DRAIN = 2.0 # blue hp per second
+
+# mvp scoring, applied hp only
+SCORE_KILL = 100 # per kill
+SCORE_DMG = 1.0 # per hp dealt
+SCORE_HEAL = 1.0 # per hp restored
+SCORE_SURV = 0.5 # per second alive
+SCORE_TAKEN = -0.2 # per hp eaten
+
+# rank grades, score floors
+GRADE_CUTS = ((400, "S"), (250, "A"), (120, "B"), (40, "C")) # else D
+
+# killer winning cutscenes, more later
+WIN_CUTSCENES = {
+    "evil": "./Assets/Videos/eluxwinscreen.mp4", # evil lux win
+    "bear5": "./Assets/Videos/bear5_killerintro.mp4", # bear5 win
+}
 
 LOCAL_SESSION = {"sid": "local", "fid": "local", "name": "guest", "pin": None} # local login stand-in

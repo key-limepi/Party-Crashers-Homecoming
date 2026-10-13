@@ -2,7 +2,7 @@
     // fullscreen button
     const fsBtn = document.getElementById('fsBtn');
     fsBtn.addEventListener('click', () => {
-      const el = document.getElementById('wrap');
+      const el = document.getElementById('stage'); // game only
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else if (el.requestFullscreen) {
@@ -13,10 +13,66 @@
       fsBtn.textContent = document.fullscreenElement ? 'un-fullscreen!!' : 'go fullscreen!! :D';
     });
 
+    // settings menu
+    const setBtn = document.getElementById('setBtn');
+    const setBox = document.getElementById('settings');
+    const setFx = document.getElementById('setFx');
+    const setVoice = document.getElementById('setVoice');
+    const setFlash = document.getElementById('setFlash');
+    const setShake = document.getElementById('setShake');
+    const setClose = document.getElementById('setClose');
+    const setMus = document.getElementById('setMus');
+    const setSfx = document.getElementById('setSfx');
+    const setVvl = document.getElementById('setVvl');
+    if (setBtn && setBox && setFx && setVoice && setFlash && setShake && setMus && setSfx && setVvl) {
+      // old pages lack these, skip quietly
+      let settings = { fx: true, voice: true, flash: true, shake: true, mus: 68, sfx: 50, vvl: 100 };
+      try { Object.assign(settings, JSON.parse(localStorage.getItem('pc_settings') || '{}')); } catch (_) { /* fresh!! */ }
+      const applySettings = () => {
+        window.FX_ON = settings.fx !== false;
+        window.VOICE_ON = settings.voice !== false;
+        window.FLASH_ON = settings.flash !== false;
+        window.SHAKE_ON = settings.shake !== false;
+        window.MUS_VOL = Math.max(0, Math.min(100, +settings.mus || 0));
+        window.SFX_VOL = Math.max(0, Math.min(100, +settings.sfx || 0));
+        window.VVL_VOL = Math.max(0, Math.min(100, +settings.vvl || 0));
+        setFx.checked = window.FX_ON;
+        setVoice.checked = window.VOICE_ON;
+        setFlash.checked = window.FLASH_ON;
+        setShake.checked = window.SHAKE_ON;
+        setMus.value = window.MUS_VOL;
+        setSfx.value = window.SFX_VOL;
+        setVvl.value = window.VVL_VOL;
+        try { localStorage.setItem('pc_settings', JSON.stringify(settings)); } catch (_) { /* full!! */ }
+      };
+      applySettings();
+      setBtn.addEventListener('click', () => {
+        setBox.style.display = setBox.style.display === 'block' ? 'none' : 'block';
+      });
+      if (setClose) setClose.addEventListener('click', () => {
+        setBox.style.display = 'none';
+      });
+      setFx.addEventListener('change', () => { settings.fx = setFx.checked; applySettings(); });
+      setVoice.addEventListener('change', () => { settings.voice = setVoice.checked; applySettings(); });
+      setFlash.addEventListener('change', () => { settings.flash = setFlash.checked; applySettings(); });
+      setShake.addEventListener('change', () => { settings.shake = setShake.checked; applySettings(); });
+      setMus.addEventListener('input', () => { settings.mus = +setMus.value; applySettings(); });
+      setSfx.addEventListener('input', () => { settings.sfx = +setSfx.value; applySettings(); });
+      setVvl.addEventListener('input', () => { settings.vvl = +setVvl.value; applySettings(); });
+    }
+
     // mod menu
     const debugBox = document.getElementById('debug');
     const readout = document.getElementById('readout');
     const wantDebug = new URLSearchParams(location.search).has('debug');
+    const dbgClose = document.getElementById('dbgClose');
+    if (dbgClose) dbgClose.addEventListener('click', () => {
+      game.debug = false;
+      debugBox.style.display = 'none';
+    });
+    for (const h of debugBox.querySelectorAll('.modSec > h3')) {
+      h.addEventListener('click', () => h.parentElement.classList.toggle('shut')); // fold group
+    }
     function openModMenu() {
       game.debug = true;
       debugBox.style.display = 'block';
@@ -53,6 +109,7 @@
     document.getElementById('meEvilBtn').addEventListener('click', () => mod('makekiller', { target: net.id }));
     document.getElementById('randEvilBtn').addEventListener('click', () => mod('makekiller', { target: 'random' }));
     document.getElementById('clearSpikesBtn').addEventListener('click', () => mod('clearspikes'));
+    document.getElementById('setTimeBtn').addEventListener('click', () => mod('settime', { seconds: parseInt(timeBox.value) || 0 }));
     const flyBtn = document.getElementById('flyBtn');
     const noclipBtn = document.getElementById('noclipBtn');
     const hpBox = document.getElementById('hpBox');

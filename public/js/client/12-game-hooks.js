@@ -43,6 +43,23 @@
       statsBox.textContent = `fps: ${game.fps || '--'} | ping: ${ping}${solo}`;
       // tired overlay
       vignette.style.opacity = game.player ? Math.min(1, game.player.fatigue || 0).toFixed(2) : 0;
+      // low hp static, quiet warning
+      const lp = game.player;
+      const lowhpEl = document.getElementById('lowhpStatic');
+      if (lowhpEl) {
+        const frac = lp && lp.alive !== false ? (lp.hp ?? 0) / (lp.maxHp ?? 100) : 1;
+        const show = window.FLASH_ON !== false && frac < 0.35 ? (0.35 - frac) / 0.35 * 0.28 : 0;
+        lowhpEl.style.display = show > 0 ? 'block' : 'none';
+        lowhpEl.style.opacity = show.toFixed(2);
+      }
+      // sneak darkness, evil eyes only
+      const p = game.player;
+      sneakShade.style.opacity = (p && p.evil && p.invis && p.alive !== false) ? 0.45 : 0;
+      // walking feet loop
+      if (p && p.alive !== false && p.onGround && Math.abs(p.vel.x) > 60) {
+        stepLoop.rate(0.6 + Math.abs(p.vel.x) / 600); // faster feet, faster steps
+        stepLoop.start();
+      } else stepLoop.stop();
       if (posdbg.style.display !== 'none' && game.player) {
         posdbg.textContent = `x: ${Math.round(game.player.pos.x)} y: ${Math.round(game.player.pos.y)}`;
       }
@@ -51,7 +68,7 @@
     const deathStatic = document.getElementById('deathStatic');
     function deathFx() {
       fileSfx(SFX + 'death.mp3', {});
-      if (!deathStatic) return;
+      if (!deathStatic || window.FLASH_ON === false) return; // calm death
       deathStatic.style.display = 'block';
       deathStatic.style.opacity = '1';
       clearTimeout(deathStatic._t);

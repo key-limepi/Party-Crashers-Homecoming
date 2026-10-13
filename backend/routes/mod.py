@@ -9,7 +9,7 @@ import time
 from .. import state
 from ..admins import is_admin
 from ..config import CHARACTERS
-from ..game import end_round, here_players, start_intermission, start_round, start_select
+from ..game import end_round, here_players, note_death, start_intermission, start_round, start_select
 from ..malice_store import pick_killer, set_malice
 
 
@@ -26,13 +26,17 @@ def _kill_all(me, data):
     for pid, pl in state.players.items():
         if pid in state.round_players and pid != state.killer_id and pl.get("alive", True):
             pl["hp"] = 0
+            pl["shield"] = 0
             pl["alive"] = False
+            note_death(pl, time.time())
     print(f"!! mod {me['name']} killed everyone!!", flush=True)
 
 
 def _kill_me(me, data):
     me["hp"] = 0
+    me["shield"] = 0
     me["alive"] = False
+    note_death(me, time.time())
 
 
 def _heal_all(me, data):
@@ -139,6 +143,17 @@ def _set_health(me, data):
     print(f"!! mod set hp to {hp}!!", flush=True)
 
 
+def _set_time(me, data):
+    secs = max(0, min(3600, _int_or(data.get("seconds", 0), 0)))
+    with state.lock:
+        if state.phase == "round":
+            state.phase_end = time.time() + secs
+            print(f"!! mod {me['name']} set round time to {secs}s!!", flush=True)
+            h.send_json({"ok": True, "seconds": secs})
+            return
+    h.send_json({"ok": False, "reason": "not in a round!!"})
+
+
 def _make_dev(me, data):
     for c in CHARACTERS:
         if c["id"] == data.get("char"):
@@ -166,6 +181,7 @@ ACTIONS = {
     "givemalice": _give_malice,
     "setmalice": _set_malice,
     "sethealth": _set_health,
+    "settime": _set_time,
     "makedev": _make_dev,
     "unmakedev": _make_public,
 }

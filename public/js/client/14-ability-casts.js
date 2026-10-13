@@ -104,6 +104,7 @@
             p.onGround = false;
           }
           fileSfx(SFX + 'dash_release.wav', {});
+          game.luxGlow(p.pos.x + p.w / 2, p.pos.y + p.h / 2, '#ffffff', 4, 110); // liftoff puff
         }
       } else if (ab === 'X' && !TW.flying && !TW.throwUntil) {
         // bomb arm, press again to toss
@@ -135,6 +136,7 @@
           const throwVy = -320;
           // add toss with throwerId
           game.addToss(throwX, throwY, throwVx, throwVy, game.bombImg, null, net.id);
+          game.luxGlow(throwX, throwY, '#ffa502', 4, 100); // toss puff
           fetch('/api/bomb', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

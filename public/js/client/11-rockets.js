@@ -5,6 +5,7 @@
       if (NY.dashing) { NY.dashing = false; p.dashing = false; p.chargeDir = 0; p.chargeSpeed = 0; }
       const local = game.addRocket(cx, cy, { owner: net.id, mine: true });
       p.rocketing = true;
+      game.luxGlow(cx, cy, '#c9c9d6', 4, 130); // launch smoke
       fetch('/api/rocket', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -50,6 +51,7 @@
         if (!rk) {
           rk = game.addRocket(r.x, r.y, { id: r.id, owner: r.by, mine: r.by === net.id, age: r.age });
           fileSfx(SFX + 'dash_release.wav', { v: 0.6 });
+          game.luxGlow(r.x, r.y, '#c9c9d6', 4, 120); // watched launch
         }
         rk.target = r.target || null;
       }

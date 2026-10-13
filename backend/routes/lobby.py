@@ -5,7 +5,7 @@ import time
 from .. import state
 from ..admins import is_admin
 from ..chat_filter import is_clean
-from ..config import (CHARACTERS, CHAT_COOLDOWN, FORMBAR_MODE, MALICE_PER_BUY, MALICE_PRICE, MUTE_TIME, QUICK_CHAT)
+from ..config import (CHARACTERS, CHAT_COOLDOWN, FORMBAR_MODE, INTER_TIME, MALICE_PER_BUY, MALICE_PRICE, MUTE_TIME, QUICK_CHAT)
 from ..formbar import formbar_transfer
 from ..game import begin_round, here_players
 from ..malice_store import add_malice
@@ -60,6 +60,15 @@ def intro(h, data):
         if (state.phase == "intro" and data.get("id") in state.round_players
                 and time.time() - state.intro_start > 4):
             begin_round()
+        elif state.phase == "lms_cutscene" and data.get("id") in state.players:
+            # cinema skip vote, all must agree
+            state.cutscene_skip.add(data.get("id"))
+            if set(here_players()) <= state.cutscene_skip:
+                state.cutscene_skip.clear()
+                state.killer_id = None # drop evil
+                state.phase = "intermission"
+                state.phase_end = time.time() + INTER_TIME
+                print("[GAME] State: INTERMISSION (30s)", flush=True)
     h.send_json({"ok": True})
     return
 

@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>party crashers homecoming</title>
-  <link rel="stylesheet" href="./css/style.css?v=19">
+  <link rel="stylesheet" href="./css/style.css?v=22">
 </head>
 
 <body>
@@ -18,6 +18,7 @@
         <canvas id="game"></canvas>
         <div id="vignette"></div>
         <div id="hurtFlash"></div>
+        <div id="sneakShade"></div>
         <div id="charSelect" style="display:none">
           <img id="csTitle" src="./Assets/Images/UI/CharacterSelect/charselect.png" alt="CHARACTER SELECT">
           <img id="csSub" src="./Assets/Images/UI/CharacterSelect/testzone.png" alt="TEST ZONE">
@@ -29,28 +30,31 @@
             <div class="cs-pslot" id="csSurv2"></div>
           </div>
           <div class="cs-bar">
+            <img id="csPrevImg" alt="">
             <button class="cs-arrow" id="csLeft"><img src="./Assets/Images/UI/CharacterSelect/left.png"
                 alt="<"></button>
             <img id="csName" src="./Assets/Images/UI/CharacterSelect/luxname.png" alt="LUX">
             <span id="csNameText" style="display:none">EVIL LUX</span>
             <button class="cs-arrow" id="csRight"><img src="./Assets/Images/UI/CharacterSelect/right.png"
                 alt=">"></button>
+            <div id="csPrevInfo"></div>
           </div>
           <div class="cs-hint">arrows = browse!! enter = pick!!</div>
           <div id="csFade"></div>
         </div>
         <div id="phaseLine">lobby!!</div>
         <div id="announce" style="display:none"></div>
+        <div id="winBanner" style="display:none"></div>
         <div id="lyricBar" style="display:none"></div>
         <div id="roleBox"></div>
         <div id="specHint">&lt; &gt;</div>
         <div id="abilities" style="display:none"></div>
         <div id="spikeBar" style="display:none"><img id="spikeIcon"
-            src="./Assets/Images/UI/Abillities/ability_spikes.png" alt="SPIKES">
+            src="./Assets/Images/UI/Abilities/ability_spikes.png" alt="SPIKES">
           <div id="spikePips"></div>
         </div>
         <div id="bombBar" style="display:none"><img id="bombIcon"
-            src="./Assets/Images/UI/Abillities/ability_blank.png" alt="BOMBS">
+            src="./Assets/Images/UI/Abilities/ability_blank.png" alt="BOMBS">
           <div id="bombPips"></div>
         </div>
         <img id="afkImgBtn" src="./Assets/Images/UI/afk.png" alt="AFK" style="display:none">
@@ -59,8 +63,10 @@
         <div id="titleScreen" style="display:none"><span>PARTY CRASHERS<br>HOMECOMING<br><br>(temporary title!! click to
             play!!)<br>formbar login needed!!</span></div>
         <div id="deathStatic" style="display:none"></div>
-        <div id="mapLoad" style="display:none"></div>
-        <div id="introWrap" style="display:none"><video id="introVid" src="./Assets/Videos/elux_killerintro.mp4" playsinline preload="auto"></video><div id="bearIntro" style="display:none"><img src="./Assets/Images/Characters/bear5/Bear5.png" alt="Bear 5"><strong>BEAR 5</strong></div></div>
+        <div id="lowhpStatic" style="display:none"></div>
+        <div id="mapLoad" style="display:none"><div id="tipBar"></div></div>
+        <div id="roundCard" style="display:none"><div id="roundCardTitle"></div><div id="roundCardSub"></div></div>
+        <div id="introWrap" style="display:none"><video id="introVid" src="./Assets/Videos/elux_killerintro.mp4" playsinline preload="metadata"></video><video id="bearVid" src="./Assets/Videos/bear5_killerintro.mp4" playsinline preload="metadata" style="display:none"></video></div>
         <div id="pinBanner" style="display:none">
           <div class="pinPrompt">
             <span>ENTER YOUR PIN!!</span>
@@ -71,6 +77,8 @@
           </div>
         </div>
         <div id="partyList" style="display:none"></div>
+        <div id="prayLabel" style="display:none"></div>
+        <div id="resCutWrap" style="display:none"><video id="resCutVid" playsinline preload="metadata"></video></div>
       </div>
       <div id="chatPanel">
         <div id="chatLog"></div>
@@ -81,6 +89,24 @@
     <p>move with the arrow keys - press ENTER for quick chat!!</p>
     <button id="fsBtn">go fullscreen!! :D</button>
     <button id="logBtn">changelog!!</button>
+    <button id="setBtn">settings!!</button>
+    <div id="settings" style="display:none">
+      <div class="panelHead"><h2>settings!!</h2><button id="setClose" title="close">X</button></div>
+      <div class="modSec">
+        <h3>look!!</h3>
+        <label class="setRow"><span>particles!!</span><span class="switch"><input type="checkbox" id="setFx" checked><span class="knob"></span></span></label>
+        <label class="setRow"><span>flashing lights!!</span><span class="switch"><input type="checkbox" id="setFlash" checked><span class="knob"></span></span></label>
+        <label class="setRow"><span>screen shake!!</span><span class="switch"><input type="checkbox" id="setShake" checked><span class="knob"></span></span></label>
+      </div>
+      <div class="modSec">
+        <h3>sound!!</h3>
+        <label class="setRow"><span>voicelines!!</span><span class="switch"><input type="checkbox" id="setVoice" checked><span class="knob"></span></span></label>
+        <label class="setRow"><span>music!!</span><input type="range" id="setMus" min="0" max="100" value="68"></label>
+        <label class="setRow"><span>effects!!</span><input type="range" id="setSfx" min="0" max="100" value="50"></label>
+        <label class="setRow"><span>voices!!</span><input type="range" id="setVvl" min="0" max="100" value="100"></label>
+      </div>
+      <div class="panelFoot">saved in this browser!!</div>
+    </div>
     <div id="logModal" style="display:none"></div>
     <div id="net">
       <div id="malicePanel" style="display:none">
@@ -94,67 +120,138 @@
     </div>
   </div>
   <div id="debug">
-    <h2>mod menu!! (F12 to close)</h2>
-    <button id="hurtBtn">owie!! -10 hp</button>
-    <button id="healBtn">yay!! +10 hp</button>
-    <button id="spawnBtn">take me home!!</button>
-    <button id="killMeBtn">kill me!!</button>
-    <button id="killAllBtn">kill ALL!!</button>
-    <button id="healAllBtn">heal all!!</button>
-    <button id="endSurvBtn">survivors win!!</button>
-    <button id="endKillBtn">evil wins!!</button>
-    <button id="skipBtn">skip wait!!</button>
-    <button id="forceBtn">start match!!</button>
-    <button id="meEvilBtn">make ME evil!!</button>
-    <button id="randEvilBtn">random evil!!</button>
-    <button id="clearSpikesBtn">clear spikes!!</button>
-    <button id="flyBtn">fly: off</button>
-    <button id="noclipBtn">noclip: off</button>
-    <input id="hpBox" maxlength="4" placeholder="hp!!">
-    <button id="hpMeBtn">set my hp!!</button>
-    <button id="hpAllBtn">set all hp!!</button>
-    <input id="devBox" maxlength="16" placeholder="char id!!">
-    <button id="devOnBtn">make dev!!</button>
-    <button id="devOffBtn">make public!!</button>
-    <input id="announceBox" maxlength="120" placeholder="announce!!">
-    <button id="announceBtn">say it all!!</button>
+    <div class="panelHead"><h2>mod menu!!</h2><button id="dbgClose" title="close">X</button></div>
+    <div class="modSec">
+      <h3>me!!</h3>
+      <div class="modGrid">
+        <button id="hurtBtn">owie!! -10 hp</button>
+        <button id="healBtn">yay!! +10 hp</button>
+        <button id="spawnBtn">take me home!!</button>
+        <button id="killMeBtn">kill me!!</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>everyone!! (careful)</h3>
+      <div class="modGrid">
+        <button id="killAllBtn" class="danger">kill ALL!!</button>
+        <button id="healAllBtn">heal all!!</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>round!!</h3>
+      <div class="modGrid">
+        <button id="endSurvBtn" class="warn">survivors win!!</button>
+        <button id="endKillBtn" class="warn">evil wins!!</button>
+        <button id="skipBtn">skip wait!!</button>
+        <button id="forceBtn">start match!!</button>
+      </div>
+      <div class="modRow">
+        <input id="timeBox" maxlength="4" placeholder="seconds!!">
+        <button id="setTimeBtn">set time!!</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>evil picks!!</h3>
+      <div class="modGrid">
+        <button id="meEvilBtn">make ME evil!!</button>
+        <button id="randEvilBtn">random evil!!</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>traps!!</h3>
+      <div class="modGrid">
+        <button id="clearSpikesBtn">clear spikes!!</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>cheats!!</h3>
+      <div class="modGrid">
+        <button id="flyBtn">fly: off</button>
+        <button id="noclipBtn">noclip: off</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>health!!</h3>
+      <div class="modRow">
+        <input id="hpBox" maxlength="4" placeholder="hp!!">
+        <button id="hpMeBtn">set mine!!</button>
+        <button id="hpAllBtn">set all!!</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>dev chars!!</h3>
+      <div class="modRow">
+        <input id="devBox" maxlength="16" placeholder="char id!!">
+        <button id="devOnBtn">make dev!!</button>
+        <button id="devOffBtn">make public!!</button>
+      </div>
+    </div>
+    <div class="modSec">
+      <h3>shout!!</h3>
+      <div class="modRow">
+        <input id="announceBox" maxlength="120" placeholder="announce!!">
+        <button id="announceBtn">say it all!!</button>
+      </div>
+    </div>
     <p id="readout"></p>
+    <div class="panelFoot">F12 toggles this menu!!</div>
   </div>
   <div id="spectate">SPECTATING!!</div>
   <div id="stats">fps: -- | ping: --</div>
   <div id="posdbg" style="display:none"></div>
   <div id="errScreen"><span id="errText"></span></div>
-  <!-- engine -->
-  <script src="./js/engine/constants.js?v=90"></script>
-  <script src="./js/engine/physics-primitives.js?v=90"></script>
-  <script src="./js/engine/input.js?v=90"></script>
-  <script src="./js/engine/engine.js?v=91"></script>
-  <script src="./js/engine/tosses.js?v=90"></script>
-  <script src="./js/engine/fx.js?v=90"></script>
-  <script src="./js/engine/rockets.js?v=90"></script>
-  <script src="./js/engine/sprites.js?v=91"></script>
-  <script src="./js/engine/render.js?v=92"></script>
-  <!-- /engine -->
-  <script src="./js/levels/level_rough_draft.js?v=2"></script>
-  <!-- client (order matters: classic scripts share one scope) -->
-  <script src="./js/client/01-core.js?v=91"></script> <!-- core: canvas + game + player -->
-  <script src="./js/client/02-sprites.js?v=92"></script> <!-- character sprite tables -->
-  <script src="./js/client/03-world.js?v=91"></script> <!-- level, springs, start -->
-  <script src="./js/client/04-debug-ui.js?v=91"></script> <!-- fullscreen, mod menu, debug readout -->
-  <script src="./js/client/05-net-state.js?v=91"></script> <!-- net state, title screen, pin + malice shop -->
-  <script src="./js/client/06-char-select.js?v=91"></script> <!-- character select UI -->
-  <script src="./js/client/07-chat.js?v=91"></script> <!-- chat, changelog, quick chat -->
-  <script src="./js/client/08-audio.js?v=94"></script> <!-- music + sfx + voicelines -->
-  <script src="./js/client/09-hud.js?v=96"></script> <!-- party list + ability bar -->
-  <script src="./js/client/10-kit-helpers.js?v=94"></script> <!-- poses + kit state helpers -->
-  <script src="./js/client/11-rockets.js?v=91"></script> <!-- rockets -->
-  <script src="./js/client/12-game-hooks.js?v=91"></script> <!-- game event hooks -->
-  <script src="./js/client/13-join.js?v=91"></script> <!-- joinOnline + autojoin -->
-  <script src="./js/client/14-ability-casts.js?v=91"></script> <!-- per-character ability casts -->
-  <script src="./js/client/15-tick-sync.js?v=97"></script> <!-- netTick stages: server sync -->
-  <script src="./js/client/16-tick-kits.js?v=108"></script> <!-- netTick stages: ability input + kit ticks -->
-  <script src="./js/client/17-net-tick.js?v=93"></script> <!-- netTick itself + start -->
-  <!-- /client -->
+  <script>
+  // dead script names, failed loads
+  window.__deadScripts = [];
+  window.addEventListener('error', function (e) {
+    var t = e && e.target;
+    if (t && t.tagName === 'SCRIPT' && t.src) {
+      window.__deadScripts.push(t.src.split('/').pop().split('?')[0]);
+    }
+  }, true);
+  // splash always clears, even if game scripts fail
+  (function () {
+    var el = document.getElementById('splash');
+    if (!el) return;
+    var gone = false;
+    var out = function () {
+      if (gone) return; gone = true;
+      el.classList.add('hide');
+      setTimeout(function () { el.style.display = 'none'; }, 1100);
+    };
+    el.addEventListener('click', out);
+    setTimeout(out, 4000);
+  })();
+  // boot watchdog, slow loads stall scripts
+  setTimeout(function () {
+    if (typeof joinOnline !== 'undefined' && typeof netTick !== 'undefined') return; // alive
+    var s = document.getElementById('netStatus');
+    // name the stuck scripts via load timing
+    var done = {};
+    try {
+      performance.getEntriesByType('resource').forEach(function (r) { done[r.name] = true; });
+    } catch (_) { /* old browser!! */ }
+    var stuck = [];
+    try {
+      Array.prototype.forEach.call(document.scripts, function (sc) {
+        if (sc.src && sc.src.indexOf(location.host) !== -1
+            && sc.src.indexOf('.js') !== -1 && !done[sc.src]) {
+          stuck.push(sc.src.split('/').pop().split('?')[0]);
+        }
+      });
+    } catch (_) { /* huh!! */ }
+    var why = stuck.length ? ' stuck: ' + stuck.join(', ') : '';
+    if (window.__deadScripts.length) why += ' dead: ' + window.__deadScripts.join(', ');
+    if (s) { s.style.color = '#ff4757'; s.textContent = 'stuck loading!! hard refresh (ctrl+shift+R)!!' + why; }
+    var e = document.getElementById('errText');
+    if (e) e.textContent = 'scripts did not finish loading - hard refresh!!' + why;
+    var w = document.getElementById('errScreen');
+    if (w) w.classList.add('show');
+  }, 9000);
+  </script>
+  <!-- game scripts, one bundle (slow tunnels drop parallel fetches) -->
+  <!-- order lives in backend/routes/bundle.py, bump bundle ?v= when any file changes -->
+  <script src="./js/bundle.js?v=36"></script>
 </body>
 
 </html>

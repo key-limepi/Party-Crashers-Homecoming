@@ -11,6 +11,7 @@
       windupUntil: 0, chargeUntil: 0, charging: false,
     };
     const trippedIds = new Set(); // used spikes
+    const seenSpikes = new Set(); // watched spikes
     const bombPos = {}; // last seen spots
     const abilBar = document.getElementById('abilities');
     // party list
@@ -34,7 +35,7 @@
         if (ek && !ek.invis) { kx = ek.pos.x + ek.w / 2; ky = ek.pos.y + ek.h / 2; }
       }
       const chasedAt = (x, y) => kx !== null && Math.hypot(kx - x, ky - y) < 260;
-      const add = (name, char, hp, maxhp, alive, me, evil, x, y) => {
+      const add = (name, char, hp, maxhp, shield, alive, me, evil, x, y) => {
         const row = document.createElement('div');
         row.className = 'pRow' + (alive ? '' : ' dead') + (me ? ' me' : '') + (!evil && alive && chasedAt(x, y) ? ' chased' : '') + (char === 'supersonic' ? ' super' : '');
         const img = document.createElement('img');
@@ -43,27 +44,37 @@
         const col = document.createElement('div');
         col.className = 'pCol';
         const tx = document.createElement('span');
-        tx.textContent = `${name} ${Math.max(0, Math.ceil(hp || 0))}`;
+        tx.textContent = `${name} ${Math.max(0, Math.ceil(hp || 0) + Math.max(0, shield || 0))}`;
         const bar = document.createElement('div');
         bar.className = 'pBar';
         const fill = document.createElement('div');
         fill.className = 'pFill';
-        const frac = Math.max(0, Math.min(1, (hp || 0) / (maxhp || 100)));
+        const sh = Math.max(0, shield || 0);
+        const denom = (maxhp || 100) + (sh > 0 ? 50 : 0);
+        const frac = Math.max(0, Math.min(1, (hp || 0) / denom));
         fill.style.width = `${Math.round(frac * 100)}%`;
         fill.style.background = (hp || 0) <= 30 ? '#8e0000' : frac > 0.5 ? '#2ed573' : frac > 0.25 ? '#ffa502' : '#8e0000';
         bar.appendChild(fill);
+        if (sh > 0) {
+          // blue bonus hp sits past the green
+          const blue = document.createElement('div');
+          blue.className = 'pFillBlue';
+          blue.style.width = `${Math.round(Math.min(1, sh / denom) * 100)}%`;
+          blue.style.left = `${Math.round(frac * 100)}%`;
+          bar.appendChild(blue);
+        }
         col.appendChild(tx);
         col.appendChild(bar);
         row.appendChild(img);
         row.appendChild(col);
         partyList.appendChild(row);
       };
-      if (self && !p.evil) add(self.name, self.char === 'supersonic' && !SS.transformed ? 'sonic' : self.char, p.hp, p.maxHp, p.alive !== false, true, false, p.pos.x + p.w / 2, p.pos.y + p.h / 2);
+      if (self && !p.evil) add(self.name, self.char === 'supersonic' && !SS.transformed ? 'sonic' : self.char, p.hp, p.maxHp, p.shield || 0, p.alive !== false, true, false, p.pos.x + p.w / 2, p.pos.y + p.h / 2);
       for (const [id, d] of Object.entries(others || {})) {
         if (!d || id === net.id || id === killerId) continue;
         const r = game.remotes.find((r) => r.id === id);
         const rx = r ? r.pos.x + r.w / 2 : 1e9, ry = r ? r.pos.y + r.h / 2 : 1e9;
-        add(d.name, d.char === 'supersonic' && !d.super ? 'sonic' : d.char, d.hp, d.maxhp || 100, (d.alive ?? d.hp > 0), false, false, rx, ry);
+        add(d.name, d.char === 'supersonic' && !d.super ? 'sonic' : d.char, d.hp, d.maxhp || 100, d.shield || 0, (d.alive ?? d.hp > 0), false, false, rx, ry);
       }
     }
     // spike pips
@@ -84,18 +95,27 @@
       bombPips.appendChild(bm);
     }
     // blank slots
-    const AB = './Assets/Images/UI/Abillities/';
+    const AB = './Assets/Images/UI/Abilities/';
     const ABIL_ICONS = {
       hit: null,
       blank: AB + 'ability_blank.png',
       spikes: AB + 'ability_spikes.png',
       sneak: AB + 'ability_sneak.png',
-      pull: AB + 'abillity_pull.png',
+      pull: AB + 'ability_pull.png',
       rush: AB + 'ability_rushdown.png',
-      dash: AB + 'abillity_dash.png',
-      cower: AB + 'abillity_cower.png',
+      dash: AB + 'ability_dash.png',
+      cower: AB + 'ability_cower.png',
       roundhouse: AB + 'ability_roundhouse.png',
       jab: AB + 'ability_jab.png',
+      bear5m1: AB + 'blank_bear5m1.png',
+      pray: AB + 'icon_pray.png',
+      adrenaline: AB + 'blank_adrenneline.png',
+      overheal: AB + 'icon_overheal.png',
+      peelout: AB + 'icon_peelout.png',
+      spindash: AB + 'icon_spindash.png',
+      fly: AB + 'icon_fly.png',
+      bomb: AB + 'icon_bomb.png',
+      whip: AB + 'blank_tailwhip.png',
     };
     let abilDefs = [];
     function buildAbilities() {
@@ -104,7 +124,7 @@
       if (!p) return;
       if (p.evil) {
         if (net.killerPick === 'bear5') {
-          abilDefs = [{ key: 'Z', name: 'M1', icon: null, cd: () => 0 }];
+          abilDefs = [{ key: 'Z', name: 'M1', icon: ABIL_ICONS.bear5m1, cd: () => 0 }];
         } else {
           abilDefs = [
             { key: 'X', name: 'SPIKES', icon: ABIL_ICONS.spikes, cd: () => K.spikeCD },
@@ -126,29 +146,29 @@
         ];
       } else if (isSonic()) {
         abilDefs = [
-          { key: 'Z', name: 'PEELOUT', icon: null, cd: () => SN.peelCD },
-          { key: 'X', name: 'SPINDASH', icon: null, cd: () => SN.spinCD },
+          { key: 'Z', name: 'PEELOUT', icon: ABIL_ICONS.peelout, cd: () => SN.peelCD },
+          { key: 'X', name: 'SPINDASH', icon: ABIL_ICONS.spindash, cd: () => SN.spinCD },
         ];
       } else if (isSuper()) {
         // pre-glow, only one move
         abilDefs = SS.transformed ? [
           { key: 'Z', name: 'BOOST', icon: ABIL_ICONS.rush, cd: () => SS.boostCD },
           { key: 'X', name: 'BLOCK', icon: ABIL_ICONS.cower, cd: () => SS.blockCD },
-          { key: 'C', name: 'SPINDASH', icon: ABIL_ICONS.roundhouse, cd: () => SS.spinCD },
+          { key: 'C', name: 'SPINDASH', icon: ABIL_ICONS.spindash, cd: () => SS.spinCD },
         ] : [
           { key: 'Z', name: 'TRANSFORM', icon: null, cd: () => 0 },
         ];
       } else if (isTails()) {
         abilDefs = [
-          { key: 'Z', name: 'FLY', icon: null, cd: () => TW.flyCD },
-          { key: 'X', name: 'BOMB', icon: null, cd: () => TW.bombCD },
-          { key: 'C', name: 'WHIP', icon: null, cd: () => TW.whipCD },
+          { key: 'Z', name: 'FLY', icon: ABIL_ICONS.fly, cd: () => TW.flyCD },
+          { key: 'X', name: 'BOMB', icon: ABIL_ICONS.bomb, cd: () => TW.bombCD },
+          { key: 'C', name: 'WHIP', icon: ABIL_ICONS.whip, cd: () => TW.whipCD },
         ];
       } else {
         abilDefs = [
-          { key: 'Z', name: 'PRAY', icon: ABIL_ICONS.sneak, cd: () => L.prayCD },
-          { key: 'X', name: 'ADRENALINE', icon: ABIL_ICONS.rush, cd: () => L.adCD },
-          { key: 'C', name: 'HEAL', icon: ABIL_ICONS.cower, cd: () => L.shieldCD },
+          { key: 'Z', name: 'PRAY', icon: ABIL_ICONS.pray, cd: () => L.prayCD },
+          { key: 'X', name: 'ADRENALINE', icon: ABIL_ICONS.adrenaline, cd: () => L.adCD },
+          { key: 'C', name: 'OVERHEAL', icon: ABIL_ICONS.overheal, cd: () => L.overCD },
         ];
       }
       abilBar.innerHTML = '';
@@ -183,8 +203,9 @@
         p.maxHp = bear ? 999 : 250; p.hp = bear ? 999 : 250;
         p.maxJumps = 2;
         game.moveSpeed = bear ? 820 : 300; // evil speed
-        game.fly = bear;
-        game.noclip = bear;
+        // bear5 runs super fast but doesn't fly
+        game.fly = false;
+        game.noclip = false;
         game.spawn = { x: game.evilSpawn.x, y: game.evilSpawn.y }; // far spawn
       } else {
         p.char = net.pick || 'lux';
@@ -218,6 +239,17 @@
         d.cdEl.textContent = cooling ? `${left}` : '';
         if (d.key === 'C' && p.evil) {
           d.el.querySelector('.abName').textContent = `C ${p.invis ? 'CANCEL' : 'SNEAK'}`;
+        }
+      }
+      // lux prayer tag, bottom left
+      const prayEl = document.getElementById('prayLabel');
+      if (prayEl) {
+        if (!p.evil && isLux() && L.prayer && p.alive !== false) {
+          prayEl.textContent = `prayer of ${L.prayer}`;
+          prayEl.style.color = PRAY_COL[L.prayer] || '#fff';
+          if (prayEl.style.display !== 'block') prayEl.style.display = 'block';
+        } else if (prayEl.style.display !== 'none') {
+          prayEl.style.display = 'none';
         }
       }
       // trap count

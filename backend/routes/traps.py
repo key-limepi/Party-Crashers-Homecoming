@@ -5,7 +5,7 @@ import time
 from .. import state
 from ..admins import is_admin
 from ..config import ROCKET_DMG, ROCKET_GAP, ROCKET_RADIUS, ROCKET_UP, SPIKE_MAX
-from ..game import enemies_of, grace_over, is_rocketing
+from ..game import enemies_of, grace_over, is_rocketing, note_death
 
 
 def spike(h, data):
@@ -124,7 +124,13 @@ def bomb(h, data):
             bb = state.bombs.pop(data["bomb"])
             now = time.time()
             if data.get("id") == state.killer_id and me:
-                me["hp"] = max(0, me.get("hp", 250) - 30)
+                before = me.get("hp", 250)
+                me["hp"] = max(0, before - 30)
+                landed = min(30, before) # applied only
+                me["st_taken"] = me.get("st_taken", 0) + landed
+                owner = state.players.get(bb.get("owner"))
+                if owner:
+                    owner["st_dealt"] = owner.get("st_dealt", 0) + landed
                 # bomb stun decays over 45 seconds: 5s fresh → 2s at 45s
                 bomb_age = max(0, now - bb.get("at", now))
                 bomb_stun = max(2.0, 5.0 - (bomb_age / 15))
@@ -137,6 +143,9 @@ def bomb(h, data):
                             "at": now, "s": 2}
                 if me["hp"] <= 0:
                     me["alive"] = False
+                    if owner:
+                        owner["st_kills"] = owner.get("st_kills", 0) + 1
+                    note_death(me, now)
                 print(f"!! {me['name']} ate a bomb (age {bomb_age:.1f}s = {bomb_stun:.1f}s stun)!!", flush=True)
             owner = bb.get("owner")
             if owner and isinstance(owner, str):
@@ -199,9 +208,23 @@ def rocket(h, data):
                 # player x and y are the top left, hitbox is 28 by 60
                 if ((vic.get("x", 0) + 14 - x) ** 2 + (vic.get("y", 0) + 30 - y) ** 2) ** 0.5 > ROCKET_RADIUS:
                     continue
-                vic["hp"] = max(0, vic.get("hp", 100) - ROCKET_DMG) # always the full 50
+                # blue bonus hp eats rockets first
+                rem = ROCKET_DMG
+                take = min(vic.get("shield", 0), rem)
+                vic["shield"] = vic.get("shield", 0) - take
+                rem -= take
+                if take > 0:
+                    vic["shield_hit_at"] = now # sting mark
+                before = vic.get("hp", 100)
+                vic["hp"] = max(0, before - rem) # always the full 50
+                landed = take + min(rem, before) # applied only
+                me["st_dealt"] = me.get("st_dealt", 0) + landed
+                vic["st_taken"] = vic.get("st_taken", 0) + landed
                 if vic["hp"] <= 0:
                     vic["alive"] = False
+                    vic["shield"] = 0 # death clears bonus
+                    me["st_kills"] = me.get("st_kills", 0) + 1
+                    note_death(vic, now)
                 hit.append(vic["name"])
             state.blast_seq += 1
             state.blasts.append({"id": f"x{state.blast_seq}", "x": x, "y": y, "r": ROCKET_RADIUS,

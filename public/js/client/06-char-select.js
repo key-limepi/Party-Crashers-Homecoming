@@ -9,14 +9,14 @@
              document.getElementById('csSurv1'),
              document.getElementById('csSurv2')],
     };
-    const EVIL_RUN = ['./Assets/Images/Characters/Killers/Evil Lux/run1.png',
-                      './Assets/Images/Characters/Killers/Evil Lux/run2.png'];
+    const EVIL_RUN = ['./Assets/Images/Characters/Killers/EvilLux/run1.png',
+                      './Assets/Images/Characters/Killers/EvilLux/run2.png'];
     let selIdx = 0, selectOpen = false, takenMap = {}, csFrame = 0;
     // dev roster
     let devChars = {};
     // Nyan Cyat is a dev-only survivor
     const KILLER_ROSTER = [
-      { id: 'evil', name: 'EVIL LUX' },
+      { id: 'evil', name: 'EVIL LUX', nameImg: './Assets/Images/UI/CharacterSelect/eluxname.png' },
       { id: 'bear5', name: 'BEAR5', nameImg: CS + 'bear5name.jpeg', dev: true },
     ];
     function visRoster() {
@@ -26,6 +26,28 @@
     function visKillerRoster() {
       return KILLER_ROSTER.filter((c) => !c.dev || net.mod);
     }
+    // preview blurbs, true to kit
+    let CHAR_INFO = {};
+    fetch('./chars.txt').then((r) => r.text()).then((txt) => {
+      // section per id, # comments
+      let cur = null;
+      for (const raw of txt.split('\n')) {
+        const line = raw.trim();
+        if (!line || line[0] === '#') continue;
+        const sec = line.match(/^\[(.+)\]$/);
+        if (sec) { cur = sec[1].trim(); CHAR_INFO[cur] = { desc: '', moves: [], passive: '' }; continue; }
+        if (!cur) continue;
+        const [k, ...rest] = line.split(':');
+        const v = rest.join(':').trim();
+        if (k.trim() === 'desc') CHAR_INFO[cur].desc = v;
+        else if (k.trim() === 'passive') CHAR_INFO[cur].passive = v;
+        else if (k.trim() === 'move') {
+          const parts = v.split('|').map((s) => s.trim());
+          if (parts.length >= 3) CHAR_INFO[cur].moves.push([parts[0], parts[1], parts.slice(2).join('|')]);
+        }
+      }
+      if (selectOpen) renderSelect(); // fill preview now
+    }).catch(() => {}); // no cards, game goes on
     let revealUntil = 0; // reveal timer
     let selectClosedAt = 0, closeToken = 0;
     let openStreak = 0, closeStreak = 0, revealedRound = null;
@@ -120,10 +142,12 @@
         if (extra > 0) lastTag.textContent += ` +${extra}!!`;
       }
       for (; si < 3; si++) fillSlot(csSlotEls.surv[si], `s${si}`, null);
-      // killer only
+      // killer only, picked faces only
       const kp = killerId && players[killerId];
-      if (kp) fillSlot(csSlotEls.killer, 'killer', kp.killer_char || 'evil', kp.name);
-      else fillSlot(csSlotEls.killer, 'killer', null);
+      if (kp && kp.killer_char) {
+        const kName = kp.killer_char === 'bear5' ? 'BEAR5' : 'EVIL LUX'; // say who
+        fillSlot(csSlotEls.killer, 'killer', kp.killer_char, `${kName} - ${kp.name}`);
+      } else fillSlot(csSlotEls.killer, 'killer', null);
     }
     function renderSelect() {
       // pick bar
@@ -143,6 +167,21 @@
           csName.dataset.char = cur.id;
           csName.src = cur.nameImg;
           csName.alt = cur.name;
+        }
+      }
+      // preview card
+      const info = CHAR_INFO[cur.id];
+      const prevInfo = document.getElementById('csPrevInfo');
+      if (prevInfo && prevInfo.dataset.char !== cur.id) {
+        prevInfo.dataset.char = cur.id;
+        const lines = info ? [`${info.desc}`] : [];
+        if (info) for (const [k, n, d] of info.moves) lines.push(`${k} ${n} - ${d}`);
+        if (info && info.passive) lines.push(`* ${info.passive}`);
+        prevInfo.innerHTML = '';
+        for (const ln of lines) {
+          const div = document.createElement('div');
+          div.textContent = ln;
+          prevInfo.appendChild(div);
         }
       }
       const evilLocked = !!(game.player && game.player.evil) || net.phase === 'round';
@@ -210,4 +249,22 @@
       };
       paint(csSlotEls.killer);
       for (const el of csSlotEls.surv) paint(el);
+      // preview idle animation
+      const prevImg = document.getElementById('csPrevImg');
+      if (prevImg) {
+        const killerPicker = !!net.amKillerElect;
+        const vis = killerPicker ? visKillerRoster() : visRoster();
+        const cur = vis[((selIdx % vis.length) + vis.length) % vis.length];
+        const face = cur.id === 'supersonic' ? 'sonic' : cur.id;
+        const set = cur.id === 'evil' ? evilSprites : (charSprites[face] || luxSprites);
+        const seq = (set.idle && (Array.isArray(set.idle) ? set.idle : [set.idle])) || [];
+        const fr = seq[Math.floor(csFrame / 3) % Math.max(1, seq.length)];
+        const src = fr && fr.complete && fr.naturalWidth ? fr.src : null;
+        if (src) {
+          if (prevImg.getAttribute('src') !== src) prevImg.src = src;
+          prevImg.style.display = '';
+        } else {
+          prevImg.style.display = 'none';
+        }
+      }
     }, 180);

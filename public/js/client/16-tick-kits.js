@@ -71,12 +71,37 @@
             p.chargeSpeed = 750 * (PRAY_SPD[L.prayer] || 1); // peelout pace
             p.rooted = false;
             fileSfx(SFX + 'super_dash.wav', {});
-          } else if (ab === 'C' && now >= L.shieldCD && !L.prayUntil && !L.rushing && !L.panting && !L.shieldUntil && data.phase === 'round') {
-            // team heal cast
-            L.shieldCD = now + 15000 * luxCdMult();
-            L.shieldUntil = now + 5000; L.shieldNext = 0; L.shieldHp = p.hp; L.shieldTold = false;
+          } else if (ab === 'C' && now >= L.overCD && !L.overBusy && !L.prayUntil && !L.rushing && !L.panting && data.phase === 'round') {
+            // overheal one ally, or self in LMS
+            L.overBusy = true;
             p.actionImg = luxSprites.pray[0]; p.actionT = 0.4;
-            fileSfx(SFX + 'spike_place.wav', {});
+            const targetId = data.lms_set ? net.id : null; // self-target in LMS
+            fetch('/api/overheal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: net.id, target: targetId }),
+            }).then((r) => r.json()).then((d) => {
+              L.overBusy = false;
+              if (d && d.ok) {
+                L.overCD = Date.now() + 15000 * luxCdMult();
+                sayStatus(d.lms_self ? 'LMS self-overheal +25 shield!!' : `overhealed ${d.name}!!`, 3);
+                fileSfx(SFX + 'dash_release.wav', {});
+                // holy shock here
+                game.luxGlow(p.pos.x + p.w / 2, p.pos.y + p.h / 2, '#5ff2ff', 3, 90);
+                // empower burst there
+                const tgt = game.remotes.find((r) => r.id === d.target);
+                if (tgt) game.luxGlow(tgt.pos.x + tgt.w / 2, tgt.pos.y + tgt.h / 2, '#ffd23f', 6, 130);
+                // mark the target for lux
+                game.bubbles[d.target] = { text: 'OVERHEAL!!', until: Date.now() + 2000 };
+              } else {
+                // failed casts cost nothing
+                sayStatus(d && d.reason ? d.reason : 'overheal failed!!', 2);
+                fileSfx(SFX + 'denied.wav', {});
+              }
+            }).catch(() => {
+              L.overBusy = false;
+              sayStatus('overheal lost the server!!', 2);
+            });
           }
           continue;
         }
@@ -106,6 +131,7 @@
             }).catch(() => {});
             // bit back
             fileSfx(SFX + (victim.cowering ? 'basic_hit.wav' : 'm1_hit.wav'), {});
+            game.luxGlow(victim.pos.x + victim.w / 2, victim.pos.y + victim.h / 2, '#ff6b6b', 4, 120);
           }
         } else if (ab === 'X' && now >= K.spikeCD) {
           // stay grounded
@@ -119,6 +145,7 @@
           p.actionImg = isBear5() ? bear5Image : evilAct.spike; p.actionT = 0.5;
           setPose('spike', 500);
           fileSfx(SFX + 'spike_place.wav', {});
+          game.luxGlow(sx, sy - 10, '#c9c9d6', 4, 90); // set dust
           fetch('/api/spike', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -222,6 +249,7 @@
                 body: JSON.stringify({ id: net.id, victim: r.id, dmg: 75, stun: 0 }),
               }).catch(() => {});
               fileSfx(SFX + 'm1_hit.wav', { rate: 0.7 }); // slam sound
+              game.luxGlow(r.pos.x + r.w / 2, r.pos.y + r.h / 2, '#ff4757', 6, 140); // slam chunks
               p.stunT = 3;
               K.charging = false; p.chargeDir = 0;
               break;
@@ -250,7 +278,10 @@
           const pullD = Math.hypot(kx - rx, ky - ry);
           if (pullD >= PULL_RANGE) continue;
           // through walls now
-          if (!K.pullHit) { fileSfx(SFX + 'basic_hit.wav', {}); voiceSfx(vpick(VL_PULL)); } // caught one
+          if (!K.pullHit) {
+            fileSfx(SFX + 'basic_hit.wav', {}); voiceSfx(vpick(VL_PULL));
+            game.luxGlow(rx, ry, '#c084fc', 4, 110); // rope catch
+          } // caught one
           K.pullHit = true;
           // closer burns more
           const tickDmg = Math.round(2 + 8 * (1 - pullD / PULL_RANGE));
@@ -266,10 +297,11 @@
     }
 
     function tickLux(t) {
-      let { p, isLMS, now } = t;
+      let { p, data, isLMS, now } = t;
       // lux lightshard kit
       if (!p.evil && isLux()) {
         const luxCdMult = () => (L.prayer === 'haste' ? 1.5 : L.prayer === 'burden' ? 0.7 : 1) * (isLMS ? LMS_CD : 1);
+        const pcx = p.pos.x + p.w / 2, pcy = p.pos.y + p.h / 2; // lux center
         // dim look, shard drains
         const dim = !!L.hot;
         if (dim && p._wore !== 'luxdim') { game.setPlayerSprites(luxDimSprites); p._wore = 'luxdim'; }
@@ -296,10 +328,16 @@
           p.rooted = false;
           p.actionImg = luxSprites.prayend; p.actionT = 0.6;
           sayStatus('prayer of ' + L.prayer + '!!', 3);
+          game.luxRing(pcx, pcy, '#ffe93b', 560); // prayer answered
+          game.luxGlow(pcx, pcy, '#ffe93b', 5, 120);
         }
         if (L.prayUntil) {
           p.actionImg = luxSprites.pray[0]; p.actionT = 0.15;
           p.rooted = true;
+          if (now >= (L._prayFxAt || 0)) {
+            L._prayFxAt = now + 130;
+            game.luxGlow(pcx, pcy, '#ffe93b', 2, 90); // rising prayers
+          }
         }
         // light float, prayer or overheal
         p.luxFloat = L.prayUntil ? 70 : ((p.hp ?? 0) > (p.maxHp ?? 100) ? 40 : 0);
@@ -308,10 +346,15 @@
           if (now >= L.adUntil || p.alive === false) {
             L.rushing = false; L.panting = true; L.pantUntil = now + 3000;
             p.chargeDir = 0; p.chargeSpeed = 0; p.rooted = true;
+            game.luxGlow(pcx, pcy, '#ffffff', 4, 130); // skid stop
           } else {
             if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
             else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
             p.actionImg = luxSprites.adrun[Math.floor(now / 80) % 2]; p.actionT = 0.15;
+            if (now >= (L._rushFxAt || 0)) {
+              L._rushFxAt = now + 110;
+              game.luxGlow(pcx, pcy, '#aef1ff', 2, 140); // speed sparks
+            }
             const gi = game._spriteFor(p);
             const fs = game.frameSize(p, gi);
             game.afterimages.push({
@@ -330,35 +373,15 @@
             L.adCD = now + 20000 * luxCdMult();
           }
         }
-        // heal channel, breaks on real hits
-        if (L.shieldUntil) {
-          if (now >= L.shieldUntil || p.alive === false) {
-            L.shieldUntil = 0;
-          } else if ((p.hp ?? 0) < (L.shieldHp ?? 0) - 10) {
-            L.shieldUntil = 0; // hit taken
-          } else {
-            // channel pulse, no prayer
-            p.actionImg = (Math.floor(now / 400) % 2) ? luxSprites.prayend : luxSprites.pray[0];
-            p.actionT = 0.15;
-            if (now >= (L.shieldNext || 0)) {
-              L.shieldNext = now + 1000;
-              fetch('/api/teamheal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: net.id }),
-              }).then((r) => r.json()).then((d) => {
-                if (!L.shieldTold) {
-                  L.shieldTold = true;
-                  sayStatus(d && d.ok && d.n ? `healing ${d.n}!!` : 'no allies near!!', 2);
-                }
-              }).catch(() => {});
-            }
-          }
-        }
         // engine flags, all screens
         p.praying = !!L.prayUntil;
         p.rushing = !!L.rushing;
         p.panting = !!L.panting;
+        // conversion shimmer, shard working
+        if (dim && p.alive !== false && now >= (L._hotFxAt || 0)) {
+          L._hotFxAt = now + 260;
+          game.luxGlow(pcx, pcy, '#5ff2ff', 1, 110);
+        }
         // overhealed lux pants too
         if (!L.prayUntil && !L.rushing && !L.panting && (p.hp ?? 0) > (p.maxHp ?? 100)) {
           p.actionImg = luxSprites.pant[Math.floor(now / 200) % 2]; p.actionT = 0.15;
@@ -725,6 +748,7 @@
             T.kickCD = now + 20000 * (isLMS ? LMS_CD : 1);
             setPose('kick', 400);
             fileSfx(SFX + 'roundhouse_hit.wav', {});
+            game.luxGlow(ek.pos.x + ek.w / 2, ek.pos.y + ek.h / 2, '#ffe93b', 4, 120);
             const away = (p.pos.x + p.w / 2) >= (ek.pos.x + ek.w / 2) ? 1 : -1;
             p.vel.x = away * 1350; // huge bounce
             p.vel.y = -950;
@@ -787,6 +811,7 @@
               Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < 70) {
             NY.dashHit = true;
             fileSfx(SFX + 'basic_hit.wav', {});
+            game.luxGlow(ek.pos.x + ek.w / 2, ek.pos.y + ek.h / 2, '#ff8ce1', 4, 120); // rainbow slam
             fetch('/api/hit', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -859,6 +884,7 @@
             TW.whipCD = now + WHIP_CD * (isLMS ? LMS_CD : 1);
             const away = (p.pos.x + p.w / 2) >= (ek.pos.x + ek.w / 2) ? 1 : -1;
             p.vel.x = away * 500;
+            game.luxGlow(ek.pos.x + ek.w / 2, ek.pos.y + ek.h / 2, '#ffa502', 4, 120); // whip crack
             fetch('/api/hit', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

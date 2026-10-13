@@ -81,7 +81,7 @@
       run: [loadImg(TAILS + "bombcarry.png"), loadImg(TAILS + "bombcarry2.png"), loadImg(TAILS + "bombcarry3.png"), loadImg(TAILS + "bombcarry4.png"), loadImg(TAILS + "bombcarry5.png"), loadImg(TAILS + "bombcarry6.png")],
       jump: loadImg(TAILS + "jumpcarry.png"),
     };
-    const SSP = "./Assets/Images/Characters/Survivors/Super Sonic/";
+    const SSP = "./Assets/Images/Characters/Survivors/SuperSonic/";
     const superSprites = {
       idle: [loadImg(SSP + "idle1.png"), loadImg(SSP + "idle2.png"), loadImg(SSP + "idle3.png")],
       walk: [loadImg(SSP + "walk1.png"), loadImg(SSP + "walk2.png"), loadImg(SSP + "walk3.png"), loadImg(SSP + "walk4.png"), loadImg(SSP + "walk5.png"), loadImg(SSP + "walk6.png")],
@@ -103,7 +103,7 @@
       transform: [loadImg(SSP + "transform.png"), loadImg(SSP + "transform2.png"), loadImg(SSP + "transform3.png"), loadImg(SSP + "transform5.png"), loadImg(SSP + "transform6.png"), loadImg(SSP + "transform7.png"), loadImg(SSP + "transform8.png"), loadImg(SSP + "rollflash.png")],
       fall: loadImg(SSP + "roll1.png"),
     };
-    const NYAN = "./Assets/Images/Characters/Survivors/Nyan Cyat/";
+    const NYAN = "./Assets/Images/Characters/Survivors/NyanCyat/";
     const nyanRun = [1, 2, 3, 4, 5, 6].map((n) => loadImg(NYAN + `main-${n}.png`)); // one loop fits all
     const nyanSprites = {
       idle: nyanRun,
@@ -133,8 +133,8 @@
     game.setPlayerSprites(luxSprites);
 
     // evil stats
-    const EVIL = "./Assets/Images/Characters/Killers/Evil Lux/";
-    const bear5Image = loadImg("./Assets/Images/Characters/bear5/Bear5.png");
+    const EVIL = "./Assets/Images/Characters/Killers/EvilLux/";
+    const bear5Image = loadImg("./Assets/Images/Characters/Killers/Bear5/Bear5.png");
     const evilSprites = {
       idle: [loadImg(EVIL + "idle1.png"), loadImg(EVIL + "idle2.png")],
       walk: [loadImg(EVIL + "walk1.png"), loadImg(EVIL + "walk2.png")],
@@ -168,7 +168,7 @@
 
     game.chatBubbleImg = loadImg("./Assets/Images/UI/chatbub.png");
     game.alertArrow = loadImg("./Assets/Images/UI/CharacterSelect/left.png"); // ping arrow
-    game.spikeImg = loadImg("./Assets/Images/Characters/Killers/Evil Lux/spikes.png");
+    game.spikeImg = loadImg("./Assets/Images/Characters/Killers/EvilLux/spikes.png");
     game.bombImg = loadImg(TAILS + "bomb.png");
     game.boomImg = loadImg("./Assets/Images/Objects/explosion.gif");
 

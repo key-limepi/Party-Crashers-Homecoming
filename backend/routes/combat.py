@@ -4,7 +4,7 @@ import time
 
 from .. import state
 from ..config import STUN_IFRAMES, TOUCH_COOLDOWN
-from ..game import grace_over, is_rocketing
+from ..game import grace_over, is_rocketing, note_death
 
 
 def hit(h, data):
@@ -65,7 +65,18 @@ def hit(h, data):
                     return
                 if stun > 0 or now - state.last_hit.get(data["victim"], 0) >= TOUCH_COOLDOWN:
                     state.last_hit[data["victim"]] = now
-                    vic["hp"] = max(0, vic.get("hp", 100) - dmg)
+                    # blue bonus hp eats hits first
+                    rem = dmg
+                    take = min(vic.get("shield", 0), rem)
+                    vic["shield"] = vic.get("shield", 0) - take
+                    rem -= take
+                    if take > 0:
+                        vic["shield_hit_at"] = now # sting mark
+                    before = vic.get("hp", 100)
+                    vic["hp"] = max(0, before - rem)
+                    landed = take + min(rem, before) # applied only
+                    atk["st_dealt"] = atk.get("st_dealt", 0) + landed
+                    vic["st_taken"] = vic.get("st_taken", 0) + landed
                     stack = bool(data.get("stack", False))
                     try:
                         kbp = max(1, min(3, float(data.get("kb", 1))))
@@ -92,6 +103,9 @@ def hit(h, data):
                             vic["kb"] = {"x": _dx / _dist, "y": _dy / _dist, "at": now, "s": stun, "p": kbp}
                     if vic["hp"] <= 0:
                         vic["alive"] = False
+                        vic["shield"] = 0 # death clears bonus
+                        atk["st_kills"] = atk.get("st_kills", 0) + 1
+                        note_death(vic, now)
                     print(f"!! {k['name']} hit {vic['name']} for {dmg}!!", flush=True)
                     h.send_json({"ok": True})
                     return

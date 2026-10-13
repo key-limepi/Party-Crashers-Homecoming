@@ -6,8 +6,9 @@ import time
 from . import state
 from .admins import is_admin
 from .config import (AURA_RADIUS, AURA_T1, AURA_T2, AURA_TICKS, BLAST_LIFE, CHARACTERS, CHAT_LIFE, GRACE_TIME, INTER_TIME, INTRO_TIME,
-                     LMS_DURATIONS, MALICE_PER_ROUND, ROCKET_LIFE, ROCKET_UP, ROUND_BASE,
-                     ROUND_COST, ROUND_MAX, ROUND_PER_PLAYER, SELECT_TIME, TIMEOUT)
+                     GRADE_CUTS, LMS_DURATIONS, MALICE_PER_ROUND, OVERHEAL_BONUS, OVERHEAL_DRAIN, WIN_CUTSCENES,
+                     ROCKET_LIFE, ROCKET_UP, ROUND_BASE, ROUND_COST, ROUND_MAX, ROUND_PER_PLAYER, SCORE_DMG, SCORE_HEAL,
+                     SCORE_KILL, SCORE_SURV, SCORE_TAKEN, SELECT_TIME, TIMEOUT)
 from .formbar import charge_player
 from .malice_store import add_malice, pick_killer, set_malice
 
@@ -97,6 +98,12 @@ def start_select(free=False):
     print("[GAME] State: CHARACTER_SELECT (30s)", flush=True)
 
 
+def note_death(pl, now):
+    # first death stamp only
+    if not pl.get("alive", True) and not pl.get("st_died"):
+        pl["st_died"] = now
+
+
 def start_round():
     players = state.players
     state.pending_end = 0
@@ -123,6 +130,15 @@ def start_round():
     for pl in eligible.values():
         pl["alive"] = True
         pl["hp"] = pl.get("maxhp", 100)
+        pl["hp_ack"] = pl["hp"] # tab agrees at full
+        pl["shield"] = 0 # no bonus carried in
+        pl["shield_next"] = 0
+        pl["over_cd"] = 0
+        pl["st_dealt"] = 0 # fresh scores
+        pl["st_taken"] = 0
+        pl["st_healed"] = 0
+        pl["st_kills"] = 0
+        pl["st_died"] = 0
         pl["stun_until"] = 0
         pl["aura_tier"] = 0
         pl["aura_next"] = 0
@@ -162,12 +178,37 @@ def end_round(winner):
     players = state.players
     if state.phase != "round":
         return
+    now = time.time()
+    rnd = state.current_round
+    kid = state.killer_id
+    name = players.get(kid, {}).get("name", "???") if kid else "???"
+    # capture scores before reset (for malice)
+    for pid in list(state.round_players):
+        pl = players.get(pid)
+        if not pl:
+            continue
+    # killer win -> winscreen cinema
+    kchar = players.get(kid, {}).get("killer_char") or "evil"
+    if winner == "killer":
+        state.result = {"winner": winner, "killer_name": name, "round": rnd,
+                        "lms": bool(state.lms_set), "cutscene": WIN_CUTSCENES.get(kchar)}
+        state.phase = "lms_cutscene"
+        state.phase_end = time.time() + 30 # video length buffer
+    else:
+        # normal round end -> intermission
+        state.result = {"winner": winner, "killer_name": name, "round": rnd, "lms": False}
+        state.phase = "intermission"
+        state.phase_end = time.time() + INTER_TIME
     state.current_round += 1 # fresh rounds
     for pl in players.values():
         pl["alive"] = True
         pl["hp"] = pl.get("maxhp", 100)
+        pl["hp_ack"] = pl["hp"]
+        pl["shield"] = 0
+        pl["shield_next"] = 0
+        pl["over_cd"] = 0
         pl["stun_until"] = 0
-        pl["char"] = None # fresh picks
+        pl["char"] = None
         pl["aura_tier"] = 0
         pl["aura_next"] = 0
         pl["aura_hot_until"] = 0
@@ -178,17 +219,12 @@ def end_round(winner):
     del state.blasts[:]
     del state.alerts[:]
     state.last_hit.clear()
-    name = players.get(state.killer_id, {}).get("name", "???") if state.killer_id else "???"
-    state.result = {"winner": winner, "killer_name": name}
     for pid in state.round_players:
-        # survivors gain malice
-        if pid in players and pid != state.killer_id:
+        if pid in players and pid != kid:
             add_malice(players[pid]["fid"], MALICE_PER_ROUND)
-    state.killer_id = None # drop evil
     state.round_players.clear()
-    state.phase = "intermission"
-    state.phase_end = time.time() + INTER_TIME
-    print(f"!! round {state.current_round} over - {winner} win!! intermission!!", flush=True)
+    state.cutscene_skip.clear() # fresh votes
+    print(f"!! round {rnd} over - {winner} win!!", flush=True)
 
 
 def grace_over(now):
@@ -283,9 +319,23 @@ def _tick_lux_aura(now):
                 if dx * dx + dy * dy > AURA_RADIUS * AURA_RADIUS:
                     continue
                 if q.get("hp", 100) < q.get("maxhp", 100):
-                    q["hp"] = min(q.get("maxhp", 100), q.get("hp", 100) + int(amt * q.get("healmult", 1.0)))
+                    before = q.get("hp", 100)
+                    q["hp"] = min(q.get("maxhp", 100), before + int(amt * q.get("healmult", 1.0)))
+                    pl["st_healed"] = pl.get("st_healed", 0) + (q["hp"] - before) # applied only
                     if qid != pid:
                         pl["aura_hot_until"] = now + iv # healing others
+
+
+def _tick_shields(now):
+    # blue bonus hp drains, dead keep none
+    for pid, pl in state.players.items():
+        if not pl.get("alive", True) or pid not in state.round_players:
+            if pl.get("shield", 0):
+                pl["shield"] = 0
+            continue
+        if pl.get("shield", 0) > 0 and now >= pl.get("shield_next", 0):
+            pl["shield"] = max(0, pl["shield"] - max(1, int(round(OVERHEAL_DRAIN * 0.5))))
+            pl["shield_next"] = now + 0.5
 
 
 def _tick_lobby(now):
@@ -330,12 +380,31 @@ def _tick_select(now):
             state.killer_id = None
 
 
+def _tick_lms_cutscene(now):
+    # evil cinema, then break
+    if len(here_players()) < 2:
+        state.phase = "lobby"
+        state.killer_id = None
+        state.cutscene_skip.clear()
+        print("!! not enough players - back to lobby!!", flush=True)
+    elif now >= state.phase_end:
+        state.killer_id = None # drop evil
+        state.cutscene_skip.clear()
+        state.phase = "intermission"
+        state.phase_end = now + INTER_TIME
+        print("[GAME] State: INTERMISSION (30s)", flush=True)
+
+
 def _tick_intro(now):
     # killer intro video
     if len(state.round_players.intersection(state.players)) < 2:
         for pl in state.players.values():
             pl["alive"] = True
             pl["hp"] = pl.get("maxhp", 100)
+            pl["hp_ack"] = pl["hp"] # tab agrees at full
+            pl["shield"] = 0
+            pl["shield_next"] = 0
+            pl["over_cd"] = 0
         state.killer_id = None
         state.round_players.clear()
         state.phase = "lobby"
@@ -350,6 +419,10 @@ def _tick_round(now):
         for pl in players.values():
             pl["alive"] = True
             pl["hp"] = pl.get("maxhp", 100)
+            pl["hp_ack"] = pl["hp"] # tab agrees at full
+            pl["shield"] = 0
+            pl["shield_next"] = 0
+            pl["over_cd"] = 0
         state.killer_id = None
         state.round_players.clear()
         state.phase = "lobby"
@@ -397,6 +470,7 @@ PHASE_TICKS = {
     "select": _tick_select,
     "intro": _tick_intro,
     "round": _tick_round,
+    "lms_cutscene": _tick_lms_cutscene,
 }
 
 
@@ -410,6 +484,7 @@ def game_tick():
                 _drop_timed_out(now)
                 _expire_lists(now)
                 _expire_bombs(now)
+                _tick_shields(now)
                 _tick_lux_aura(now)
                 handler = PHASE_TICKS.get(state.phase)
                 if handler:

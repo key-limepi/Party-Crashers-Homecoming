@@ -129,6 +129,7 @@ Object.assign(PlatformerEngine.prototype, {
 
   // bomb pop
   addBoom(x, y, scale = 1) {
+    if (window.FX_ON === false) return null; // settings hush
     // fresh img per boom
     let img = null;
     const b = { x, y, age: 0, scale, img, loaded: false };

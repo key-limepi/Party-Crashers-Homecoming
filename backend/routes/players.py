@@ -5,7 +5,8 @@ import time
 
 from .. import state
 from ..admins import is_admin
-from ..config import DIGIPOGS_ON, FORMBAR_MODE, TEAMHEAL_GAP, TEAMHEAL_HP, TEAMHEAL_RADIUS, STATE_KEYS
+from ..config import DIGIPOGS_ON, FORMBAR_MODE, OVERHEAL_BONUS, OVERHEAL_CD, OVERHEAL_RADIUS, STATE_KEYS
+from ..game import note_death
 
 
 def join(h, data):
@@ -60,6 +61,10 @@ def join(h, data):
             "alive": True, "invis": False, "m1": True,
             "stunned": False, "pull": False, "away": False, "cower": False,
             "windup": False, "pose": None, "dashing": False, "stun_until": 0,
+            "hp_ack": 100, # last hp it told us
+            "shield": 0, # blue bonus hp
+            "shield_next": 0.0, # drain tick
+            "over_cd": 0.0, # overheal wait
             "last": time.time(),
         }
     print(f"!! {state.players[pid]['name']} joined ({pid})", flush=True)
@@ -94,17 +99,34 @@ def state_post(h, data):
                     maxhp = 100
                 old_max = pl.get("maxhp", 100)
                 pl["maxhp"] = maxhp
-                try:
-                    posted = int(data.get("hp", pl["hp"]))
-                except (ValueError, TypeError):
-                    posted = pl["hp"]
-                if maxhp > old_max:
-                    # fresh hp
-                    pl["hp"] = max(0, min(maxhp, posted))
-                elif "hp" in data:
-                    pl["hp"] = max(0, min(pl["hp"], posted))
+                if "hp" in data:
+                    try:
+                        posted = int(data.get("hp"))
+                    except (ValueError, TypeError):
+                        posted = None
+                    if posted is not None:
+                        if maxhp > old_max:
+                            # fresh hp
+                            pl["hp"] = max(0, min(maxhp, posted))
+                        else:
+                            # stale posts never undo a heal
+                            acked = pl.get("hp_ack", pl["hp"])
+                            if posted < min(pl["hp"], acked):
+                                # tab-only hits eat shield first
+                                delta = min(pl["hp"], acked) - posted
+                                take = min(pl.get("shield", 0), delta)
+                                pl["shield"] = pl.get("shield", 0) - take
+                                pl["hp"] = max(0, posted + take)
+                                pl["st_taken"] = pl.get("st_taken", 0) + delta # no farmer
+                                if take > 0:
+                                    pl["shield_hit_at"] = time.time() # sting mark
+                        # what the tab still believes
+                        pl["hp_ack"] = min(posted, pl["hp"])
                 if "alive" in data:
                     pl["alive"] = bool(data["alive"])
+                    if not pl["alive"]:
+                        pl["shield"] = 0 # death clears bonus
+                        note_death(pl, time.time())
             pl["last"] = time.time()
     h.send_json({"ok": True})
     return
@@ -158,34 +180,59 @@ def heal(h, data):
     return
 
 
-def teamheal(h, data):
-    """POST /api/teamheal"""
-    # lux channel heals the team
+def overheal(h, data):
+    """POST /api/overheal"""
+    # lux grants one ally blue bonus hp
     now = time.time()
     with state.lock:
         me = state.players.get(data.get("id"))
-        if (me and state.phase == "round" and me.get("alive", True)
+        if not (me and state.phase == "round" and me.get("alive", True)
                 and me.get("char") == "lux" and data.get("id") != state.killer_id
-                and data.get("id") in state.round_players
-                and now - me.get("heal_cd", 0) >= TEAMHEAL_GAP):
-            me["heal_cd"] = now
-            n = 0
-            for pid, pl in state.players.items():
-                if pid == data.get("id") or pid not in state.round_players:
-                    continue
-                if not pl.get("alive", True) or pid == state.killer_id:
-                    continue
-                dx = pl.get("x", 0) - me.get("x", 0)
-                dy = pl.get("y", 0) - me.get("y", 0)
-                if dx * dx + dy * dy > TEAMHEAL_RADIUS * TEAMHEAL_RADIUS:
-                    continue
-                cap = pl.get("maxhp", 100)
-                if pl.get("hp", 100) < cap:
-                    pl["hp"] = min(cap, pl.get("hp", 100) + int(TEAMHEAL_HP * pl.get("healmult", 1.0)))
-                    n += 1
-            print(f"!! {me['name']} teamhealed {n}!!", flush=True)
-            h.send_json({"ok": True, "n": n})
-        else:
-            h.send_json({"ok": False})
+                and data.get("id") in state.round_players):
+            h.send_json({"ok": False, "reason": "nope!!"})
+            return
+        if now - me.get("over_cd", 0) < OVERHEAL_CD:
+            h.send_json({"ok": False, "reason": "not ready!!"})
+            return
+        
+        # LMS self-overheal: Lux gives herself 25 shield (overheal)
+        target_id = data.get("target")
+        if state.lms_set and target_id == me["id"]:
+            me["shield"] = me.get("shield", 0) + 25
+            me["shield_next"] = now + 0.5
+            me["over_cd"] = now
+            me["st_healed"] = me.get("st_healed", 0) + 25
+            print(f"!! {me['name']} LMS self-overhealed +25 shield!!", flush=True)
+            h.send_json({"ok": True, "target": me["id"], "name": me["name"], "shield": me["shield"], "lms_self": True})
+            return
+        
+        # neediest ally in reach, full bonus last
+        best, best_need, best_d2 = None, 0, 0
+        for pid, pl in state.players.items():
+            if pid == data.get("id") or pid not in state.round_players:
+                continue
+            if not pl.get("alive", True) or pid == state.killer_id:
+                continue
+            dx = pl.get("x", 0) - me.get("x", 0)
+            dy = pl.get("y", 0) - me.get("y", 0)
+            d2 = dx * dx + dy * dy
+            if d2 > OVERHEAL_RADIUS * OVERHEAL_RADIUS:
+                continue
+            need = pl.get("maxhp", 100) + OVERHEAL_BONUS - pl.get("hp", 100) - pl.get("shield", 0)
+            if need <= 0:
+                continue
+            if best is None or need > best_need or (need == best_need and d2 < best_d2):
+                best, best_need, best_d2 = pid, need, d2
+        if best is None:
+            h.send_json({"ok": False, "reason": "nobody around!!"})
+            return
+        me["over_cd"] = now # only wins cost cooldown
+        tgt = state.players[best]
+        gave = OVERHEAL_BONUS - tgt.get("shield", 0) # applied only
+        tgt["shield"] = OVERHEAL_BONUS # topped up blue hp
+        tgt["shield_next"] = now + 0.5
+        me["st_healed"] = me.get("st_healed", 0) + max(0, gave)
+        print(f"!! {me['name']} overhealed {tgt['name']}!!", flush=True)
+        h.send_json({"ok": True, "target": best, "name": tgt["name"], "shield": tgt["shield"]})
     return
 

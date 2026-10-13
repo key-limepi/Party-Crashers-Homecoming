@@ -22,7 +22,7 @@ POST_ROUTES = {
     "/api/chat": lobby.chat,
     "/api/mod": mod.mod_action,
     "/api/heal": players.heal,
-    "/api/teamheal": players.teamheal,
+    "/api/overheal": players.overheal,
 }
 
 # GET paths, ignore query

@@ -45,9 +45,33 @@
         }
       }
       net.round = data.round;
+      // round just ended, loading card
+      if (prevPhase === 'round' && data.phase === 'intermission' && data.result) {
+        const rc = document.getElementById('roundCard');
+        const rt = document.getElementById('roundCardTitle');
+        const rs = document.getElementById('roundCardSub');
+        if (rc && rt && rs) {
+          const kwin = data.result.winner === 'killer';
+          rt.textContent = kwin ? `EVIL ${data.result.killer_name || '???'} WINS` : 'SURVIVORS WIN';
+          rt.className = kwin ? 'l' : 'w';
+          rs.textContent = 'loading next round...';
+          rc.style.display = 'flex';
+          clearTimeout(rc._t);
+          rc._t = setTimeout(() => { rc.style.display = 'none'; }, 3500);
+          rc.onclick = () => { clearTimeout(rc._t); rc.style.display = 'none'; };
+        }
+      } else if (data.phase !== 'intermission') {
+        const rc2 = document.getElementById('roundCard');
+        if (rc2 && rc2.style.display !== 'none') { clearTimeout(rc2._t); rc2.style.display = 'none'; }
+      }
       // take hits
       if (!justRevived && you && data.round === prevRound && you.hp < p.hp && you.hp < (you.maxhp || 100) && (you.maxhp || 100) >= p.maxHp && p.alive !== false) {
         game.hurtPlayer(Math.ceil(p.hp - you.hp), 'killer');
+      }
+      // shield ate a real hit, sting once
+      if (!justRevived && you && (you.shield_hit || 0) > (p._lastShieldHit || 0) && p.alive !== false) {
+        p._lastShieldHit = you.shield_hit;
+        fileSfx(SFX + 'basic_hit.wav', {}); // blue hp sting
       }
       // take heals, server first
       if (!justRevived && you && data.round === prevRound && you.hp > p.hp && p.alive !== false) {
@@ -102,10 +126,11 @@
         const loading = (game.activeMap === 'main' &&
           ((art && !art.complete) || (bd && !bd.complete))) ||
           data.phase === 'intro';
-        mapLoad.style.display = loading ? 'block' : 'none';
+        mapLoad.style.display = loading ? 'flex' : 'none';
       }
       // killer intro video
       if (introWrap) {
+        const bv = (typeof bearVid !== 'undefined') ? bearVid : null; // old audio lacks it
         if (data.phase === 'intro' && data.round !== net._introRound) {
           net._introRound = data.round;
           // 2s breather, then show
@@ -113,21 +138,63 @@
             if (net._introRound === data.round && net.phase === 'intro' && introWrap.style.display !== 'block') {
               introWrap.style.display = 'block';
               const isBearIntro = others[data.killer_id]?.killer_char === 'bear5';
-              introVid.style.display = isBearIntro ? 'none' : '';
-              bearIntro.style.display = isBearIntro ? 'flex' : 'none';
-              if (isBearIntro) {
-                introVid.pause();
+              const vid = (isBearIntro ? bv : null) || introVid;
+              const other = vid === introVid ? bv : introVid;
+              if (other) { try { other.pause(); } catch (_) { /* hush!! */ } other.style.display = 'none'; }
+              if (vid) {
+                vid.style.display = '';
+                try { vid.currentTime = 0; } catch (_) { /* hush!! */ }
+                vid.play().catch(() => { introWrap.style.display = 'none'; });
               } else {
-                try { introVid.currentTime = 0; } catch (_) { /* hush!! */ }
-                introVid.play().catch(() => { introWrap.style.display = 'none'; });
+                introWrap.style.display = 'none';
               }
             }
           }, 2000);
         } else if (data.phase !== 'intro' && introWrap.style.display !== 'none') {
           introWrap.style.display = 'none';
           try { introVid.pause(); } catch (_) { /* hush!! */ }
+          try { bv.pause(); } catch (_) { /* hush!! */ }
           introVid.style.display = '';
-          bearIntro.style.display = 'none';
+          if (bv) bv.style.display = 'none';
+        }
+      }
+      // lms evil cinema
+      {
+        const cut = data.result && data.result.cutscene;
+        if (!net._cutEls) net._cutEls = { w: document.getElementById('resCutWrap'), v: document.getElementById('resCutVid') };
+        const cw = net._cutEls.w, cv = net._cutEls.v;
+        if (data.phase === 'lms_cutscene' && cut && cw && cv) {
+          if (net._cutRound !== data.result.round) {
+            net._cutRound = data.result.round;
+            cw.style.display = 'block';
+            cw.style.opacity = '1'; // fade back in
+            let cutGone = false;
+            const cutDone = () => {
+              if (cutGone) return;
+              cutGone = true;
+              cw.style.opacity = '0'; // fade out
+              setTimeout(() => {
+                cw.style.display = 'none';
+                try { cv.pause(); } catch (_) { /* hush!! */ }
+              }, 800);
+              if (net.id) {
+                fetch('/api/intro', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: net.id }),
+                }).catch(() => {});
+              }
+            };
+            cv.onended = cutDone;
+            cv.onerror = cutDone; // missing file, skip ahead
+            cw.onclick = cutDone; // click skips
+            cv.src = cut;
+            try { cv.currentTime = 0; } catch (_) { /* hush!! */ }
+            cv.play().catch(cutDone); // blocked, skip ahead
+          }
+        } else if (cw && cw.style.display !== 'none') {
+          cw.style.display = 'none';
+          try { cv.pause(); } catch (_) { /* hush!! */ }
         }
       }
     }
@@ -148,6 +215,18 @@
         const who = r && r.winner === 'killer' ? `EVIL ${r.killer_name} WINS!!` : 'SURVIVORS WIN!!';
         const fee = net.me && net.me.round_cost ? ` (${net.me.round_cost} digipogs a round)` : '';
         phaseText = `${who} picks open in ${t}s!!${fee}`;
+        // center winner banner
+        const wb = document.getElementById('winBanner');
+        if (wb) {
+          if (r) {
+            const html = `<div class="winBig ${r.winner === 'killer' ? 'l' : 'w'}">${who}</div>`
+              + `<div class="winSub">picks open in ${t}s!!${fee}</div>`;
+            if (wb._html !== html) { wb.innerHTML = html; wb._html = html; }
+            if (wb.style.display !== 'block') wb.style.display = 'block';
+          } else if (wb.style.display !== 'none') {
+            wb.style.display = 'none'; wb._html = '';
+          }
+        }
         // countdown tick, intermission only
         if (t <= 5 && t > 0 && t !== net._tickSec) {
           net._tickSec = t;
@@ -160,6 +239,8 @@
           : `PICK YOUR CHARACTER!! (${t}s)`;
       } else if (data.phase === 'intro') {
         phaseText = 'GET READY!!';
+      } else if (data.phase === 'lms_cutscene') {
+        phaseText = data.result && data.result.winner === 'killer' ? `EVIL ${data.result.killer_name || '???'} WINS!!` : 'ROUND OVER!!';
       } else if (data.phase === 'round') {
         const t = Math.max(0, data.time_left || 0);
         const mm = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
@@ -172,6 +253,11 @@
           : (p.evil ? `${mm} - YOU ARE EVIL!! Z = hit!!` : `${mm} - run!! evil: ${data.killer_name || '???'}`);
       }
       if (phaseText !== lastPhaseText) { phaseLine.textContent = phaseText; lastPhaseText = phaseText; }
+      // banner only lives in intermission
+      if (data.phase !== 'intermission') {
+        const wb2 = document.getElementById('winBanner');
+        if (wb2 && wb2.style.display !== 'none') { wb2.style.display = 'none'; wb2._html = ''; }
+      }
       // malice shop
       malicePanel.style.display = 'block';
       maliceNum.textContent = you.malice || 0;
@@ -254,6 +340,21 @@
         r.redFlash = !!d.windup && !!r.evil; // red warning
         r.cyanFlash = !!d.windup && !r.evil; // cyan windup
         r.cowering = !!d.cower;
+        // watcher burst, move started
+        if (r.alive && r.hp > 0 && data.phase === 'round') {
+          const qx = r.pos.x + r.w / 2, qy = r.pos.y + r.h / 2;
+          if (!r.evil) {
+            if (r.kickUntil && !r._wasKick) game.luxGlow(qx, qy, '#ffffff', 3, 110); // their kick
+            if (r.jabUntil && !r._wasJab) game.luxGlow(qx, qy, '#ffffff', 4, 110); // their jab
+            if (r.throwUntil && !r._wasThrow) game.luxGlow(qx, qy, '#ffa502', 4, 100); // their toss
+            if (r.whipUntil && !r._wasWhip) game.luxGlow(qx, qy, '#ffa502', 3, 120); // their whip
+          } else if (r.pull && !r._wasPull) {
+            game.luxGlow(qx, qy, '#c084fc', 3, 110); // their catch
+          }
+          r._wasKick = !!r.kickUntil; r._wasJab = !!r.jabUntil;
+          r._wasThrow = !!r.throwUntil; r._wasWhip = !!r.whipUntil;
+          r._wasPull = !!r.pull;
+        }
         // pose frames
         if (d.windup) {
           if (!r._wasWindup) r._windupStart = Date.now();
@@ -270,6 +371,9 @@
                 : t < 0.7 ? w[Math.floor(Date.now() / 100) % w.length]
                 : sonicSprites.peel[Math.floor(Date.now() / 60) % 4];
             }
+          } else if (rface === 'lux' && (r.praying || r.rushing || r.panting)) {
+            // lux kit anims beat placeholder
+            r.poseImg = null;
           } else {
             r.poseImg = luxSprites.run[0];
           }
@@ -282,6 +386,12 @@
             r._bearFoldStart = Date.now();
             r._bearFoldDuration = 440;
             r._bearFoldUntil = r._bearFoldStart + r._bearFoldDuration;
+          }
+          // watcher killer fx, pose struck
+          if (r.evil && r.alive && data.phase === 'round') {
+            const px = r.pos.x + r.w / 2, py = r.pos.y + r.h / 2;
+            if (d.pose === 'swing') game.luxGlow(px, py, '#ff6b6b', 4, 120); // their swing
+            else if (d.pose === 'spike') game.luxGlow(px, py - 10, '#c9c9d6', 4, 90); // their set
           }
         } else if (!d.pose) {
           r.pose = null;
@@ -311,12 +421,44 @@
         if (p.evil && realHit) {
           fileSfx(net.killerPick === 'bear5' ? SFX + 'jumpscare.mp3' : SFX + 'm1_hit.wav', {});
         }
+        // blue hp ate a real hit, sting the killer too
+        if (p.evil && (d.shield_hit || 0) > (r._lastShieldHit || 0) && !r.evil && data.phase === 'round') {
+          r._lastShieldHit = d.shield_hit;
+          fileSfx(SFX + 'basic_hit.wav', {});
+        }
         if (r._wasAlive && !r.alive && data.phase === 'round') {
           fileSfx(SFX + 'death.mp3', {}); // they died
           if (!r.evil) voiceSfx(vpick(VL_KILL)); // killer brags
         }
+        // watcher lux fx, state driven
+        if (!r.evil && r.alive && r.hp > 0 && data.phase === 'round') {
+          const rx = r.pos.x + r.w / 2, ry = r.pos.y + r.h / 2;
+          const fxNow = Date.now();
+          if (r.praying && fxNow >= (r._prayFxAt || 0)) {
+            r._prayFxAt = fxNow + 150;
+            game.luxGlow(rx, ry, '#ffe93b', 2, 90); // their prayers rise
+          }
+          if (r.rushing && fxNow >= (r._rushFxAt || 0)) {
+            r._rushFxAt = fxNow + 130;
+            game.luxGlow(rx, ry, '#aef1ff', 2, 140); // their speed sparks
+          }
+          if ((r.shield || 0) > 0 && fxNow >= (r._shieldFxAt || 0)) {
+            r._shieldFxAt = fxNow + 240;
+            game.luxGlow(rx, ry, '#249bff', 1, 70); // empowered shimmer
+          }
+          if (luxDim && fxNow >= (r._hotFxAt || 0)) {
+            r._hotFxAt = fxNow + 280;
+            game.luxGlow(rx, ry, '#5ff2ff', 1, 110); // shard working
+          }
+          // fresh empower burst, once each
+          if ((r.shield || 0) > (r._lastShield || 0)) {
+            game.luxRing(rx, ry, '#ffd23f', 300);
+            game.luxGlow(rx, ry, '#ffd23f', 4, 110);
+          }
+        }
         r._wasAlive = !!r.alive;
         r._lastHp = r.hp;
+        r._lastShield = r.shield || 0;
         if (!r._wasSuper && r.super) {
           // watch new gold
           r._focusUntil = Date.now() + 1500;
@@ -336,6 +478,13 @@
       const mePick = (data.players || {})[net.id];
       if (mePick && typeof mePick.aura === 'number') L.tier = mePick.aura;
       if (mePick) L.hot = !!mePick.aura_hot;
+      // blue bonus hp arrived, sting it
+      if (mePick && (mePick.shield || 0) > (p.shield || 0) && p.alive !== false) {
+        fileSfx(SFX + 'dash_release.wav', {});
+        sayStatus('overhealed!!', 2);
+        game.luxRing(p.pos.x + p.w / 2, p.pos.y + p.h / 2, '#ffd23f', 300); // empowered
+        game.luxGlow(p.pos.x + p.w / 2, p.pos.y + p.h / 2, '#ffd23f', 6, 120);
+      }
       if (mePick) p.shield = mePick.shield || 0;
       if (mePick && mePick.char && mePick.char !== net.pick) {
         net.pick = mePick.char;
@@ -387,12 +536,13 @@
     }
 
     function updateMusic(t) {
-      let { p, data, you } = t;
+      let { p, data, others, you } = t;
       // scary music
       let nearestEvil = Infinity;
-      if (data.phase === 'round' && you?.in_round && !p.evil && p.alive !== false) {
+      if (data.phase === 'round' && you?.in_round && p.alive !== false) {
         for (const r of game.remotes) {
-          if (!r.inRound || !r.evil || !r.alive || r.hp <= 0 || r.invis) continue; // sneak hides
+          if (!r.inRound || !r.alive || r.hp <= 0 || r.invis) continue; // sneak hides
+          if (p.evil === !!r.evil) continue; // foes only
           const d = Math.hypot(r.pos.x - p.pos.x, r.pos.y - p.pos.y);
           if (d < nearestEvil) nearestEvil = d;
         }
@@ -436,7 +586,7 @@
           const superGlow = isSuper() && SS.transformed;
           const lmsHp = Math.max(LMS_HP, survHp());
           p.maxHp = superGlow ? SUPER_HP : lmsHp; p.hp = superGlow ? SUPER_HP : lmsHp;
-          S.dashCD = 0; S.cowerCD = 0; L.prayCD = 0; L.adCD = 0; L.shieldCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0; TW.bombsLeft = 5;
+          S.dashCD = 0; S.cowerCD = 0; L.prayCD = 0; L.adCD = 0; L.overCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0; TW.bombsLeft = 5;
           NY.rocketCD = 0; NY.dashCD = 0;
           SS.boostCD = 0; SS.blockCD = 0; SS.spinCD = 0;
           fetch('/api/heal', {
@@ -456,6 +606,15 @@
       }
       // block chase
       if (isLMS) { chaseT = 0; terrorT = 0; }
+      // bear5 swaps elux themes for his own
+      let bear5ChaseT = 0;
+      const killerChar = others[data.killer_id]?.killer_char;
+      const isBear5Killer = killerChar === 'bear5';
+      if (isBear5Killer && p.alive !== false && data.phase === 'round'
+        && (chaseT > 0.05 || terrorT > 0.05 || K.charging || Date.now() < K.windupUntil || Date.now() < K.pullUntil)) {
+        bear5ChaseT = 1;
+        chaseT = 0; terrorT = 0; // bear5 owns the air
+      }
       // super theme overpowers everything
       const heroOn = (!p.evil && SS.transformed && p.alive !== false) ||
         game.remotes.some((r) => !r.evil && r.super && r.alive && r.hp > 0);
@@ -467,14 +626,15 @@
         ['lmstails', tailsLMS ? 1 : 0, 0.25],
         ['lmsnyan', nyanLMS ? 1 : 0, 0.25],
         ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS && !nyanLMS && !superLMS ? 1 : 0, 0.25],
-        ['chase', chaseT, 0.5],
-        ['terror', terrorT, 0.5],
+        ['chase', chaseT, 0.9],
+        ['terror', terrorT, 0.9],
+        ['bear5chase', bear5ChaseT, 0.9],
         ['inter', data.phase === 'intermission' ? 1 : 0, 0.3],
         ['charselect', selectOpen && data.phase === 'select' ? 1 : 0, 0.4],
         ['map', data.phase === 'round' ? 1 : 0, 0.12],
         ['wait', data.phase === 'lobby' ? 1 : 0, 0.3],
       ];
-      const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, lmsnyan: 0, hero: 0, chase: 0, terror: 0, charselect: 0 };
+      const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, lmsnyan: 0, hero: 0, chase: 0, terror: 0, bear5chase: 0, charselect: 0 };
       const win = cands.find((c) => c[1] > 0.05);
       if (win) bedT[win[0]] = win[2] * (win[0] === 'chase' || win[0] === 'terror' ? win[1] : 1);
       if (document.hidden) for (const k in bedT) bedT[k] = 0; // mute hidden
@@ -482,7 +642,7 @@
         // pause means silent
         // title mutes
         let target = soloIdx >= 0 ? (key === soloOrder[soloIdx] ? 0.8 : 0) : (bedT[key] || 0);
-        target *= MUSIC_VOLUME_SCALE;
+        target *= (window.MUS_VOL ?? 68) / 100; // settings level
         if (titleLive) target = 0;
         if (target > 0.01) {
           if (a.paused && !(key === lmsTrack && lmsEnded)) a.play().catch(() => {});
@@ -550,6 +710,15 @@
       let { p, data } = t;
       // traps pings
       for (const sp of (data.spikes || [])) if (trippedIds.has(sp.id)) sp.tripped = true;
+      for (const sp of (data.spikes || [])) {
+        if (!seenSpikes.has(sp.id)) {
+          seenSpikes.add(sp.id);
+          if (data.phase === 'round') game.luxGlow(sp.x, sp.y - 10, '#c9c9d6', 4, 90); // fresh spike
+        }
+      }
+      for (const id of [...seenSpikes]) {
+        if (!(data.spikes || []).some((sp) => sp.id === id)) seenSpikes.delete(id); // gone now
+      }
       game.spikes = data.spikes || [];
       // bomb sync
       for (const bb of (data.bombs || [])) bombPos[bb.id] = { x: bb.x, y: bb.y, owner: bb.owner || null, refunded: !!bombPos[bb.id]?.refunded };

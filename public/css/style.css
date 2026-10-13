@@ -66,21 +66,117 @@
       bottom: 10px;
       right: 10px;
       top: auto;
-      max-width: 230px;
-      max-height: 60vh;
+      width: 300px;
+      max-height: 70vh;
       overflow-y: auto;
-      background: rgba(8, 8, 32, 0.95);
+      background: rgba(8, 8, 32, 0.97);
       border: 4px outset #c0c0f0;
       color: #00e5ff;
-      padding: 6px 8px;
+      padding: 0 0 6px;
       text-align: left;
       font-size: 12px;
       z-index: 999;
     }
+    .panelHead {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #2e5bff;
+      border-bottom: 4px outset #c0c0f0;
+      padding: 4px 6px;
+      position: sticky;
+      top: 0;
+    }
+    .panelHead h2 { margin: 0; font-size: 15px; color: #fff; }
+    .panelHead button { font-size: 12px; padding: 0 8px; margin: 0; }
+    .panelFoot { padding: 4px 8px 0; font-size: 11px; color: #8f8fb0; }
+    .modSec { border-bottom: 2px solid #2a2a5e; padding: 2px 0 6px; }
+    .modSec > h3 {
+      margin: 0;
+      padding: 4px 8px;
+      font-size: 12px;
+      color: #ffe93b;
+      cursor: pointer;
+      user-select: none;
+    }
+    .modSec > h3::before { content: '- '; }
+    .modSec.shut > h3::before { content: '+ '; }
+    .modSec.shut .modGrid, .modSec.shut .modRow { display: none; }
+    .modGrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 0 8px;
+    }
+    .modGrid button, .modRow button { font-size: 12px; padding: 4px 6px; margin: 0; }
+    .modGrid button.danger { background: #8e0000; border-color: #ff4757; }
+    .modGrid button.danger:hover { background: #c00000; }
+    .modGrid button.warn { background: #8a5200; border-color: #ffa502; }
+    .modGrid button.warn:hover { background: #b56b00; }
+    .modRow {
+      display: flex;
+      gap: 4px;
+      padding: 0 8px;
+      align-items: center;
+    }
+    .modRow input {
+      flex: 1;
+      min-width: 0;
+      font-size: 12px;
+      padding: 4px 6px;
+      border: 4px inset #c0c0f0;
+      background: #000;
+      color: #00e5ff;
+    }
+    #readout { white-space: pre; margin: 6px 8px 0; font-size: 11px; }
 
-    #debug h2 { margin: 0 0 4px; font-size: 14px; color: #fff; }
-    #debug button { font-size: 12px; padding: 2px 8px; margin: 2px; }
-    #readout { white-space: pre; margin: 4px 0 0; font-size: 11px; }
+    /* settings box */
+    #settings {
+      display: none;
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      width: 250px;
+      background: rgba(8, 8, 32, 0.97);
+      border: 4px outset #c0c0f0;
+      color: #00e5ff;
+      padding: 0 0 6px;
+      text-align: left;
+      font-size: 12px;
+      z-index: 999;
+    }
+    .setRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 0;
+      padding: 5px 8px;
+      cursor: pointer;
+    }
+    .setRow:hover { background: #1a1a4d; }
+    .setRow span:first-child { font-size: 13px; }
+    .switch { position: relative; width: 46px; height: 22px; flex: none; }
+    .switch input { display: none; }
+    .switch .knob {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 42px;
+      height: 18px;
+      background: #000;
+      border: 2px solid #fff;
+    }
+    .switch .knob::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 18px;
+      height: 18px;
+      background: #8e0000;
+    }
+    .switch input:checked + .knob::after { left: 20px; background: #2ed573; }
+    .setRow input[type="range"] { width: 110px; flex: none; accent-color: #2e5bff; }
 
     #net { margin-top: 8px; }
     #pinBox, #nameBox { font-size: 16px; padding: 6px 10px; border: 4px inset #c0c0f0; background: #000; color: #00e5ff; width: 160px; }
@@ -128,9 +224,14 @@
     .abSlot.cd .abCd { display: block; }
     .abSlot .abName { font-size: 11px; color: #fff; }
 
-    /* big screen */
-    #wrap:fullscreen { width: 100vw; height: 100vh; display: grid; place-items: center; align-content: center; background: #000; }
-    #wrap:fullscreen canvas { width: min(98vw, 174vh); height: auto; max-width: none; }
+    /* big screen, stage fills it */
+    #stage:fullscreen { background: #000; }
+    #stage:fullscreen canvas {
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain;
+      border: none;
+    }
 
     /* hurt flash */
     #hurtFlash {
@@ -149,8 +250,29 @@
       opacity: 0;
       transition: opacity 0.25s;
     }
+    /* evil sneak darkness, his eyes only */
+    #sneakShade {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: #000;
+      opacity: 0;
+      transition: opacity 0.5s;
+    }
     #stage { position: relative; display: inline-block; line-height: 0; }
     #stage canvas { line-height: normal; }
+    /* evil cinema */
+    #resCutWrap {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: #000;
+      z-index: 90;
+      cursor: pointer;
+      opacity: 1;
+      transition: opacity 0.8s;
+    }
+    #resCutWrap video { width: 100%; height: 100%; object-fit: contain; background: #000; }
     /* pick screen */
     #charSelect {
       position: absolute;
@@ -265,6 +387,20 @@
     .cs-arrow img { height: clamp(28px, 7vh, 60px); image-rendering: pixelated; }
     .cs-arrow:hover { transform: scale(1.15); background: none; }
     #csName { height: clamp(30px, 8vh, 64px); image-rendering: pixelated; }
+    #csPrevImg { height: 92%; image-rendering: pixelated; flex: none; }
+    #csPrevInfo {
+      flex: 1;
+      min-width: 0;
+      max-height: 100%;
+      overflow-y: auto;
+      text-align: left;
+      font-size: clamp(9px, 1.6vh, 13px);
+      color: #fff;
+      line-height: 1.5;
+      padding: 0 4px;
+    }
+    #csPrevInfo div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #csPrevInfo div:first-child { color: #ffe93b; }
     #csName.cs-taken { filter: grayscale(1) brightness(1.7); opacity: 0.8; }
     #csCount {
       position: absolute;
@@ -330,6 +466,49 @@
       25% { filter: hue-rotate(90deg); }
       50% { filter: hue-rotate(180deg); }
       75% { filter: hue-rotate(270deg); }
+    }
+    /* lux prayer tag, bottom left */
+    #prayLabel {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      font-size: clamp(13px, 2.6vh, 22px);
+      letter-spacing: 2px;
+      -webkit-text-stroke: 1px #1a1b26;
+      paint-order: stroke fill;
+      pointer-events: none;
+      line-height: normal;
+      z-index: 40;
+    }
+    /* winner banner, intermission */
+    #winBanner {
+      position: absolute;
+      top: 30%;
+      width: 100%;
+      text-align: center;
+      pointer-events: none;
+      line-height: normal;
+      z-index: 40;
+    }
+    #winBanner .winBig {
+      font-size: clamp(30px, 8vh, 72px);
+      letter-spacing: 6px;
+      -webkit-text-stroke: 2px #1a1b26;
+      paint-order: stroke fill;
+      animation: win-pop 0.5s backwards;
+    }
+    #winBanner .winBig.w { color: #2ed573; }
+    #winBanner .winBig.l { color: #ff4757; }
+    #winBanner .winSub {
+      font-size: clamp(13px, 2.6vh, 22px);
+      color: #fff;
+      -webkit-text-stroke: 1px #1a1b26;
+      paint-order: stroke fill;
+      margin-top: 6px;
+    }
+    @keyframes win-pop {
+      from { opacity: 0; transform: scale(0.6); }
+      to { opacity: 1; transform: none; }
     }
     /* mod announcement */
     #announce {
@@ -488,6 +667,12 @@
       height: 100%;
       background: #2ed573;
     }
+    #partyList .pFillBlue {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background: #249bff;
+    }
     #partyList .pRow.super .pFill {
       background: linear-gradient(90deg, #ff3131, #ffa502, #ffe93b, #2ed573, #00e5ff, #c084fc);
     }
@@ -628,6 +813,33 @@
       font-size: 20px;
       margin: 0;
     }
+    /* round transition card */
+    #roundCard {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      z-index: 85;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      cursor: pointer;
+      line-height: normal;
+    }
+    #roundCardTitle {
+      font-size: clamp(26px, 6vh, 56px);
+      letter-spacing: 6px;
+      color: #fff;
+      animation: win-pop 0.5s backwards;
+    }
+    #roundCardTitle.w { color: #2ed573; }
+    #roundCardTitle.l { color: #ff4757; }
+    #roundCardSub {
+      margin-top: 10px;
+      font-size: clamp(12px, 2.4vh, 20px);
+      color: #ffe93b;
+    }
     /* map loading */
     #mapLoad {
       position: absolute;
@@ -639,6 +851,16 @@
       z-index: 94;
       pointer-events: none;
       line-height: normal;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    #tipBar {
+      max-width: 80%;
+      font-size: clamp(12px, 2.4vh, 20px);
+      color: #ffe93b;
+      padding: 0 24px;
     }
     /* killer intro */
     #introWrap {
@@ -702,6 +924,20 @@
       z-index: 101;
       opacity: 1;
       transition: opacity 2.5s;
+      pointer-events: none;
+      line-height: normal;
+    }
+    /* low hp static, quiet warning */
+    #lowhpStatic {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent url('../Assets/Images/UI/static.gif') center / cover;
+      z-index: 45;
+      opacity: 0;
+      transition: opacity 0.6s;
       pointer-events: none;
       line-height: normal;
     }

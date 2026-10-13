@@ -38,9 +38,10 @@
       S.windupUntil = 0; S.dashing = false;
       S.dashCD = 0; S.cowerCD = 0; S.dashUntil = 0; S.dashHit = false;
       S.countered = false; S.wasCowering = false; S.dashTouching = false;
-      L.prayCD = 0; L.prayUntil = 0; L.prayer = null;
+      L.prayCD = 0; L.prayUntil = 0;
+      L.prayer = PRAYERS[Math.floor(Math.random() * PRAYERS.length)]; // born blessed
       L.adCD = 0; L.adUntil = 0; L.pantUntil = 0; L.rushing = false; L.panting = false;
-      L.shieldCD = 0; L.dt = 1; L.heal = 1; L.tier = 0; L.shieldUntil = 0;
+      L.overCD = 0; L.overBusy = false; L.dt = 1; L.heal = 1; L.tier = 0;
       p.praying = false; p.rushing = false; p.panting = false;
       T.kickUntil = 0; T.jabUntil = 0;
       T.kickCD = 0; T.jabCD = 0; T.kickHit = false; T.jabHit = false;
@@ -77,10 +78,11 @@
     const L = {
       prayCD: 0, prayUntil: 0, prayer: null,
       adCD: 0, adUntil: 0, pantUntil: 0, rushing: false, panting: false, adDir: 0,
-      shieldCD: 0, shieldUntil: 0, shieldNext: 0, shieldHp: 0,
+      overCD: 0, overBusy: false,
       dt: 1, heal: 1, tier: 0,
     };
     const PRAYERS = ['grace', 'haste', 'shelter', 'burden', 'frailty'];
+    const PRAY_COL = { grace: '#ffe93b', haste: '#ffa502', shelter: '#00e5ff', burden: '#c084fc', frailty: '#ff4757' };
     const PRAY_SPD = { grace: 0.9, haste: 1.25, shelter: 0.85, burden: 0.8, frailty: 1.15 };
     const T = {
       kickCD: 0, jabCD: 0, kickUntil: 0, kickHit: false,

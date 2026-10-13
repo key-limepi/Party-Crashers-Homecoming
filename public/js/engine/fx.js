@@ -2,6 +2,7 @@
 Object.assign(PlatformerEngine.prototype, {
   // screen shake, bigger wins
   shake(mag, dur) {
+    if (window.SHAKE_ON === false) return; // settings calm
     const cur = this.shakeT > 0 ? this.shakeMag * Math.min(1, this.shakeT * 3) : 0;
     if (mag < cur) return;
     this.shakeMag = mag;
@@ -10,6 +11,7 @@ Object.assign(PlatformerEngine.prototype, {
 
   // big blast, all drawn in code
   addBlast(x, y, scale = 1) {
+    if (window.FX_ON === false) return; // settings hush
     const add = (o) => this.fx.push(Object.assign({ x, y, vx: 0, vy: 0, age: 0, life: 1, size: 10, grow: 0, drag: 0, grav: 0 }, o));
     add({ kind: 'flash', life: 0.35, size: 260 * scale });
     add({ kind: 'ring', life: 0.55, size: 20, grow: 700 * scale });
@@ -71,6 +73,13 @@ Object.assign(PlatformerEngine.prototype, {
         ctx.strokeStyle = f.color || '#ffffff';
         ctx.lineWidth = 8 * (1 - t) + 1;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, 6.2832); ctx.stroke();
+      } else if (f.kind === 'halo') {
+        // faint ring, barely there
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = (1 - t) * 0.45;
+        ctx.strokeStyle = f.color || '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, 6.2832); ctx.stroke();
       } else if (f.kind === 'fire') {
         // white hot, then yellow, orange, red
         ctx.globalCompositeOperation = 'lighter';
@@ -117,5 +126,29 @@ Object.assign(PlatformerEngine.prototype, {
       }
       ctx.restore();
     }
+  },
+
+  // lux glow, chunky cartoon bits
+  luxGlow(x, y, color, n, spread) {
+    if (window.FX_ON === false) return; // settings hush
+    if (this.fx.length > 650) return; // cap guard
+    for (let i = 0; i < (n || 8); i++) {
+      const a = Math.random() * 6.2832, s = Math.random() * (spread || 120);
+      this.fx.push({
+        kind: 'splat', x: x + (Math.random() - 0.5) * 20, y: y + (Math.random() - 0.5) * 20,
+        vx: Math.cos(a) * s * 0.4, vy: Math.sin(a) * s * 0.4 - 55,
+        age: 0, life: 0.7 + Math.random() * 0.5,
+        size: 3 + Math.random() * 3, drag: 1.6,
+        color: color || '#ffe93b', seed: Math.random() * 6.2832,
+        spin: (Math.random() - 0.5) * 4, grow: 2,
+      });
+    }
+  },
+
+  // lux ring, faint halo
+  luxRing(x, y, color, grow) {
+    if (window.FX_ON === false) return; // settings hush
+    if (this.fx.length > 650) return; // cap guard
+    this.fx.push({ kind: 'halo', x, y, vx: 0, vy: 0, age: 0, life: 0.5, size: 10, grow: (grow || 420) * 0.45, color: color || '#ffffff' });
   },
 });

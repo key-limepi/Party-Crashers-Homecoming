@@ -35,6 +35,8 @@ def players_snapshot(h, url):
                     pl.pop("kb", None)
                 d["kb"] = None
             d["idle"] = round(now - pl.get("last", now), 1)
+            d["shield"] = max(0, int(pl.get("shield", 0))) # blue bonus hp
+            d["shield_hit"] = pl.get("shield_hit_at", 0) # last absorb sting
             d["char"] = pl.get("char")
             d["killer_char"] = pl.get("killer_char")
             d["malice"] = state.malice.get(pl["fid"], 0)

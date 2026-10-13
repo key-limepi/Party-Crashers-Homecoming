@@ -44,3 +44,4 @@ killer_id = None
 current_round = 0
 result = None # last result
 round_players = set() # current round players
+cutscene_skip = set() # cinema skip votes

@@ -70,7 +70,7 @@ Object.assign(PlatformerEngine.prototype, {
       else { ctx.fillStyle = '#333'; ctx.fillRect(Math.round(t.x) - BOMB_R, Math.round(t.y) - BOMB_R, BOMB_R * 2, BOMB_R * 2); }
     }
     // boom pops
-    for (const b of this.booms) {
+    if (window.FX_ON !== false) for (const b of this.booms) {
       const img = b.img || this.boomImg;
       ctx.save();
       if (img && img.complete && img.naturalWidth) {
@@ -207,7 +207,7 @@ Object.assign(PlatformerEngine.prototype, {
             ctx.translate(-cx, 0);
           }
           // windup strobes
-          const strobe = Math.floor(this.time * 10) % 2 === 0;
+          const strobe = window.FLASH_ON !== false && Math.floor(this.time * 10) % 2 === 0;
           const tinted = (b.whiteFlash && strobe) ? this._whiteTint(img)
             : (b.redFlash && strobe) ? this._redTint(img)
             : (b.cyanFlash && strobe) ? this._cyanTint(img) : img;
@@ -223,7 +223,7 @@ Object.assign(PlatformerEngine.prototype, {
           } else {
             this.blit(ctx, tinted, img, dx, dy, dw, dh);
           }
-          if (b.pulseWhite) {
+          if (b.pulseWhite && window.FLASH_ON !== false) {
             // stepped white pulse
             const levels = [0.08, 0.24, 0.42, 0.6];
             ctx.save();
@@ -282,7 +282,9 @@ Object.assign(PlatformerEngine.prototype, {
       if (bx < stackX1 && Math.abs(by - stackY) < 16) by = stackY - 16;
       stackX1 = bx + bw; stackY = by;
       {
-        const frac = Math.min(1, Math.max(0, (b.hp ?? 100) / (b.maxHp ?? 100)));
+        const sh = Math.max(0, b.shield || 0);
+        const denom = (b.maxHp ?? 100) + (sh > 0 ? 50 : 0);
+        const frac = Math.min(1, Math.max(0, (b.hp ?? 100) / denom));
         ctx.fillStyle = '#000';
         ctx.fillRect(bx - 1, by - 1, bw + 2, bh + 2);
         ctx.fillStyle = '#000';
@@ -297,6 +299,11 @@ Object.assign(PlatformerEngine.prototype, {
         } else ctx.fillStyle = (b.hp ?? 100) <= 30 ? '#8e0000' // low health
           : frac > 0.5 ? '#2ed573' : frac > 0.25 ? '#ffa502' : '#8e0000';
         if (!b.rainbow) ctx.fillRect(bx, by, bw * frac, bh);
+        if (!b.rainbow && sh > 0) {
+          // blue bonus hp sits past the green
+          ctx.fillStyle = '#249bff';
+          ctx.fillRect(bx + bw * frac, by, bw * Math.min(1, sh / denom), bh);
+        }
         // evil name
         // afk tag
         const evilTag = b.isRemote && b.evil;
@@ -308,7 +315,7 @@ Object.assign(PlatformerEngine.prototype, {
         ctx.lineWidth = 3;
         ctx.strokeStyle = '#1a1b26';
         const label = evilTag ? `EVIL ${String(b.name || 'friend')}` :
-          b.isRemote ? String(b.name || 'friend') : `${Math.ceil(frac * (b.maxHp ?? 100))}`;
+          b.isRemote ? String(b.name || 'friend') : `${Math.ceil((b.hp ?? 0) + Math.max(0, b.shield || 0))}`;
         const labelText = afkTag ? `${label} [AFK]` : label;
         ctx.strokeText(labelText, bx + bw / 2, by - 4);
         ctx.fillText(labelText, bx + bw / 2, by - 4);
@@ -351,7 +358,7 @@ Object.assign(PlatformerEngine.prototype, {
       }
     }
     // fade ghosts
-    for (const g of this.afterimages) {
+    if (window.FX_ON !== false) for (const g of this.afterimages) {
       if (!g.img || !g.img.complete || !g.img.naturalWidth) continue;
       ctx.save();
       ctx.globalAlpha = Math.max(0, 0.5 * (1 - g.age / 0.4));
@@ -379,7 +386,7 @@ Object.assign(PlatformerEngine.prototype, {
     }
     // rockets, then the blast over everything
     this.renderRockets(ctx);
-    this.renderFx(ctx);
+    if (window.FX_ON !== false) this.renderFx(ctx);
     // debug boxes
     if (this.debug) {
       ctx.strokeStyle = '#ff00ff';

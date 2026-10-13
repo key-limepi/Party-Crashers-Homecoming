@@ -39,6 +39,46 @@
       };
       el.addEventListener('click', dismiss);
       setTimeout(dismiss, 4000);
+      // loading tips, true to kit
+      const tips = [
+        'tip: lux prays (Z) for a random blessing!!',
+        'tip: adrenaline (X) is a 6s sprint, then you pant!!',
+        'tip: overheal (C) grants +50 blue hp to the neediest ally!!',
+        'tip: cower counters evil swings!!',
+        'tip: watch the floor, spikes bite!!',
+        'tip: tails bombs only blow up on evil!!',
+        'tip: last one standing heals to full!!',
+        'tip: evil sneak hides you for 10s!!',
+        'tip: evil pull drags through walls!!',
+        'tip: springs bounce you sky high!!',
+        'tip: adrenaline ends in a 3s pant, plan the landing!!',
+        'tip: overheal waits 15s between casts!!',
+        'tip: full blue hp still drains away!!',
+        'tip: a whiffed toko jab staggers herself!!',
+        'tip: sonic revs 3s before peelout!!',
+        'tip: spindash ends after 3 hits!!',
+        'tip: super block eats stuns!!',
+        'tip: tails only carries 5 bombs!!',
+        'tip: nyan rockets home in on their mark!!',
+        'tip: evil sneak ends in a 5s mute!!',
+        'tip: a whiffed evil pull stuns you 3s!!',
+        'tip: evil rush needs a 3s windup!!',
+        'tip: only 5 spikes fit on the map!!',
+        'tip: grace protects you when the round starts!!',
+        'tip: lms duels extend the round!!',
+        'tip: cower right as evil swings to counter!!',
+        'tip: press M to solo music tracks!!',
+        'tip: enter opens quick chat!!',
+      ];
+      let tipIdx = Math.floor(Math.random() * tips.length);
+      const tipBar = document.getElementById('tipBar');
+      const mapLoadEl = document.getElementById('mapLoad');
+      setInterval(() => {
+        if (!tipBar || !mapLoadEl || mapLoadEl.style.display === 'none') return;
+        tipIdx = (tipIdx + 1) % tips.length;
+        tipBar.textContent = tips[tipIdx];
+      }, 4000);
+      if (tipBar) tipBar.textContent = tips[tipIdx];
       // click connects
       let titleClicked = false;
       if (title) title.addEventListener('click', async () => {
