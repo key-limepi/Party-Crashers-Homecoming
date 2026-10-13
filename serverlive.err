@@ -1534,3 +1534,290 @@ Traceback (most recent call last):
                                       ~~^^^^^^
 KeyError: 'id'
 ----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('::1', 60366, 0, 0)
+Traceback (most recent call last):
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 28, in __init__
+    super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 736, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 500, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 488, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 104, in do_GET
+    return super().do_GET()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 743, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 946, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 257, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('::1', 60371, 0, 0)
+Traceback (most recent call last):
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 28, in __init__
+    super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 736, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 500, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 488, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 104, in do_GET
+    return super().do_GET()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 743, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 946, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 257, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('::1', 60372, 0, 0)
+Traceback (most recent call last):
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 28, in __init__
+    super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 736, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 500, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 488, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 104, in do_GET
+    return super().do_GET()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 743, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 946, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 257, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('::1', 60378, 0, 0)
+Traceback (most recent call last):
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 28, in __init__
+    super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 736, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 500, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 488, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 104, in do_GET
+    return super().do_GET()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 743, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 946, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 257, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('::1', 60385, 0, 0)
+Traceback (most recent call last):
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 28, in __init__
+    super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 736, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 500, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 488, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 104, in do_GET
+    return super().do_GET()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 743, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 946, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 257, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('::1', 60388, 0, 0)
+Traceback (most recent call last):
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 28, in __init__
+    super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 736, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 500, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 488, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 104, in do_GET
+    return super().do_GET()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 743, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 946, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 257, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('::1', 60395, 0, 0)
+Traceback (most recent call last):
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 28, in __init__
+    super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 736, in __init__
+    super().__init__(*args, **kwargs)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+    ~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 500, in handle
+    self.handle_one_request()
+    ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 488, in handle_one_request
+    method()
+    ~~~~~~^^
+  File "C:\Users\ryan\Documents\GitHub\Party Crashers Homecoming\backend\web\handler.py", line 104, in do_GET
+    return super().do_GET()
+           ~~~~~~~~~~~~~~^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 743, in do_GET
+    self.copyfile(f, self.wfile)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\http\server.py", line 946, in copyfile
+    shutil.copyfileobj(source, outputfile)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\shutil.py", line 257, in copyfileobj
+    fdst_write(buf)
+    ~~~~~~~~~~^^^^^
+  File "C:\Users\ryan\AppData\Local\Python\pythoncore-3.14-64\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+    ~~~~~~~~~~~~~~~~~~^^^
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+----------------------------------------

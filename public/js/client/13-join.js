@@ -43,13 +43,17 @@
         net.id = joined.id;
         setAFK(false); // fresh joins play
         hideFatal(); // error clear
-        // fake loading
+        // fake loading, fade from black into the world
         const held = Date.now() - (net.titleT0 || Date.now());
         setTimeout(() => {
-          const titleEl = document.getElementById('titleScreen');
-          if (titleEl) titleEl.style.display = 'none';
-          pinBanner.style.display = 'none';
-          titleLive = false;
+          const showWorld = () => {
+            const titleEl = document.getElementById('titleScreen');
+            if (titleEl) titleEl.style.display = 'none';
+            pinBanner.style.display = 'none';
+            titleLive = false;
+          };
+          if (typeof fadeThroughBlack === 'function') fadeThroughBlack(showWorld, 400, 600);
+          else showWorld();
         }, Math.max(0, 3000 - held));
         clearTimeout(net.retry);
         net.mod = !!joined.mod;

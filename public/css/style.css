@@ -255,6 +255,18 @@
       opacity: 0;
       transition: opacity 0.25s;
     }
+    /* fade-to-black phase transitions */
+    #fadeBlack {
+      position: absolute;
+      inset: 0;
+      background: #000;
+      opacity: 0;
+      transition: opacity 0.55s ease;
+      pointer-events: none;
+      z-index: 80;
+      line-height: normal;
+    }
+    #fadeBlack.on { opacity: 1; }
     /* evil sneak darkness, his eyes only */
     #sneakShade {
       position: absolute;
