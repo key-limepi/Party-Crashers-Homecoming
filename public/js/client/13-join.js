@@ -52,7 +52,7 @@
             pinBanner.style.display = 'none';
             titleLive = false;
           };
-          if (typeof fadeThroughBlack === 'function') fadeThroughBlack(showWorld, 400, 600);
+          if (typeof phaseFadeSwap === 'function') phaseFadeSwap(showWorld, 600);
           else showWorld();
         }, Math.max(0, 3000 - held));
         clearTimeout(net.retry);

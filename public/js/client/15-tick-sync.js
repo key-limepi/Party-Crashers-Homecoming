@@ -3,37 +3,36 @@
       const prevPhase = net.phase;
       const you = others[net.id];
       let justRevived = false;
-      // phase reset, world swaps hide behind a fade to black
+      // phase reset: swap runs synchronously behind an instant black
+      // cover, then reveals. never defer the swap (void spawns kill).
       if (data.phase && data.phase !== net.phase) {
-        const nextPhase = data.phase;
         const firstSync = net.phase == null;
-        net.phase = nextPhase;
-        soloIdx = -1; // reset ears
-        lmsTrack = null; lmsEnded = false; // reset lms
-        beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause(); beds.chase.pause(); beds.terror.pause();
-        clearEvil(p);
-        trippedIds.clear();
-        if (nextPhase === 'select' || nextPhase === 'round') net.costume = null; // picks rule now
-        justRevived = true; // skip hit/heal snaps this tick, swap lands behind black
-        game.cameraTarget = null;
-        specId = null;
-        roleBox.style.display = 'none';
         const doSwap = () => {
-          if (nextPhase !== net.phase) return; // superseded, a newer phase won
-          if (nextPhase !== 'round' || you?.in_round) {
-            if (nextPhase === 'round') game.switchMap('main', 100, 880);
+          net.phase = data.phase;
+          soloIdx = -1; // reset ears
+          lmsTrack = null; lmsEnded = false; // reset lms
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause(); beds.chase.pause(); beds.terror.pause();
+          clearEvil(p);
+          trippedIds.clear();
+          if (data.phase === 'select' || data.phase === 'round') net.costume = null; // picks rule now
+          if (data.phase !== 'round' || you?.in_round) {
+            if (data.phase === 'round') game.switchMap('main', 100, 880);
             else {
               game.switchMap('inter', 6120, 100); // island map
-              if ((nextPhase === 'intermission' || nextPhase === 'lobby') && !p.evil) {
+              if ((data.phase === 'intermission' || data.phase === 'lobby') && !p.evil) {
                 // random fighter kit
                 net.costume = lobbyCostume(net.id);
                 wearChar(net.costume);
                 game.moveSpeed = net.costume === 'sonic' ? 270 : 240;
               }
             }
-            if (!p.evil) { p.maxHp = nextPhase === 'round' ? survHp() : 100; } // drop buffs, keep nyan
+            if (!p.evil) { p.maxHp = data.phase === 'round' ? survHp() : 100; } // drop buffs, keep nyan
             p.hp = p.maxHp;
             game.respawn();
+            justRevived = true;
+            game.cameraTarget = null;
+            specId = null;
+            roleBox.style.display = 'none';
             // fast revive
             fetch('/api/state', {
               method: 'POST',
@@ -49,7 +48,7 @@
           }
         };
         if (firstSync) doSwap();
-        else if (typeof fadeThroughBlack === 'function') fadeThroughBlack(doSwap);
+        else if (typeof phaseFadeSwap === 'function') phaseFadeSwap(doSwap, 150);
         else doSwap();
       }
       net.round = data.round;
