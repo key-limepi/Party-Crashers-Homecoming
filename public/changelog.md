@@ -1,5 +1,12 @@
 # changelog
 
+## v0.89
+- mario joins the roster: sprite sets, icon + name art, own lms anthem, uppercut (charge, sky launch, killer stun) and spin jump (extra hop, luma puff, killer stun)
+- fade-to-black covers every phase change, swap lands behind black
+- knockback can pop killers straight up and punch through iframes (uppercut only)
+- all survivor cooldowns down 10%, killer untouched
+- loading tips keep growing (now includes the LUCKS one)
+
 ## v0.88
 - lux HEAL reworked into OVERHEAL: +50 blue bonus hp to the neediest ally, soaks hits first, drains silently, never self/killer
 - lux also got slower energy conversion, a planted heal past, prayer tag with per-prayer colors, random spawn prayer, LMS self-overheal, and fixed remote animations

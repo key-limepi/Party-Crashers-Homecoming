@@ -222,18 +222,6 @@
         const who = r && r.winner === 'killer' ? `EVIL ${r.killer_name} WINS!!` : 'SURVIVORS WIN!!';
         const fee = net.me && net.me.round_cost ? ` (${net.me.round_cost} digipogs a round)` : '';
         phaseText = `${who} picks open in ${t}s!!${fee}`;
-        // center winner banner
-        const wb = document.getElementById('winBanner');
-        if (wb) {
-          if (r) {
-            const html = `<div class="winBig ${r.winner === 'killer' ? 'l' : 'w'}">${who}</div>`
-              + `<div class="winSub">picks open in ${t}s!!${fee}</div>`;
-            if (wb._html !== html) { wb.innerHTML = html; wb._html = html; }
-            if (wb.style.display !== 'block') wb.style.display = 'block';
-          } else if (wb.style.display !== 'none') {
-            wb.style.display = 'none'; wb._html = '';
-          }
-        }
         // countdown tick, intermission only
         if (t <= 5 && t > 0 && t !== net._tickSec) {
           net._tickSec = t;
@@ -260,11 +248,6 @@
           : (p.evil ? `${mm} - YOU ARE EVIL!! Z = hit!!` : `${mm} - run!! evil: ${data.killer_name || '???'}`);
       }
       if (phaseText !== lastPhaseText) { phaseLine.textContent = phaseText; lastPhaseText = phaseText; }
-      // banner only lives in intermission
-      if (data.phase !== 'intermission') {
-        const wb2 = document.getElementById('winBanner');
-        if (wb2 && wb2.style.display !== 'none') { wb2.style.display = 'none'; wb2._html = ''; }
-      }
       // malice shop
       malicePanel.style.display = 'block';
       maliceNum.textContent = you.malice || 0;
