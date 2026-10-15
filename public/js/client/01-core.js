@@ -13,10 +13,10 @@ function loadImg(src) {
     lux.drawW = 50; lux.drawH = 70;
 
     // fade-to-black phase transitions.
-    // game logic stays synchronous (same ordering as no-fade): cover
-    // instantly so the swap hides behind black, then reveal smoothly.
-    // never defer the swap: roles respawn to other-map coords, and a
-    // deferred switchMap strands them in the void (fall-damage spiral).
+    // keep swap synchronous behind black
+    // hide swap behind black cover
+    // never defer swap
+    // deferred swap strands in void
     const fadeBlackEl = document.getElementById('fadeBlack');
     let fadeBlackToken = 0;
     let fadeBlackOffT = null;

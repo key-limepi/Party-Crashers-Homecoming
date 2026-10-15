@@ -14,7 +14,7 @@
     let selIdx = 0, selectOpen = false, takenMap = {}, csFrame = 0;
     // dev roster
     let devChars = {};
-    // Nyan Cyat is a dev-only survivor
+    // nyan cyat dev only
     const KILLER_ROSTER = [
       { id: 'evil', name: 'EVIL LUX', nameImg: './Assets/Images/UI/CharacterSelect/eluxname.png' },
       { id: 'bear5', name: 'BEAR5', nameImg: CS + 'bear5name.jpeg', dev: true },

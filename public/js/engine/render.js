@@ -1,4 +1,4 @@
-// PlatformerEngine mixin: the main render() pass. Expects constants.js and engine.js (and sprites.js, fx.js, rockets.js by call time) loaded before it.
+// main render pass
 Object.assign(PlatformerEngine.prototype, {
   render() {
     const { ctx, width, height } = this;
@@ -180,11 +180,11 @@ Object.assign(PlatformerEngine.prototype, {
         const dx = Math.round(b.pos.x + (b.w - dw) / 2) + offsetX + scare;
         const dy = Math.round(b.pos.y + (b.h - dh)); // align feet
         const cx = Math.round(b.pos.x + b.w / 2) + offsetX;
-        // rainbow, tied to where the cat really moves
+        // rainbow follows cat motion
         const trail = b.sprites && b.sprites.trail;
         if (trail && trail.complete && trail.naturalWidth) {
           if (b.rocketing && b._rk) {
-            // rocket form, rainbow streams from the tail
+            // tail rainbow in rocket
             const rk = b._rk;
             this.drawTrail(ctx, b, trail, rk.x - Math.cos(rk.ang) * 40, rk.y - Math.sin(rk.ang) * 40, 0.8);
           } else if (!b.rocketing) {
@@ -196,7 +196,7 @@ Object.assign(PlatformerEngine.prototype, {
         } else if (b._tr) {
           b._tr.pts.length = 0;
         }
-        // the cat is the rocket right now, renderRockets draws that
+        // skip body when rocketing
         if (!b.rocketing) {
           ctx.save();
           if (b === this.player && b.invis) ctx.globalAlpha = 0.45;
@@ -233,7 +233,7 @@ Object.assign(PlatformerEngine.prototype, {
           }
           ctx.restore();
         }
-        // held bomb, carry frames miss it
+        // draw held bomb
         if (b.holdingBomb && !b.rocketing) {
           const bi = this.bombImg;
           if (bi && bi.complete && bi.naturalWidth) {
@@ -300,7 +300,7 @@ Object.assign(PlatformerEngine.prototype, {
           : frac > 0.5 ? '#2ed573' : frac > 0.25 ? '#ffa502' : '#8e0000';
         if (!b.rainbow) ctx.fillRect(bx, by, bw * frac, bh);
         if (!b.rainbow && sh > 0) {
-          // blue bonus hp sits past the green
+          // draw bonus hp
           ctx.fillStyle = '#249bff';
           ctx.fillRect(bx + bw * frac, by, bw * Math.min(1, sh / denom), bh);
         }
@@ -384,7 +384,7 @@ Object.assign(PlatformerEngine.prototype, {
       this.blit(ctx, g.plain ? g.img : this._cyanTint(g.img), g.img, gx, gy, dw, dh);
       ctx.restore();
     }
-    // rockets, then the blast over everything
+    // rockets then blast
     this.renderRockets(ctx);
     if (window.FX_ON !== false) this.renderFx(ctx);
     // debug boxes

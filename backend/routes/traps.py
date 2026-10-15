@@ -83,7 +83,7 @@ def bomb(h, data):
                 if (x - ob["x"]) ** 2 + (y - ob["y"]) ** 2 < 100 ** 2:
                     h.send_json({"ok": False, "reason": "too close!!"})
                     return
-            # bombs have a hard limit and don't disappear - must be triggered
+            # bomb limit, must trigger
             if len(state.bombs) >= 5:
                 h.send_json({"ok": False, "reason": "bomb limit reached!!"})
                 return
@@ -131,7 +131,7 @@ def bomb(h, data):
                 owner = state.players.get(bb.get("owner"))
                 if owner:
                     owner["st_dealt"] = owner.get("st_dealt", 0) + landed
-                # bomb stun decays over 45 seconds: 5s fresh → 2s at 45s
+                # bomb stun decays over time
                 bomb_age = max(0, now - bb.get("at", now))
                 bomb_stun = max(2.0, 5.0 - (bomb_age / 15))
                 me["stun_until"] = max(me.get("stun_until", 0), now + bomb_stun)
@@ -159,7 +159,7 @@ def bomb(h, data):
 
 def rocket(h, data):
     """POST /api/rocket"""
-    # nyan rockets, dev only, works for killer or survivor
+    # dev nyan rockets only
     now = time.time()
     with state.lock:
         pid = data.get("id")
@@ -205,10 +205,10 @@ def rocket(h, data):
             for vid, vic in enemies_of(pid).items():
                 if is_rocketing(vid):
                     continue # mid rocket, untouchable
-                # player x and y are the top left, hitbox is 28 by 60
+                # hitbox top left offset
                 if ((vic.get("x", 0) + 14 - x) ** 2 + (vic.get("y", 0) + 30 - y) ** 2) ** 0.5 > ROCKET_RADIUS:
                     continue
-                # blue bonus hp eats rockets first
+                # shield eats rockets first
                 rem = ROCKET_DMG
                 take = min(vic.get("shield", 0), rem)
                 vic["shield"] = vic.get("shield", 0) - take

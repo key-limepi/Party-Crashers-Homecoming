@@ -27,6 +27,7 @@
       { id: 'supersonic', name: 'SUPER SONIC', nameImg: CS + 'supersonicname.png' },
       { id: 'tails', name: 'TAILS', nameImg: CS + 'tailsname.png' },
       { id: 'nyan', name: 'NYAN CYAT', nameImg: CS + 'nyanname.png' },
+      { id: 'mario', name: 'MARIO', nameImg: CS + 'marioname.png' },
     ];
     const TOKO = "./Assets/Images/Characters/Survivors/Toko/";
     const tokoSprites = {
@@ -120,14 +121,43 @@
       dash: nyanRun[0],
       trail: loadImg(NYAN + "rainbow.png"), // cat rainbow trail
     };
+    const MARIO = "./Assets/Images/Characters/Survivors/Mario/";
+    const marioStand = [];
+    for (let n = 1; n <= 26; n++) marioStand.push(loadImg(MARIO + `standing_sprites/sprite-2-${n}.png`));
+    const marioWalk = [];
+    for (let n = 1; n <= 14; n++) marioWalk.push(loadImg(MARIO + `walkingsprites/sprite-4-${n}.png`));
+    const marioRun = [];
+    for (let n = 1; n <= 8; n++) marioRun.push(loadImg(MARIO + `running_sprites/sprite-5-${n}.png`));
+    const marioJump = loadImg(MARIO + "jump.png");
+    const marioSpin = [1, 2, 3, 4].map((n) => loadImg(MARIO + `spinjump/sprite-42-${n}.png`));
+    const marioLuma = [1, 2, 3, 4].map((n) => loadImg(MARIO + `luma_particle/sprite-41-${n}.png`));
+    const marioUpper = [loadImg(MARIO + "uppcercut/uppercut1.png"), loadImg(MARIO + "uppcercut/uppercut2.png")];
+    const marioCharge = [loadImg(MARIO + "uppcercut/uppercutcharge1.png"), loadImg(MARIO + "uppcercut/uppercutcharge2.png"), loadImg(MARIO + "uppcercut/uppercutcharge3.png")];
+    const marioSprites = {
+      idle: marioStand,
+      idleFps: 8, // fast flip
+      walk: marioWalk,
+      walkStride: 24, // slower flip
+      run: marioRun,
+      runStride: 32, // slower flip
+      jump: marioJump,
+      spin: marioSpin, // extra jump
+      luma: marioLuma, // one-shot puff
+      upper: marioUpper, // rising fists
+      uppercharge: marioCharge, // crouch focus
+      stun: marioJump,
+      struggle: [marioWalk[0], marioWalk[1]],
+      cower: marioStand[0],
+      dash: marioRun[0],
+    };
     game.rocketImgs = [1, 2, 3, 4].map((n) => loadImg(NYAN + `rocket-${n}.png`));
-    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, supersonic: superSprites, tails: tailsSprites, nyan: nyanSprites, evil: null }; // evil later
+    const charSprites = { lux: luxSprites, toko: tokoSprites, sonic: sonicSprites, supersonic: superSprites, tails: tailsSprites, nyan: nyanSprites, mario: marioSprites, evil: null }; // evil later
     const NYAN_H = 50; // low wide cat
     function wearChar(id) {
       game.setPlayerSprites(charSprites[id] || luxSprites);
       // true size
-      game.player.drawW = 50;
-      game.player.drawH = id === 'nyan' ? NYAN_H : (id === 'sonic' || id === 'supersonic' || id === 'tails') ? 64 : 70;
+      game.player.drawW = id === 'mario' ? 46 : 50;
+      game.player.drawH = id === 'mario' ? 64 : (id === 'nyan' ? NYAN_H : (id === 'sonic' || id === 'supersonic' || id === 'tails') ? 64 : 70);
       game.player.maxJumps = id === 'nyan' ? 2 : 1; // nyan double jumps
     }
     game.setPlayerSprites(luxSprites);

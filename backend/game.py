@@ -182,7 +182,7 @@ def end_round(winner):
     rnd = state.current_round
     kid = state.killer_id
     name = players.get(kid, {}).get("name", "???") if kid else "???"
-    # capture scores before reset (for malice)
+    # save scores for malice
     for pid in list(state.round_players):
         pl = players.get(pid)
         if not pl:
@@ -327,7 +327,7 @@ def _tick_lux_aura(now):
 
 
 def _tick_shields(now):
-    # blue bonus hp drains, dead keep none
+    # shield drains, dead keep none
     for pid, pl in state.players.items():
         if not pl.get("alive", True) or pid not in state.round_players:
             if pl.get("shield", 0):

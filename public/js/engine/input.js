@@ -1,4 +1,4 @@
-// Owns the keyboard Input class. Expects nothing loaded before it.
+// keyboard input handling
 class Input {
   constructor() {
     this.left = false; this.right = false; this.jump = false; this.down = false;

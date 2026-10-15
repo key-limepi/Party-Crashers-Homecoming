@@ -1,4 +1,4 @@
-// PlatformerEngine mixin: bomb toss arcs, toss physics and boom effect. Expects constants.js and engine.js loaded before it.
+// bomb toss arcs
 Object.assign(PlatformerEngine.prototype, {
   // bomb toss arc
   addToss(x, y, vx, vy, img, id = null, throwerId = null) {
@@ -32,10 +32,10 @@ Object.assign(PlatformerEngine.prototype, {
       if (t.landed) { t.landedAge = (t.landedAge ?? 0) + dt; continue; }
       const b = t.body;
       
-      // Apply gravity
+      // apply gravity
       b.vel.y += this.tossGravity * dt;
       
-      // Air drag reduces velocity
+      // air drag slows bomb
       const speed = Math.hypot(b.vel.x, b.vel.y);
       if (speed > 0) {
         const dragForce = BOMB_DRAG * speed * speed;
@@ -87,8 +87,8 @@ Object.assign(PlatformerEngine.prototype, {
         }
       }
     }
-    // a landed bomb lingers 0.6s after it lands (not 0.6s after it was thrown,
-    // or any throw that was airborne longer than that vanished the instant it landed)
+    // landed bombs linger briefly
+    // stops instant vanish bug
     this.tosses = this.tosses.filter((t) => !(t.landed && (t.landedAge ?? 0) > 0.6));
   },
 
@@ -105,10 +105,10 @@ Object.assign(PlatformerEngine.prototype, {
     for (let time = 0; time < maxTime; time += step) {
       points.push({ x, y });
       
-      // Apply gravity
+      // apply gravity
       vy += this.tossGravity * step;
       
-      // Apply drag
+      // apply drag
       const speed = Math.hypot(vx, vy);
       if (speed > 0) {
         const dragForce = BOMB_DRAG * speed * speed;
@@ -119,7 +119,7 @@ Object.assign(PlatformerEngine.prototype, {
       x += vx * step;
       y += vy * step;
       
-      // Stop if hit ground
+      // stop below fall line
       if (y > this.fallY) break;
     }
     
@@ -137,7 +137,7 @@ Object.assign(PlatformerEngine.prototype, {
       img = new Image();
       img.src = this.boomImg.src;
       img.style.position = 'fixed'; img.style.visibility = 'hidden'; img.style.left = '-9999px';
-      document.body.appendChild(img); // needs DOM attachment
+      document.body.appendChild(img); // needs page attachment
       img.onload = () => { b.loaded = true; b.age = 0; }; // starts on first paint
       b.img = img;
       b.node = img; // for later removal

@@ -61,7 +61,7 @@ def intro(h, data):
                 and time.time() - state.intro_start > 4):
             begin_round()
         elif state.phase == "lms_cutscene" and data.get("id") in state.players:
-            # cinema skip vote, all must agree
+            # skip vote needs unanimity
             state.cutscene_skip.add(data.get("id"))
             if set(here_players()) <= state.cutscene_skip:
                 state.cutscene_skip.clear()

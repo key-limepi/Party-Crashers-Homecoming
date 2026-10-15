@@ -1,4 +1,4 @@
-// Owns Vec, Body and aabbOverlap. Expects nothing loaded before it.
+// vectors bodies overlap helpers
 class Vec {
   constructor(x = 0, y = 0) { this.x = x; this.y = y; }
 }

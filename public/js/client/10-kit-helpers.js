@@ -16,6 +16,10 @@
         if (pose === 'transform') return superSprites.transform[0];
         if (pose === 'boost') return superSprites.boost[0];
         if (pose === 'block') return superSprites.guard;
+      } else if (char === 'mario') {
+        if (pose === 'uppercharge') return marioSprites.uppercharge[0];
+        if (pose === 'uppercut') return marioSprites.upper[0];
+        if (pose === 'spin') return marioSprites.spin[0];
       } else {
         if (pose === 'dash') return luxDash;
       }
@@ -45,6 +49,8 @@
       p.praying = false; p.rushing = false; p.panting = false;
       T.kickUntil = 0; T.jabUntil = 0;
       T.kickCD = 0; T.jabCD = 0; T.kickHit = false; T.jabHit = false;
+      MU.upperCD = 0; MU.windupUntil = 0; MU.upperUntil = 0; MU.upperHit = false;
+      MU.spinCD = 0; MU.spinUntil = 0; MU.spinHit = false; MU.spinUsed = false;
       SN.windupUntil = 0; SN.peelUntil = 0; SN.peeling = false;
       SN.spinWindup = 0; SN.spinUntil = 0; SN.spinning = false;
       SN.peelCD = 0; SN.spinCD = 0; SN.spinHits = 0; SN.spinTouching = false;
@@ -87,6 +93,11 @@
     const T = {
       kickCD: 0, jabCD: 0, kickUntil: 0, kickHit: false,
       jabUntil: 0, jabHit: false,
+    };
+    // mario uppercut kit
+    const MU = {
+      upperCD: 0, windupUntil: 0, upperUntil: 0, upperStart: 0, upperHit: false,
+      spinCD: 0, spinUntil: 0, spinHit: false, spinUsed: false,
     };
     game.onUpdate = () => {
       const player = game.player;
@@ -147,7 +158,8 @@
     const isSonic = () => effChar() === 'sonic';
     const isSuper = () => effChar() === 'supersonic';
     const isTails = () => effChar() === 'tails';
-    const isLux = () => !isToko() && !isSonic() && !isSuper() && !isTails() && !isNyan();
+    const isMario = () => effChar() === 'mario';
+    const isLux = () => !isToko() && !isSonic() && !isSuper() && !isTails() && !isNyan() && !isMario();
     const isBear5 = () => !!(game.player && game.player.evil && (net.killerPick === 'bear5' || (game.player.char || '') === 'bear5'));
     // costume counts
     function effChar() {
@@ -185,8 +197,8 @@
     const NY = { rocketCD: 0, dashCD: 0, dashUntil: 0, dashing: false, dashHit: false };
     const isNyan = () => effChar() === 'nyan';
     const NYAN_HP = 200; // survivor nyan is tanky
-    const ROCKET_CD = 8000; // rocket wait
-    const NYAN_DASH_CD = 6000; // rainbow dash wait
+    const ROCKET_CD = 7200; // rocket wait
+    const NYAN_DASH_CD = 5400; // rainbow dash wait
     const NYAN_DASH_MS = 700; // dash length
     const NYAN_DASH_SPEED = 950;
     const BLAST_RANGE = 1800; // shake falloff range

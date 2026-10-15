@@ -65,7 +65,7 @@ def hit(h, data):
                     return
                 if stun > 0 or now - state.last_hit.get(data["victim"], 0) >= TOUCH_COOLDOWN:
                     state.last_hit[data["victim"]] = now
-                    # blue bonus hp eats hits first
+                    # shield eats hits first
                     rem = dmg
                     take = min(vic.get("shield", 0), rem)
                     vic["shield"] = vic.get("shield", 0) - take
@@ -94,13 +94,20 @@ def hit(h, data):
                             vic["stun_until"] = min(max(vic.get("stun_until", 0), now) + stun, now + 6)
                         else:
                             vic["stun_until"] = now + stun
-                        # shove back
-                        # big shoves
-                        if data.get("victim") == state.killer_id:
+                    # launchers punch through iframes
+                    kbforce = bool(data.get("kbforce"))
+                    # shove back
+                    # big shoves
+                    if data.get("victim") == state.killer_id and (stun > 0 or kbforce):
                             _dx = vic.get("x", 0) - k.get("x", 0)
                             _dy = vic.get("y", 0) - k.get("y", 0)
                             _dist = (_dx * _dx + _dy * _dy) ** 0.5 or 1
-                            vic["kb"] = {"x": _dx / _dist, "y": _dy / _dist, "at": now, "s": stun, "p": kbp}
+                            try:
+                                up = max(0, min(1200, float(data.get("up", 0))))
+                            except (ValueError, TypeError):
+                                up = 0
+                            vert = bool(data.get("vert")) # up only
+                            vic["kb"] = {"x": 0.0 if vert else _dx / _dist, "y": _dy / _dist, "at": now, "s": stun, "p": kbp, "up": up, "vert": vert}
                     if vic["hp"] <= 0:
                         vic["alive"] = False
                         vic["shield"] = 0 # death clears bonus

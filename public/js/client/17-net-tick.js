@@ -64,6 +64,7 @@ async function netTick() {
         tickSonicSpin(t);
         tickSuperSonic(t);
         tickToko(t);
+        tickMario(t);
         tickNyan(t);
         tickTails(t);
         tickRopesAndRides(t);

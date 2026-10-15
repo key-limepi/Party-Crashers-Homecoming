@@ -56,6 +56,10 @@
               castTails(p, isLMS, now, ab);
               continue;
             }
+          if (isMario()) {
+              castMario(p, now, ab);
+              continue;
+            }
           const luxCdMult = () => (L.prayer === 'haste' ? 1.5 : L.prayer === 'burden' ? 0.7 : 1) * (isLMS ? LMS_CD : 1);
           if (ab === 'Z' && now >= L.prayCD && !L.prayUntil && !L.rushing && !L.panting) {
             // kneel and pray, exposed
@@ -72,10 +76,10 @@
             p.rooted = false;
             fileSfx(SFX + 'super_dash.wav', {});
           } else if (ab === 'C' && now >= L.overCD && !L.overBusy && !L.prayUntil && !L.rushing && !L.panting && data.phase === 'round') {
-            // overheal one ally, or self in LMS
+            // overheal ally or self
             L.overBusy = true;
             p.actionImg = luxSprites.pray[0]; p.actionT = 0.4;
-            const targetId = data.lms_set ? net.id : null; // self-target in LMS
+            const targetId = data.lms_set ? net.id : null; // self target in lms
             fetch('/api/overheal', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -83,7 +87,7 @@
             }).then((r) => r.json()).then((d) => {
               L.overBusy = false;
               if (d && d.ok) {
-                L.overCD = Date.now() + 15000 * luxCdMult();
+                L.overCD = Date.now() + 13500 * luxCdMult();
                 sayStatus(d.lms_self ? 'LMS self-overheal +25 shield!!' : `overhealed ${d.name}!!`, 3);
                 fileSfx(SFX + 'dash_release.wav', {});
                 // holy shock here
@@ -324,7 +328,7 @@
           L.prayUntil = 0;
           const opts = PRAYERS.filter((x) => x !== L.prayer);
           L.prayer = opts[Math.floor(Math.random() * opts.length)];
-          L.prayCD = now + 10000 * luxCdMult();
+          L.prayCD = now + 9000 * luxCdMult();
           p.rooted = false;
           p.actionImg = luxSprites.prayend; p.actionT = 0.6;
           sayStatus('prayer of ' + L.prayer + '!!', 3);
@@ -370,7 +374,7 @@
           p.rooted = true;
           if (now >= L.pantUntil || p.alive === false) {
             L.panting = false; p.rooted = false; p.actionImg = null;
-            L.adCD = now + 20000 * luxCdMult();
+            L.adCD = now + 18000 * luxCdMult();
           }
         }
         // engine flags, all screens
@@ -425,7 +429,7 @@
             SN.peeling = false; p.peeling = false; // engine flag
             p.chargeDir = 0; p.chargeSpeed = 0;
             p.actionImg = null;
-            SN.peelCD = now + 20000;
+            SN.peelCD = now + 18000;
           } else {
             // steer the zoom
             if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
@@ -475,7 +479,7 @@
             SN.spinning = false; p.spinning = false; // engine flag
             p.chargeDir = 0; p.chargeSpeed = 0;
             p.actionImg = null;
-            SN.spinCD = now + (SN.spinHits > 0 ? 18000 : 25000);
+            SN.spinCD = now + (SN.spinHits > 0 ? 16200 : 22500);
           } else {
             // slow steer
             const want = game.input.left ? -1 : (game.input.right ? 1 : (SN.dir || p.chargeDir));
@@ -525,7 +529,7 @@
               if (SN.spinHits >= 3) {
                 SN.spinning = false; p.chargeDir = 0; p.chargeSpeed = 0;
                 p.actionImg = null;
-                SN.spinCD = now + 18000;
+                SN.spinCD = now + 16200;
               }
             } else if (!touching) {
               SN.spinTouching = false;
@@ -590,7 +594,7 @@
             SS.boosting = false;
             p.chargeDir = 0; p.chargeSpeed = 0;
             p.actionImg = null;
-            SS.boostCD = now + 20000 * (isLMS ? LMS_CD : 1);
+            SS.boostCD = now + 18000 * (isLMS ? LMS_CD : 1);
           } else {
             if (game.input.left) { p.facing = -1; p.chargeDir = -1; }
             else if (game.input.right) { p.facing = 1; p.chargeDir = 1; }
@@ -630,7 +634,7 @@
         }
         if (SS.wasBlocking && (p.cowerT || 0) <= 0) {
           SS.wasBlocking = false;
-          SS.blockCD = now + 15000 * (isLMS ? LMS_CD : 1);
+          SS.blockCD = now + 13500 * (isLMS ? LMS_CD : 1);
         }
         // super spin
         if (SS.spinWindup && now < SS.spinWindup) {
@@ -658,7 +662,7 @@
             SS.spinning = false; p.spinning = false; p.superFly = false;
             p.chargeDir = 0; p.chargeSpeed = 0;
             p.actionImg = null;
-            SS.spinCD = now + (SS.spinHits > 0 ? 18000 : 25000) * (isLMS ? LMS_CD : 1);
+            SS.spinCD = now + (SS.spinHits > 0 ? 16200 : 22500) * (isLMS ? LMS_CD : 1);
           } else {
             const want = game.input.left ? -1 : (game.input.right ? 1 : (SS.dir || p.chargeDir));
             SS.dir = SS.dir ?? p.chargeDir;
@@ -705,7 +709,7 @@
                 SS.spinning = false; p.spinning = false; p.superFly = false;
                 p.chargeDir = 0; p.chargeSpeed = 0;
                 p.actionImg = null;
-                SS.spinCD = now + 18000 * (isLMS ? LMS_CD : 1);
+                SS.spinCD = now + 16200 * (isLMS ? LMS_CD : 1);
               }
             } else if (!touching) {
               SS.spinTouching = false;
@@ -738,14 +742,14 @@
             T.kickUntil = 0;
             p.kickUntil = false; // engine flag
             p.chargeDir = 0; p.chargeSpeed = 0;
-            T.kickCD = now + (T.kickHit ? 20000 : 30000) * (isLMS ? LMS_CD : 1); // kick waits
+            T.kickCD = now + (T.kickHit ? 18000 : 27000) * (isLMS ? LMS_CD : 1); // kick waits
             if (!T.kickHit) fileSfx(SFX + 'denied.wav', {}); // missed kick
           } else if (!T.kickHit && ekClose(60, 80)) {
             T.kickHit = true;
             T.kickUntil = 0; // start bounce
             p.kickUntil = false; // engine flag
             p.chargeDir = 0; p.chargeSpeed = 0;
-            T.kickCD = now + 20000 * (isLMS ? LMS_CD : 1);
+            T.kickCD = now + 18000 * (isLMS ? LMS_CD : 1);
             setPose('kick', 400);
             fileSfx(SFX + 'roundhouse_hit.wav', {});
             game.luxGlow(ek.pos.x + ek.w / 2, ek.pos.y + ek.h / 2, '#ffe93b', 4, 120);
@@ -779,15 +783,95 @@
             p.jabUntil = false; // engine flag
             p.rooted = false;
             if (T.jabHit) {
-              T.jabCD = now + 15000 * (isLMS ? LMS_CD : 1); // fast recharge
+              T.jabCD = now + 13500 * (isLMS ? LMS_CD : 1); // fast recharge
             } else {
-              T.jabCD = now + 25000 * (isLMS ? LMS_CD : 1); // slow whiff
+              T.jabCD = now + 22500 * (isLMS ? LMS_CD : 1); // slow whiff
               p.stunT = Math.max(p.stunT || 0, 2);
               fileSfx(SFX + 'denied.wav', {}); // missed jab
             }
           }
         } else {
           p.jabUntil = false; // engine flag
+        }
+      }
+    }
+
+    function tickMario(t) {
+      let { p, isLMS, now } = t;
+      // rising uppercut
+      if (!p.evil && isMario()) {
+        const ek = game.remotes.find((r) => r.id === net.ekid && r.alive && r.hp > 0);
+        const ekClose = (dx, dy) => ek &&
+          Math.abs(ek.pos.x - p.pos.x) < dx &&
+          Math.abs((ek.pos.y + ek.h / 2) - (p.pos.y + p.h / 2)) < dy;
+        // charged blast
+        if (MU.windupUntil) {
+          p.actionImg = marioSprites.uppercharge[Math.min(2, Math.floor((now - (MU.windupUntil - 1000)) / 333))]; p.actionT = 0.15;
+          if (now >= MU.windupUntil || p.alive === false || (p.stunT || 0) > 0) {
+            MU.windupUntil = 0;
+            p.actionImg = null; p.actionT = 0;
+            if (p.alive !== false && (p.stunT || 0) <= 0) {
+              // blast up
+              p.rooted = false;
+              p.vel.x = 0;
+              p.vel.y = -1050;
+              p.onGround = false;
+              p.noCutUntil = game.time + 1.2; // keep full arc
+              MU.upperStart = now;
+              MU.upperUntil = now + 1200;
+              MU.upperHit = false;
+              setPose('uppercut', 1200);
+              fileSfx(SFX + 'uppercut_release.wav', {});
+            } else {
+              // broken charge
+              MU.upperCD = now + 27000 * (isLMS ? LMS_CD : 1);
+              p.rooted = false;
+              fileSfx(SFX + 'denied.wav', {});
+            }
+          }
+        } else if (MU.upperUntil) {
+          // touch killer
+          p.actionImg = marioSprites.upper[Math.min(1, Math.floor((now - (MU.upperStart || now)) / 600))]; p.actionT = 0.15;
+          const landed = p.onGround && now > (MU.upperStart || 0) + 100;
+          if (!MU.upperHit && ekClose(60, 90)) {
+            MU.upperHit = true;
+            MU.upperUntil = 0;
+            p.actionImg = null; p.actionT = 0;
+            MU.upperCD = now + 18000 * (isLMS ? LMS_CD : 1); // hit waits
+            fileSfx(SFX + 'roundhouse_hit.wav', {});
+            game.luxGlow(ek.pos.x + ek.w / 2, ek.pos.y + ek.h / 2, '#ffe93b', 4, 120);
+            fetch('/api/hit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 15, stun: 4, up: 1200, vert: true, kbforce: true }),
+            }).catch(() => {});
+          } else if (now >= MU.upperUntil || landed || p.alive === false || (p.stunT || 0) > 0) {
+            MU.upperUntil = 0;
+            p.actionImg = null; p.actionT = 0;
+            MU.upperCD = now + 27000 * (isLMS ? LMS_CD : 1); // slow whiff
+            if (p.alive !== false) fileSfx(SFX + 'denied.wav', {}); // missed upper
+          }
+        }
+        // fresh air, fresh spin
+        if (p.onGround) MU.spinUsed = false;
+        // spinning jump
+        if (MU.spinUntil) {
+          p.actionImg = marioSprites.spin[Math.floor((now - (MU.spinUntil - 1000)) / 120) % 4]; p.actionT = 0.15;
+          if (!MU.spinHit && ekClose(60, 80)) {
+            MU.spinHit = true;
+            MU.spinUntil = 0;
+            p.actionImg = null; p.actionT = 0;
+            fileSfx(SFX + 'basic_hit.wav', {});
+            game.luxGlow(ek.pos.x + ek.w / 2, ek.pos.y + ek.h / 2, '#ffffff', 4, 110);
+            fetch('/api/hit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: net.id, victim: ek.id, dmg: 0, stun: 2 }),
+            }).catch(() => {});
+          } else if (now >= MU.spinUntil || p.onGround || p.alive === false || (p.stunT || 0) > 0) {
+            MU.spinUntil = 0;
+            p.actionImg = null; p.actionT = 0;
+          }
         }
       }
     }
@@ -896,7 +980,7 @@
             p.whipUntil = false; // engine flag
             p.rooted = false;
             if (!TW.whipHit) {
-              TW.whipCD = now + 25000 * (isLMS ? LMS_CD : 1); // slow whiff
+              TW.whipCD = now + 22500 * (isLMS ? LMS_CD : 1); // slow whiff
               p.stunT = Math.max(p.stunT || 0, 1);
               fileSfx(SFX + 'denied.wav', {}); // missed whip
             }

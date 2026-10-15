@@ -15,7 +15,7 @@
         const res = await fetch('/api/join', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ tab: tabId, name: new URLSearchParams(location.search).get('name') || '' }), // name only counts with FORMBAR_MODE=false
+          body: JSON.stringify({ tab: tabId, name: new URLSearchParams(location.search).get('name') || '' }), // name needs formbar off
         });
         if (res.status === 401) {
           // no login
@@ -43,7 +43,7 @@
         net.id = joined.id;
         setAFK(false); // fresh joins play
         hideFatal(); // error clear
-        // fake loading, fade from black into the world
+        // fake loading fade in
         const held = Date.now() - (net.titleT0 || Date.now());
         setTimeout(() => {
           const showWorld = () => {

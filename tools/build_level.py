@@ -10,7 +10,7 @@ src = sys.argv[1] if len(sys.argv) > 1 else 'public/Assets/Images/Levels/Hitboxe
 m = np.array(Image.open(src))[:, :, 3] > 128
 H, W = m.shape
 
-# collision rects (row runs merged vertically)
+# merged collision rects
 rects = []; prev = {}
 for y in range(H):
     d = np.diff(np.concatenate([[0], m[y].astype(np.int8), [0]]))
@@ -28,7 +28,7 @@ open('public/js/levels/level_rough_draft.js', 'w').write(
 
 # graph paper art
 BLUE = np.array([0x96, 0xAD, 0xE9], float)
-SP, LW, OUT = 28, 1.2, 4.0          # grid spacing, line half-width, outline width
+SP, LW, OUT = 28, 1.2, 4.0          # grid and outline sizes
 yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
 def band(v):
     mm = np.mod(v, SP); return np.minimum(mm, SP - mm) / np.sqrt(2)

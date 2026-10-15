@@ -78,6 +78,7 @@
       lmssonic: loopTrack(MUS + 'sonic_lms.mp3', false), // sonic anthem
       lmstails: loopTrack(MUS + 'tails_lms.mp3', false), // tails anthem
       lmsnyan: loopTrack(MUS + 'nyanlms.mp3', false), // nyan anthem
+      lmsmario: loopTrack(MUS + 'mariolms.mp3', false), // mario anthem
       hero: loopTrack(MUS + 'supersonichero.mp3'), // super sonic theme
       chase: loopTrack(MUS + 'elux_chasenew.mp3'),
       bear5chase: loopTrack(MUS + 'bear5chase.mp3'),
@@ -92,12 +93,12 @@
     // lms rules
     let lmsTrack = null; // track ids
     let lmsEnded = false;
-    for (const key of ['lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan']) {
+    for (const key of ['lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan', 'lmsmario']) {
       beds[key].addEventListener('ended', () => {
         if (lmsTrack === key) lmsEnded = true;
       });
     }
-    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan', 'hero', 'chase', 'bear5chase', 'terror', 'charselect'];
+    const soloOrder = ['map', 'wait', 'inter', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan', 'lmsmario', 'hero', 'chase', 'bear5chase', 'terror', 'charselect'];
     window.addEventListener('keydown', (e) => {
       if (e.repeat || e.key.toLowerCase() !== 'm') return;
       soloIdx = soloIdx >= soloOrder.length - 1 ? -1 : soloIdx + 1;
@@ -116,7 +117,8 @@
 
     // real sounds
     const SFX = './Assets/Sounds/';
-    game.onJump = (dbl) => fileSfx(SFX + 'jump.wav', { rate: dbl ? 1.3 : 1 });
+    const MARIO_JUMPS = [SFX + 'mario_jump.wav'];
+    game.onJump = (dbl) => { const mario = typeof isMario === 'function' && isMario() && game.player && !game.player.evil; fileSfx(mario ? vpick(MARIO_JUMPS) : SFX + 'jump.wav', mario ? { rate: dbl ? 1.3 : 1, v: 0.3 } : { rate: dbl ? 1.3 : 1 }); };
     game.onHeal = (n) => {
       // sync heal
       if (!net.id || !game.player) return;

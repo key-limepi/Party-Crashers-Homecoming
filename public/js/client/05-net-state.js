@@ -69,6 +69,7 @@
         'tip: cower right as evil swings to counter!!',
         'tip: press M to solo music tracks!!',
         'tip: enter opens quick chat!!',
+        'tip: its pronounced "LUCKS"!!',
       ];
       let tipIdx = Math.floor(Math.random() * tips.length);
       const tipBar = document.getElementById('tipBar');

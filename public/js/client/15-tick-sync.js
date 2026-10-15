@@ -3,15 +3,15 @@
       const prevPhase = net.phase;
       const you = others[net.id];
       let justRevived = false;
-      // phase reset: swap runs synchronously behind an instant black
-      // cover, then reveals. never defer the swap (void spawns kill).
+      // swap behind instant black
+      // never defer swap
       if (data.phase && data.phase !== net.phase) {
         const firstSync = net.phase == null;
         const doSwap = () => {
           net.phase = data.phase;
           soloIdx = -1; // reset ears
           lmsTrack = null; lmsEnded = false; // reset lms
-          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause(); beds.chase.pause(); beds.terror.pause();
+          beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause(); beds.lmsmario.pause(); beds.chase.pause(); beds.terror.pause();
           clearEvil(p);
           trippedIds.clear();
           if (data.phase === 'select' || data.phase === 'round') net.costume = null; // picks rule now
@@ -75,7 +75,7 @@
       if (!justRevived && you && data.round === prevRound && you.hp < p.hp && you.hp < (you.maxhp || 100) && (you.maxhp || 100) >= p.maxHp && p.alive !== false) {
         game.hurtPlayer(Math.ceil(p.hp - you.hp), 'killer');
       }
-      // shield ate a real hit, sting once
+      // shield blocked sting once
       if (!justRevived && you && (you.shield_hit || 0) > (p._lastShieldHit || 0) && p.alive !== false) {
         p._lastShieldHit = you.shield_hit;
         fileSfx(SFX + 'basic_hit.wav', {}); // blue hp sting
@@ -323,8 +323,8 @@
         // true size
         const rkey = rface + (r.evil ? '*' : '') + (r.super ? '!' : '') + (r.forming ? '?' : '') + (r.holdingBomb ? 'h' : '') + (luxDim ? 'd' : '');
         if (r._lastChar !== rkey) { r._baseFrame = null; r._lastChar = rkey; }
-        r.drawW = r.char === 'bear5' ? 76 : 50;
-        r.drawH = r.char === 'bear5' ? 94 : (r.char === 'nyan' ? NYAN_H : (!r.evil && (rface === 'sonic' || rface === 'supersonic' || rface === 'tails')) ? 64 : 70);
+        r.drawW = r.char === 'bear5' ? 76 : (!r.evil && rface === 'mario' ? 46 : 50);
+        r.drawH = r.char === 'bear5' ? 94 : (r.char === 'nyan' ? NYAN_H : (!r.evil && (rface === 'sonic' || rface === 'supersonic' || rface === 'tails' || rface === 'mario')) ? 64 : 70);
         r.invis = !!d.invis;
         r.stunned = !!d.stunned;
         r.pull = !!d.pull;
@@ -355,6 +355,21 @@
             if (r.jabUntil && !r._wasJab) game.luxGlow(qx, qy, '#ffffff', 4, 110); // their jab
             if (r.throwUntil && !r._wasThrow) game.luxGlow(qx, qy, '#ffa502', 4, 100); // their toss
             if (r.whipUntil && !r._wasWhip) game.luxGlow(qx, qy, '#ffa502', 3, 120); // their whip
+            // their spin jump
+            const mspin = r.char === 'mario' && d.pose === 'spin';
+            if (mspin && !r._wasSpinPose) {
+              r._mspinUntil = Date.now() + 1000;
+              r._mspinOn = true;
+              game.spawnSprite(qx, qy, marioSprites.luma, 0.15); // their luma
+            }
+            r._wasSpinPose = mspin;
+            if (r._mspinOn) {
+              if ((r._mspinUntil || 0) > Date.now() && r.alive) {
+                r.actionImg = marioSprites.spin[Math.floor((Date.now() - (r._mspinUntil - 1000)) / 120) % 4]; r.actionT = 0.15;
+              } else {
+                r.actionImg = null; r.actionT = 0; r._mspinOn = false;
+              }
+            }
           } else if (r.pull && !r._wasPull) {
             game.luxGlow(qx, qy, '#c084fc', 3, 110); // their catch
           }
@@ -420,6 +435,16 @@
           r.poseImg = superSprites.transform[Math.floor(Date.now() / 200) % superSprites.transform.length];
           r.poseUntil = Date.now() + 150;
         }
+        // mario uppercut, play once
+        if (!r.evil && r.char === 'mario' && (d.pose === 'uppercharge' || d.pose === 'uppercut')) {
+          if (r._mupPose !== d.pose) { r._mupPose = d.pose; r._mupStart = Date.now(); }
+          const seq = d.pose === 'uppercharge' ? marioSprites.uppercharge : marioSprites.upper;
+          const per = d.pose === 'uppercharge' ? 333 : 600;
+          r.poseImg = seq[Math.min(seq.length - 1, Math.floor((Date.now() - r._mupStart) / per))];
+          r.poseUntil = Date.now() + 150;
+        } else if (r._mupPose) {
+          r._mupPose = null;
+        }
         const lostHp = r._lastHp !== undefined && r.hp < r._lastHp;
         const realHit = lostHp && r.hp < (r.maxHp || 100);
         if (realHit && !r.evil && data.phase === 'round' && others[data.killer_id]?.killer_char === 'bear5') {
@@ -428,7 +453,7 @@
         if (p.evil && realHit) {
           fileSfx(net.killerPick === 'bear5' ? SFX + 'jumpscare.mp3' : SFX + 'm1_hit.wav', {});
         }
-        // blue hp ate a real hit, sting the killer too
+        // shield hit sting killer
         if (p.evil && (d.shield_hit || 0) > (r._lastShieldHit || 0) && !r.evil && data.phase === 'round') {
           r._lastShieldHit = d.shield_hit;
           fileSfx(SFX + 'basic_hit.wav', {});
@@ -485,7 +510,7 @@
       const mePick = (data.players || {})[net.id];
       if (mePick && typeof mePick.aura === 'number') L.tier = mePick.aura;
       if (mePick) L.hot = !!mePick.aura_hot;
-      // blue bonus hp arrived, sting it
+      // bonus hp gained sting
       if (mePick && (mePick.shield || 0) > (p.shield || 0) && p.alive !== false) {
         fileSfx(SFX + 'dash_release.wav', {});
         sayStatus('overhealed!!', 2);
@@ -577,11 +602,12 @@
       const sonicLMS = isLMS && lmsChar === 'sonic';
       const tailsLMS = isLMS && lmsChar === 'tails';
       const nyanLMS = isLMS && lmsChar === 'nyan';
+      const marioLMS = isLMS && lmsChar === 'mario';
       const superLMS = isLMS && lmsChar === 'supersonic';
-      const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : (tailsLMS ? 'lmstails' : (nyanLMS ? 'lmsnyan' : (superLMS ? 'lmssonic' : 'lms'))));
+      const lmsKey = luxLMS ? 'lmslux' : (sonicLMS ? 'lmssonic' : (tailsLMS ? 'lmstails' : (nyanLMS ? 'lmsnyan' : (marioLMS ? 'lmsmario' : (superLMS ? 'lmssonic' : 'lms')))));
       if (isLMS && lmsTrack !== lmsKey) {
         // start anthem
-        for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan']) {
+        for (const k of ['chase', 'terror', 'map', 'lms', 'lmslux', 'lmssonic', 'lmstails', 'lmsnyan', 'lmsmario']) {
           beds[k].pause();
           try { beds[k].currentTime = 0; } catch (_) { /* hush!! */ }
         }
@@ -594,7 +620,7 @@
           const lmsHp = Math.max(LMS_HP, survHp());
           p.maxHp = superGlow ? SUPER_HP : lmsHp; p.hp = superGlow ? SUPER_HP : lmsHp;
           S.dashCD = 0; S.cowerCD = 0; L.prayCD = 0; L.adCD = 0; L.overCD = 0; T.kickCD = 0; T.jabCD = 0; TW.flyCD = 0; TW.bombCD = 0; TW.whipCD = 0; TW.bombsLeft = 5;
-          NY.rocketCD = 0; NY.dashCD = 0;
+          NY.rocketCD = 0; NY.dashCD = 0; MU.upperCD = 0;
           SS.boostCD = 0; SS.blockCD = 0; SS.spinCD = 0;
           fetch('/api/heal', {
             method: 'POST',
@@ -604,7 +630,7 @@
         }
       } else if (!isLMS && lmsTrack) {
         // lms over
-        beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause();
+        beds.lms.pause(); beds.lmslux.pause(); beds.lmssonic.pause(); beds.lmstails.pause(); beds.lmsnyan.pause(); beds.lmsmario.pause();
         lmsTrack = null; lmsEnded = false;
         if (!p.evil) {
           // drop buffs except super
@@ -613,7 +639,7 @@
       }
       // block chase
       if (isLMS) { chaseT = 0; terrorT = 0; }
-      // bear5 swaps elux themes for his own
+      // bear5 uses own themes
       let bear5ChaseT = 0;
       const killerChar = others[data.killer_id]?.killer_char;
       const isBear5Killer = killerChar === 'bear5';
@@ -632,7 +658,8 @@
         ['lmssonic', (sonicLMS || superLMS) ? 1 : 0, 0.25],
         ['lmstails', tailsLMS ? 1 : 0, 0.25],
         ['lmsnyan', nyanLMS ? 1 : 0, 0.25],
-        ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS && !nyanLMS && !superLMS ? 1 : 0, 0.25],
+        ['lmsmario', marioLMS ? 1 : 0, 0.25],
+        ['lms', isLMS && !luxLMS && !sonicLMS && !tailsLMS && !nyanLMS && !marioLMS && !superLMS ? 1 : 0, 0.25],
         ['chase', chaseT, 0.9],
         ['terror', terrorT, 0.9],
         ['bear5chase', bear5ChaseT, 0.9],
@@ -641,7 +668,7 @@
         ['map', data.phase === 'round' ? 1 : 0, 0.12],
         ['wait', data.phase === 'lobby' ? 1 : 0, 0.3],
       ];
-      const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, lmsnyan: 0, hero: 0, chase: 0, terror: 0, bear5chase: 0, charselect: 0 };
+      const bedT = { map: 0, wait: 0, inter: 0, lms: 0, lmslux: 0, lmssonic: 0, lmstails: 0, lmsnyan: 0, lmsmario: 0, hero: 0, chase: 0, terror: 0, bear5chase: 0, charselect: 0 };
       const win = cands.find((c) => c[1] > 0.05);
       if (win) bedT[win[0]] = win[2] * (win[0] === 'chase' || win[0] === 'terror' ? win[1] : 1);
       if (document.hidden) for (const k in bedT) bedT[k] = 0; // mute hidden
@@ -708,8 +735,9 @@
       if (p.evil && you && you.kb && you.kb.at !== p._lastKb) {
         p._lastKb = you.kb.at;
         const kbPow = you.kb.p || 1;
-        p.vel.x = (you.kb.x || 0) * Math.min(kbPow > 1 ? 4000 : 1100, 375 * (you.kb.s || 2) * kbPow);
-        if (p.onGround) p.vel.y = Math.min(p.vel.y || 0, -220); // hop up
+        if (!you.kb.vert) p.vel.x = (you.kb.x || 0) * Math.min(kbPow > 1 ? 4000 : 1100, 375 * (you.kb.s || 2) * kbPow); // keep momentum
+        if (you.kb.up > 0) p.vel.y = Math.min(p.vel.y || 0, -you.kb.up); // pop up
+        else if (p.onGround) p.vel.y = Math.min(p.vel.y || 0, -220); // hop up
       }
     }
 
@@ -747,7 +775,7 @@
           // own throws already fly
           // server echo would dupe-pop
           if (toss.owner === net.id) continue;
-          // pass throwerId for arc
+          // pass owner for arc
           game.addToss(toss.x, toss.y, toss.vx, toss.vy, game.bombImg, toss.id, toss.owner);
         }
       }

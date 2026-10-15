@@ -23,6 +23,7 @@
       supersonic: './Assets/Images/UI/supersonicicon.jpg',
       tails: './Assets/Images/UI/tailsicon.png',
       nyan: './Assets/Images/UI/nyanicon.png',
+      mario: './Assets/Images/UI/marioicon.png',
     };
     function renderParty(self, p, others, killerId) {
       partyList.innerHTML = '';
@@ -56,7 +57,7 @@
         fill.style.background = (hp || 0) <= 30 ? '#8e0000' : frac > 0.5 ? '#2ed573' : frac > 0.25 ? '#ffa502' : '#8e0000';
         bar.appendChild(fill);
         if (sh > 0) {
-          // blue bonus hp sits past the green
+          // blue bonus past green
           const blue = document.createElement('div');
           blue.className = 'pFillBlue';
           blue.style.width = `${Math.round(Math.min(1, sh / denom) * 100)}%`;
@@ -164,6 +165,11 @@
           { key: 'X', name: 'BOMB', icon: ABIL_ICONS.bomb, cd: () => TW.bombCD },
           { key: 'C', name: 'WHIP', icon: ABIL_ICONS.whip, cd: () => TW.whipCD },
         ];
+      } else if (isMario()) {
+        abilDefs = [
+          { key: 'Z', name: 'UPPERCUT', icon: null, cd: () => MU.upperCD },
+          { key: 'X', name: 'SPIN', icon: null, cd: () => MU.spinCD },
+        ];
       } else {
         abilDefs = [
           { key: 'Z', name: 'PRAY', icon: ABIL_ICONS.pray, cd: () => L.prayCD },
@@ -203,7 +209,7 @@
         p.maxHp = bear ? 999 : 250; p.hp = bear ? 999 : 250;
         p.maxJumps = 2;
         game.moveSpeed = bear ? 820 : 300; // evil speed
-        // bear5 runs super fast but doesn't fly
+        // bear5 fast no fly
         game.fly = false;
         game.noclip = false;
         game.spawn = { x: game.evilSpawn.x, y: game.evilSpawn.y }; // far spawn
@@ -227,7 +233,7 @@
       const now = Date.now();
       const p = game.player;
       if (!p || !net.id) return;
-      const role = p.evil ? (net.killerPick === 'bear5' ? 'bear5' : 'evil') : (isNyan() ? 'nyan' : isToko() ? 'toko' : (isSonic() ? 'sonic' : (isSuper() ? (SS.transformed ? 'super' : 'super0') : (isTails() ? 'tails' : 'lux'))));
+      const role = p.evil ? (net.killerPick === 'bear5' ? 'bear5' : 'evil') : (isNyan() ? 'nyan' : isToko() ? 'toko' : (isSonic() ? 'sonic' : (isSuper() ? (SS.transformed ? 'super' : 'super0') : (isTails() ? 'tails' : (isMario() ? 'mario' : 'lux')))));
       if (role !== abilRole) {
         abilRole = role;
         buildAbilities();

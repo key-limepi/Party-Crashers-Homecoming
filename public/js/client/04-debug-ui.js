@@ -25,7 +25,7 @@
     const setSfx = document.getElementById('setSfx');
     const setVvl = document.getElementById('setVvl');
     if (setBtn && setBox && setFx && setVoice && setFlash && setShake && setMus && setSfx && setVvl) {
-      // old pages lack these, skip quietly
+      // skip if settings missing
       let settings = { fx: true, voice: true, flash: true, shake: true, mus: 68, sfx: 50, vvl: 100 };
       try { Object.assign(settings, JSON.parse(localStorage.getItem('pc_settings') || '{}')); } catch (_) { /* fresh!! */ }
       const applySettings = () => {
@@ -147,6 +147,6 @@
         `vel: ${Math.round(p.vel.x)}, ${Math.round(p.vel.y)}\n` +
         `ground: ${p.onGround ? 'yep!!' : 'nope!!'}\n` +
         `phase: ${net.phase}\n` +
-        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} lmstails=${beds.lmstails.volume.toFixed(2)} lmsnyan=${beds.lmsnyan.volume.toFixed(2)} hero=${beds.hero.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
+        `mus: map=${beds.map.volume.toFixed(2)} wait=${beds.wait.volume.toFixed(2)} inter=${beds.inter.volume.toFixed(2)} lms=${beds.lms.volume.toFixed(2)} lmslux=${beds.lmslux.volume.toFixed(2)} lmssonic=${beds.lmssonic.volume.toFixed(2)} lmstails=${beds.lmstails.volume.toFixed(2)} lmsnyan=${beds.lmsnyan.volume.toFixed(2)} lmsmario=${beds.lmsmario.volume.toFixed(2)} hero=${beds.hero.volume.toFixed(2)} chase=${beds.chase.volume.toFixed(2)} terror=${beds.terror.volume.toFixed(2)} cs=${beds.charselect.volume.toFixed(2)}`;
     }, 100);
 

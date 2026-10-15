@@ -33,7 +33,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
-    # ---- helpers the route functions use (h.ip(), h.session(), h.redirect(), h.send_json()) ----
+    # route helper methods
     def ip(self):
         ip = self.client_address[0]
         if ip.startswith("::ffff:"):
@@ -43,7 +43,7 @@ class Handler(SimpleHTTPRequestHandler):
     def session(self):
         """the logged in formbar user for this browser, or None"""
         if not FORMBAR_MODE:
-            return LOCAL_SESSION # no login at all in local testing
+            return LOCAL_SESSION # no login locally
         cookie = SimpleCookie(self.headers.get("Cookie", ""))
         morsel = cookie.get("pch_sid")
         return state.sessions.get(morsel.value) if morsel else None

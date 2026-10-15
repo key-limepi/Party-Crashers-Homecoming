@@ -1,9 +1,9 @@
     const FLY_MAX = 10000; // meter
     const FLY_DRAIN = 95; // meter burns fast
     const FLY_COLOR = '#ff8c1a'; // orange
-    const FLY_CD = 30000; // after flight
-    const BOMB_CD = 15000; // trap wait
-    const WHIP_CD = 15000; // whip wait
+    const FLY_CD = 27000; // after flight
+    const BOMB_CD = 13500; // trap wait
+    const WHIP_CD = 13500; // whip wait
     game.onCounter = () => {
       // eat hits
       S.countered = true;
@@ -108,10 +108,10 @@
       if (!me || !me.evil) return;
       boomedIds.add(bb.id);
       fileSfx(SFX + 'explode.mp3', {});
-      // calculate stun strength from bomb age to scale explosion
+      // scale stun by age
       const bombAge = Math.max(0, Date.now() / 1000 - (bb.at || 0));
       const bombStun = Math.max(2.0, 5.0 - (bombAge / 15));
-      const explosionScale = bombStun / 4.0; // 2.0 stun = 0.5 scale, 5.0 stun = 1.25 scale
+      const explosionScale = bombStun / 4.0; // stun maps to scale
       game.addBoom(bb.x, bb.y - 20, explosionScale);
       me.stunT = Math.max(me.stunT || 0, 5); // long stun
       me.rooted = true;

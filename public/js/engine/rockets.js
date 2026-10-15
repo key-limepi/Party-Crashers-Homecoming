@@ -1,6 +1,6 @@
-// PlatformerEngine mixin: nyan rocket lifecycle, stepping, rendering and rainbow trail. Expects constants.js and engine.js loaded before it.
+// nyan rocket lifecycle
 Object.assign(PlatformerEngine.prototype, {
-  // nyan rocket, the cat itself turns into it. late joiners fast forward the climb
+  // cat becomes rocket climbing
   addRocket(x, y, opts = {}) {
     const rk = {
       id: opts.id || null, owner: opts.owner || null, mine: !!opts.mine,
@@ -26,7 +26,7 @@ Object.assign(PlatformerEngine.prototype, {
     return t;
   },
 
-  // the cat that is wearing this rocket
+  // find rocket carrier
   _rocketCarrier(rk) {
     if (rk.mine) return this.player || null;
     return this.remotes.find((r) => r.id === rk.owner) || null;
@@ -64,7 +64,7 @@ Object.assign(PlatformerEngine.prototype, {
     if (Math.hypot(rk.vx, rk.vy) > 30) rk.ang = Math.atan2(rk.vy, rk.vx);
   },
 
-  // rocket is done, cat pops back out where it blew up
+  // drop cat after rocket
   _rocketLand(b) {
     b.vel.x = 0; b.vel.y = 0;
     b.onGround = false;
@@ -79,13 +79,13 @@ Object.assign(PlatformerEngine.prototype, {
         if (!stuck()) return;
       }
     }
-    b.pos.x = ox; b.pos.y = oy; // nothing free, collision will sort it
+    b.pos.x = ox; b.pos.y = oy; // let collision sort it
   },
 
   stepRockets(dt) {
     const me = this.player;
     const wasRocket = !!(me && me.rocketing);
-    // flags get rebuilt each frame, so a vanished rocket always frees its cat
+    // rebuild flags each frame
     if (me) me.rocketing = false;
     for (const r of this.remotes) { r.rocketing = false; r._rk = null; }
     if (me) me._rk = null;
@@ -94,7 +94,7 @@ Object.assign(PlatformerEngine.prototype, {
       const c = this._rocketCarrier(rk);
       const alive = c && c.alive !== false && (c.hp ?? 1) > 0;
       if (c && !alive && rk.mine) {
-        // cat died mid flight, rocket goes with it
+        // dead cat ends rocket
         rk.boomed = true;
         if (rk.id) this.rocketDone.add(rk.id);
         continue;
@@ -105,7 +105,7 @@ Object.assign(PlatformerEngine.prototype, {
         c._rk = rk;
       }
       if (c && !rk.mine) {
-        // someone else's cat, the rocket rides their synced body
+        // ride synced remote body
         const nx = c.pos.x + c.w / 2, ny = c.pos.y + c.h / 2;
         rk.age += dt;
         const mx = nx - rk.x, my = ny - rk.y;
@@ -127,7 +127,7 @@ Object.assign(PlatformerEngine.prototype, {
           c.vel.x = 0; c.vel.y = 0;
         }
       }
-      // fire and smoke out the back
+      // exhaust smoke behind
       rk.puff += dt * 110;
       while (rk.puff >= 1) {
         rk.puff -= 1;
@@ -138,7 +138,7 @@ Object.assign(PlatformerEngine.prototype, {
           life: 0.35 + Math.random() * 0.3, size: 5 + Math.random() * 5, grow: 14,
         });
       }
-      // only the caster calls the hit
+      // caster checks hit only
       if (!rk.mine || !rk.id || !this.onRocketBoom) continue;
       const t = this._rocketTarget(rk);
       let boom = rk.age > ROCKET_LIFE || (!t && rk.age > ROCKET_UP + 1.2);
@@ -153,12 +153,12 @@ Object.assign(PlatformerEngine.prototype, {
         this.onRocketBoom(rk);
       }
     }
-    // rocket over, my cat is back
+    // cat back after rocket
     if (me && wasRocket && !me.rocketing) this._rocketLand(me);
     this.rockets = this.rockets.filter((rk) => rk.age < ROCKET_LIFE + 4);
   },
 
-  // rockets and the red mark on whoever they chase
+  // draw rockets and marks
   renderRockets(ctx) {
     const frames = this.rocketImgs.filter((im) => im && im.complete && im.naturalWidth);
     for (const rk of this.rockets) {
@@ -195,23 +195,23 @@ Object.assign(PlatformerEngine.prototype, {
     }
   },
 
-  // nyan rainbow. laid down in the world behind wherever the cat actually goes,
-  // so it only exists while moving and bends along jumps, falls and the rocket
+  // rainbow follows moving cat
+  // bends with jumps falls
   drawTrail(ctx, b, tr, ax, ay, s) {
     const T = b._tr || (b._tr = { pts: [], lx: ax, ly: ay, n: 0 });
     // teleport or respawn, start clean
     if (Math.hypot(ax - T.lx, ay - T.ly) > 260) { T.pts.length = 0; T.lx = ax; T.ly = ay; }
-    // new point every few pixels moved, nothing while standing still
+    // add point after moving
     if (Math.hypot(ax - T.lx, ay - T.ly) >= TRAIL_STEP) {
       T.pts.push({ x: T.lx, y: T.ly, t: this.time, n: T.n++ });
       T.lx = ax; T.ly = ay;
     }
-    // old stripes fade off the end
+    // fade old stripes
     while (T.pts.length && this.time - T.pts[0].t > TRAIL_LIFE) T.pts.shift();
     if (!T.pts.length) return;
     const tw = tr.naturalWidth, th = tr.naturalHeight;
     const full = th * s;
-    let nx = ax, ny = ay; // walk from the cat back along its path
+    let nx = ax, ny = ay; // walk back along path
     for (let i = T.pts.length - 1; i >= 0; i--) {
       const q = T.pts[i];
       const len = Math.hypot(nx - q.x, ny - q.y);

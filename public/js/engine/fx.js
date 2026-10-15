@@ -1,4 +1,4 @@
-// PlatformerEngine mixin: screen shake, blast particles, fx stepping and rendering. Expects constants.js and engine.js loaded before it.
+// shake blast particles
 Object.assign(PlatformerEngine.prototype, {
   // screen shake, bigger wins
   shake(mag, dur) {
@@ -9,7 +9,7 @@ Object.assign(PlatformerEngine.prototype, {
     this.shakeT = Math.max(this.shakeT, dur);
   },
 
-  // big blast, all drawn in code
+  // big code drawn blast
   addBlast(x, y, scale = 1) {
     if (window.FX_ON === false) return; // settings hush
     const add = (o) => this.fx.push(Object.assign({ x, y, vx: 0, vy: 0, age: 0, life: 1, size: 10, grow: 0, drag: 0, grav: 0 }, o));
@@ -81,7 +81,7 @@ Object.assign(PlatformerEngine.prototype, {
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(f.x, f.y, f.size, 0, 6.2832); ctx.stroke();
       } else if (f.kind === 'fire') {
-        // white hot, then yellow, orange, red
+        // hot to cool colors
         ctx.globalCompositeOperation = 'lighter';
         ctx.globalAlpha = Math.max(0, 1 - t) * 0.85;
         const fireColor = f.color || (t < 0.2 ? '#fff6c8' : t < 0.45 ? '#ffd23f' : t < 0.75 ? '#ff7a1a' : '#c2260c');
@@ -123,6 +123,14 @@ Object.assign(PlatformerEngine.prototype, {
         ctx.rotate(f.spin + f.age * 9);
         ctx.fillStyle = `hsl(${f.hue}, 100%, 55%)`;
         ctx.fillRect(-f.size / 2, -f.size / 2, f.size, f.size * 0.6);
+      } else if (f.kind === 'sprite') {
+        // one-shot frames, then gone
+        const fr = f.imgs[Math.min(f.imgs.length - 1, Math.floor(f.age / f.step))];
+        if (fr && fr.complete && fr.naturalWidth) {
+          const dw = fr.naturalWidth * (f.size || 2), dh = fr.naturalHeight * (f.size || 2);
+          ctx.globalAlpha = Math.max(0, 1 - t);
+          ctx.drawImage(fr, f.x - dw / 2, f.y - dh / 2, dw, dh);
+        }
       }
       ctx.restore();
     }
@@ -150,5 +158,14 @@ Object.assign(PlatformerEngine.prototype, {
     if (window.FX_ON === false) return; // settings hush
     if (this.fx.length > 650) return; // cap guard
     this.fx.push({ kind: 'halo', x, y, vx: 0, vy: 0, age: 0, life: 0.5, size: 10, grow: (grow || 420) * 0.45, color: color || '#ffffff' });
+  },
+
+  // sprite puff, plays once
+  spawnSprite(x, y, imgs, step) {
+    if (window.FX_ON === false) return; // settings hush
+    if (!imgs || !imgs.length) return; // nothing to play
+    if (this.fx.length > 650) return; // cap guard
+    const st = step || 0.15;
+    this.fx.push({ kind: 'sprite', x, y, vx: 0, vy: -30, age: 0, life: imgs.length * st, size: 2, drag: 0, imgs, step: st });
   },
 });

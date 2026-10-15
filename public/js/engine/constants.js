@@ -1,4 +1,4 @@
-// Shared tunable constants (bomb, rocket, trail, fx). Expects nothing loaded before it.
+// shared tuning constants
 // bomb collider half-size
 const BOMB_R = 20;
 // bomb draw height

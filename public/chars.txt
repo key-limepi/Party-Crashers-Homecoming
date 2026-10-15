@@ -38,6 +38,11 @@ desc: placeholder
 move: Z | ROCKET | homing cat missile
 move: X | RAINBOW DASH | 700ms dash
 
+[mario]
+desc: placeholder
+move: Z | UPPERCUT | 1s charge, blast up
+move: X | SPIN | extra jump, 2s stun
+
 [evil]
 desc: placeholder
 move: Z | M1 | slow heavy swing

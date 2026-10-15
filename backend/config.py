@@ -50,7 +50,7 @@ INTER_TIME = 30 # break time
 SELECT_TIME = 30 # pick time
 INTRO_TIME = 12 # killer intro video
 GRACE_TIME = 5 # safe start
-LMS_DURATIONS = {"lux": 209.736, "sonic": 266.928, "supersonic": 266.928, "tails": 166.872, "nyan": 181.656} # anthem lengths; default 105s
+LMS_DURATIONS = {"lux": 209.736, "sonic": 266.928, "supersonic": 266.928, "tails": 166.872, "nyan": 181.656, "mario": 178.128} # anthem lengths; default 105s
 TOUCH_DIST = 55 # touch range
 TOUCH_DMG = 25 # hit damage
 TOUCH_COOLDOWN = 1.0
@@ -77,6 +77,7 @@ CHARACTERS = [
     {"id": "tails", "name": "TAILS"},
     {"id": "supersonic", "name": "SUPER SONIC", "dev": True},
     {"id": "nyan", "name": "NYAN CYAT", "dev": True},
+    {"id": "mario", "name": "MARIO"},
     {"id": "bear5", "name": "BEAR5", "dev": True, "killer": True},
 ]
 QUICK_CHAT = (
@@ -98,7 +99,7 @@ AURA_T2 = 120 # drained after here
 AURA_TICKS = ((2, 4.0), (2, 6.0), (1, 8.0)) # hp, seconds per tier
 OVERHEAL_RADIUS = 300 # pick reach
 OVERHEAL_BONUS = 50 # blue hp granted
-OVERHEAL_CD = 15.0 # cast wait
+OVERHEAL_CD = 13.5 # cast wait
 OVERHEAL_DRAIN = 2.0 # blue hp per second
 
 # mvp scoring, applied hp only
@@ -109,7 +110,7 @@ SCORE_SURV = 0.5 # per second alive
 SCORE_TAKEN = -0.2 # per hp eaten
 
 # rank grades, score floors
-GRADE_CUTS = ((400, "S"), (250, "A"), (120, "B"), (40, "C")) # else D
+GRADE_CUTS = ((400, "S"), (250, "A"), (120, "B"), (40, "C")) # else d
 
 # killer winning cutscenes, more later
 WIN_CUTSCENES = {

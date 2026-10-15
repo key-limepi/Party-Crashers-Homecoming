@@ -98,7 +98,7 @@
           TW.flying = true;
           TW.flyLeft = FLY_MAX; // meter
           if (p.onGround) {
-            // ground launch, costs a quarter tank
+            // grounded launch costs quarter
             TW.flyLeft = FLY_MAX * 0.75;
             p.vel.y = Math.min(p.vel.y || 0, -600);
             p.onGround = false;
@@ -107,7 +107,7 @@
           game.luxGlow(p.pos.x + p.w / 2, p.pos.y + p.h / 2, '#ffffff', 4, 110); // liftoff puff
         }
       } else if (ab === 'X' && !TW.flying && !TW.throwUntil) {
-        // bomb arm, press again to toss
+        // arm then toss again
         const dir = p.facing || 1;
         if (!TW.holding) {
           if (TW.bombsLeft <= 0) {
@@ -134,7 +134,7 @@
           const throwY = p.pos.y + 8;
           const throwVx = dir * 500;
           const throwVy = -320;
-          // add toss with throwerId
+          // add toss with owner
           game.addToss(throwX, throwY, throwVx, throwVy, game.bombImg, null, net.id);
           game.luxGlow(throwX, throwY, '#ffa502', 4, 100); // toss puff
           fetch('/api/bomb', {
@@ -152,5 +152,31 @@
         p.rooted = true;
         setPose('whip', 400);
         fileSfx(SFX + 'tailwhip.wav', {});
+      }
+    }
+
+    /** mario abilities: one queued key press (Z/X/...) */
+    function castMario(p, now, ab) {
+      if (ab === 'Z' && now >= MU.upperCD && !MU.windupUntil && !MU.upperUntil) {
+        // charge uppercut
+        MU.windupUntil = now + 1000;
+        MU.upperHit = false;
+        p.rooted = true;
+        p.actionImg = marioSprites.uppercharge[0]; p.actionT = 0.15;
+        setPose('uppercharge', 1000);
+        fileSfx(SFX + 'uppercut_charge.wav', {});
+      } else if (ab === 'X' && now >= MU.spinCD && !MU.spinUntil && !MU.spinUsed) {
+        // spin jump, one per air
+        MU.spinCD = now + (p.onGround ? 5000 : 8000); // ground recharges fast
+        MU.spinUsed = true;
+        MU.spinUntil = now + 1000;
+        MU.spinHit = false;
+        p.vel.y = -900;
+        p.onGround = false;
+        p.noCutUntil = game.time + 1.0; // keep full hop
+        p.actionImg = marioSprites.spin[0]; p.actionT = 0.15;
+        setPose('spin', 1000);
+        game.spawnSprite(p.pos.x + p.w / 2, p.pos.y + p.h / 2, marioSprites.luma, 0.15); // luma puff
+        fileSfx(SFX + 'spin_attack_mario.wav', {});
       }
     }

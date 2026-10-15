@@ -1,6 +1,6 @@
     function fireRocket() {
       const p = game.player;
-      // the cat becomes the rocket right now, the server just hands out the id
+      // cat becomes rocket instantly
       const cx = Math.round(p.pos.x + p.w / 2), cy = Math.round(p.pos.y + p.h / 2);
       if (NY.dashing) { NY.dashing = false; p.dashing = false; p.chargeDir = 0; p.chargeSpeed = 0; }
       const local = game.addRocket(cx, cy, { owner: net.id, mine: true });
@@ -13,19 +13,19 @@
       }).then((r) => r.json()).then((d) => {
         const rk = d && d.rocket;
         if (!rk) {
-          // server said no, cat goes back to normal
+          // server refused revert cat
           game.rockets = game.rockets.filter((g) => g !== local);
           NY.rocketCD = 0;
           return;
         }
-        // the next poll may have claimed it already
+        // poll may claim first
         if (!local.id) local.id = rk.id;
         local.owner = rk.by;
         game.rockets = game.rockets.filter((g) => g === local || g.id !== rk.id);
       }).catch(() => { game.rockets = game.rockets.filter((g) => g !== local); });
       fileSfx(SFX + 'dash_release.wav', {});
     }
-    // caster calls the hit, server does the damage
+    // caster calls server damages
     game.onRocketHome = (rk, rate) => {
       fileSfx(SFX + 'nyan_homing.wav', { rate: rate || 1 });
     };
@@ -36,14 +36,14 @@
         body: JSON.stringify({ id: net.id, action: 'detonate', rocket: rk.id, x: Math.round(rk.x), y: Math.round(rk.y) }),
       }).catch(() => {});
     };
-    // rockets and blasts from the server, everyone sees both
+    // sync rockets and blasts
     function syncRockets(data) {
       game.myId = net.id;
       const list = data.rockets || [];
       for (const r of list) {
         if (game.rocketDone.has(r.id)) continue; // already blew up here
         let rk = game.rockets.find((g) => g.id === r.id);
-        // my own launch that is still waiting on its id
+        // match own pending launch
         if (!rk && r.by === net.id) {
           rk = game.rockets.find((g) => g.mine && !g.id);
           if (rk) rk.id = r.id;

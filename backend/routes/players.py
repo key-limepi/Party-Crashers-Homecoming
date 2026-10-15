@@ -109,7 +109,7 @@ def state_post(h, data):
                             # fresh hp
                             pl["hp"] = max(0, min(maxhp, posted))
                         else:
-                            # stale posts never undo a heal
+                            # stale posts never undo heal
                             acked = pl.get("hp_ack", pl["hp"])
                             if posted < min(pl["hp"], acked):
                                 # tab-only hits eat shield first
@@ -182,7 +182,7 @@ def heal(h, data):
 
 def overheal(h, data):
     """POST /api/overheal"""
-    # lux grants one ally blue bonus hp
+    # lux grants ally shield
     now = time.time()
     with state.lock:
         me = state.players.get(data.get("id"))
@@ -195,7 +195,7 @@ def overheal(h, data):
             h.send_json({"ok": False, "reason": "not ready!!"})
             return
         
-        # LMS self-overheal: Lux gives herself 25 shield (overheal)
+        # lux self shield bonus
         target_id = data.get("target")
         if state.lms_set and target_id == me["id"]:
             me["shield"] = me.get("shield", 0) + 25
@@ -206,7 +206,7 @@ def overheal(h, data):
             h.send_json({"ok": True, "target": me["id"], "name": me["name"], "shield": me["shield"], "lms_self": True})
             return
         
-        # neediest ally in reach, full bonus last
+        # neediest ally first, full last
         best, best_need, best_d2 = None, 0, 0
         for pid, pl in state.players.items():
             if pid == data.get("id") or pid not in state.round_players:

@@ -1,4 +1,4 @@
-// Owns PlatformerEngine core (constructor, level, players, physics, update, start). Expects constants.js, physics-primitives.js and input.js loaded before it; mixin files load after.
+// core engine platformer logic
 class PlatformerEngine {
   constructor(canvas, opts = {}) {
     this.canvas = canvas;
@@ -52,7 +52,7 @@ class PlatformerEngine {
     this.booms = []; // boom pops
     this.boomImg = null; // boom art
     this.rockets = []; // nyan rockets
-    this.rocketDone = new Set(); // ended ids, never respawn them from a late poll
+    this.rocketDone = new Set(); // done ids never respawn
     this.rocketImgs = []; // rocket frames
     this.onRocketBoom = null; // rocket hook
     this.onRocketHome = null; // homing hook
@@ -253,7 +253,7 @@ class PlatformerEngine {
   update(dt) {
     const p = this.player;
     if (p && p.rocketing) {
-      // the cat is the rocket, stepRockets drives the body
+      // rocket mode skips walk
       p.vel.x = 0; p.vel.y = 0;
       p.onGround = false; p.wasGround = false;
       p.stunT = 0; p.chargeDir = 0; p.cowerT = 0; p.cowering = false;
@@ -367,7 +367,7 @@ class PlatformerEngine {
       b.wasGround = b.onGround;
       b.onGround = false;
       this.moveBody(b, dt, this.statics); // tunnel-safe push
-      // clear justJumped on landing
+      // clear jump flag landing
       if (!b.wasGround && b.onGround) b._justJumped = false;
       // wings end on touchdown
       if (b === p && p.taxiFly && b.onGround) {
