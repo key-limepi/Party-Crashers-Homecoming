@@ -64,10 +64,23 @@ def update_rockets(now):
         blasts.pop(0)
 
 
+def flag_verify():
+    # per-round join check
+    from .config import DIGIPOGS_ON, ROUND_COST
+    if not DIGIPOGS_ON or ROUND_COST <= 0:
+        return
+    for pl in here_players().values():
+        sess = state.sessions.get(pl.get("sid"), {})
+        if not sess.get("remember_pin") and not pl.pop("confirmed", False):
+            pl["paid"] = False # verify pin first
+            pl["pay_msg"] = "verify pin to join (15 digipogs)!!"
+
+
 def start_intermission():
     # break once
     state.phase = "intermission"
     state.phase_end = time.time() + INTER_TIME
+    flag_verify()
     print("[GAME] State: INTERMISSION (30s)", flush=True)
 
 
@@ -86,10 +99,18 @@ def start_select(free=False):
         pl["paid"] = False
     for pid, pl in here.items():
         # awaiting formbar payment
-        pl["paid"] = None if ROUND_COST > 0 and not free else True
-        pl["pay_msg"] = ""
         if ROUND_COST > 0 and not free:
-            threading.Thread(target=charge_player, args=(pid,), daemon=True).start()
+            sess = state.sessions.get(pl.get("sid"), {})
+            if sess.get("remember_pin") or pl.pop("confirmed", False):
+                pl["paid"] = None # charging now
+                pl["pay_msg"] = ""
+                threading.Thread(target=charge_player, args=(pid,), daemon=True).start()
+            else:
+                pl["paid"] = False # verify pin first
+                pl["pay_msg"] = "verify pin to join (15 digipogs)!!"
+        else:
+            pl["paid"] = True
+            pl["pay_msg"] = ""
     state.killer_id = pick_killer(here)
     print(f"[GAME] preselected evil: {players[state.killer_id]['name']} "
           f"(malice {state.malice.get(players[state.killer_id]['fid'], 0)})", flush=True)
@@ -199,6 +220,7 @@ def end_round(winner):
         state.result = {"winner": winner, "killer_name": name, "round": rnd, "lms": False}
         state.phase = "intermission"
         state.phase_end = time.time() + INTER_TIME
+        flag_verify()
     state.current_round += 1 # fresh rounds
     for pl in players.values():
         pl["alive"] = True
@@ -373,7 +395,12 @@ def _tick_select(now):
         print("[GAME] everyone picked - starting early!!", flush=True)
         start_round()
     elif now >= state.phase_end:
-        if len(here_players()) >= 2:
+        typists = [pid for pid, pl in here.items()
+                   if not pl.get("paid") and pl.get("typing_pin_until", 0) > now]
+        if typists and len(here_players()) >= 2:
+            state.phase_end = now + 5 # hold for typists
+            print(f"!! holding select, pin typing: {len(typists)}!!", flush=True)
+        elif len(here_players()) >= 2:
             start_round()
         else:
             state.phase = "lobby"
@@ -392,6 +419,7 @@ def _tick_lms_cutscene(now):
         state.cutscene_skip.clear()
         state.phase = "intermission"
         state.phase_end = now + INTER_TIME
+        flag_verify()
         print("[GAME] State: INTERMISSION (30s)", flush=True)
 
 

@@ -8,6 +8,8 @@ from . import auth, combat, lobby, mod, players, snapshot, traps
 # post path table
 POST_ROUTES = {
     "/api/pin": auth.pin,
+    "/api/pin/verify": auth.verify,
+    "/api/pin/typing": auth.typing,
     "/api/join": players.join,
     "/api/malice/buy": lobby.malice_buy,
     "/api/state": players.state_post,

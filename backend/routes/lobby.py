@@ -37,6 +37,10 @@ def malice_buy(h, data):
             h.send_json({"ok": False, "reason": "malice is not for sale!!"})
             return
         pin = state.sessions.get(me["sid"], {}).get("pin")
+        given = str(data.get("pin", "")).strip()
+        if not pin or given != pin:
+            h.send_json({"ok": False, "reason": "wrong pin!!"})
+            return
     if FORMBAR_MODE:
         if not pin:
             h.send_json({"ok": False, "reason": "enter your digipog pin first!!"})

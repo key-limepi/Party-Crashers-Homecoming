@@ -79,6 +79,11 @@ class PlatformerEngine {
     this.levelArt = null; // level art
     this.levelBounds = null; // level size
     this.levelBackdrop = null; // level backdrop
+    this.interArt = null; // inter art
+    this.interBounds = null; // inter size
+    this.interBackdrop = null; // inter backdrop
+    this.interProps = null; // front props
+    this.interScale = 1; // inter shrink
     this.mapFall = { main: this.fallY, inter: this.fallY }; // fall lines
     this.mapBg = { main: this.background, inter: this.background }; // sky colors
   }
@@ -96,6 +101,23 @@ class PlatformerEngine {
     this.mapFall.main = level.h + 600;
     if (opts.background) this.mapBg.main = opts.background;
     if (this.activeMap === 'main') { this.fallY = this.mapFall.main; this.background = this.mapBg.main; }
+  }
+
+  // traced intermission
+  loadInterLevel(level, art, scale, backdrop, props) {
+    const S = scale || 1;
+    for (const [x, y, w, h] of level.rects) this.addPlatform(x, y, w, h, '#000', 'inter');
+    // stay inside
+    this.addPlatform(-200, -1500, 200, level.h + 3000, '#000', 'inter'); // left wall
+    this.addPlatform(level.w, -1500, 200, level.h + 3000, '#000', 'inter'); // right wall
+    this.addPlatform(-200, -1700, level.w + 400, 200, '#000', 'inter'); // ceiling
+    this.interArt = art;
+    this.interBackdrop = backdrop || null;
+    this.interProps = props || null;
+    this.interScale = S;
+    this.interBounds = { w: level.w, h: level.h };
+    this.mapFall.inter = level.h + 600;
+    if (this.activeMap === 'inter') { this.fallY = this.mapFall.inter; this.background = this.mapBg.inter; }
   }
 
   addPlayer(x, y, w = 36, h = 52, color = '#7aa2f7') {
@@ -559,6 +581,10 @@ class PlatformerEngine {
       this.camera.y = t.pos.y + t.h / 2 - this.height / 2;      if (this.levelBounds && this.activeMap === 'main') { // stay inside
         this.camera.x = Math.max(0, Math.min(this.levelBounds.w - this.width, this.camera.x));
         this.camera.y = Math.max(0, Math.min(this.levelBounds.h - this.height, this.camera.y));
+      }
+      if (this.interBounds && this.activeMap === 'inter') { // stay inside
+        this.camera.x = Math.max(0, Math.min(this.interBounds.w - this.width, this.camera.x));
+        this.camera.y = Math.max(0, Math.min(this.interBounds.h - this.height, this.camera.y));
       }
     }
     if (this.shakeT > 0) this.shakeT -= dt; // shake decays

@@ -57,7 +57,7 @@
       sneakShade.style.opacity = (p && p.evil && p.invis && p.alive !== false) ? 0.45 : 0;
       // walking feet loop
       if (p && p.alive !== false && p.onGround && Math.abs(p.vel.x) > 60) {
-        stepLoop.rate(0.6 + Math.abs(p.vel.x) / 600); // faster feet, faster steps
+        stepLoop.rate(0.4 + Math.abs(p.vel.x) / 900); // slower steps
         stepLoop.start();
       } else stepLoop.stop();
       if (posdbg.style.display !== 'none' && game.player) {

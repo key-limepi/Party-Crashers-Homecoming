@@ -71,6 +71,51 @@ def pin(h, data):
         h.send_json({"ok": False, "reason": "pin should be 4 to 8 digits!!"})
     else:
         sess["pin"] = pin
+        sess["remember_pin"] = bool(data.get("remember"))
         h.send_json({"ok": True})
+    return
+
+
+def verify(h, data):
+    """POST /api/pin/verify"""
+    # per-round join check
+    sess = h.session()
+    if not sess:
+        h.send_json({"ok": False, "reason": "log in first!!"}, 401)
+        return
+    if not DIGIPOGS_ON:
+        h.send_json({"ok": True}) # free rounds
+        return
+    pin = str(data.get("pin", "")).strip()
+    if not sess.get("pin") or pin != sess.get("pin"):
+        h.send_json({"ok": False, "reason": "wrong pin!!"})
+        return
+    with state.lock:
+        pl = state.players.get(data.get("id"))
+        if not pl:
+            h.send_json({"ok": False, "reason": "join first!!"})
+            return
+        if ROUND_COST > 0:
+            from ..formbar import charge_player
+            import threading
+            pl["paid"] = None # charging now
+            pl["pay_msg"] = ""
+            threading.Thread(target=charge_player, args=(data.get("id"),), daemon=True).start()
+        else:
+            pl["paid"] = True
+        pl["confirmed"] = True
+    h.send_json({"ok": True})
+    return
+
+
+def typing(h, data):
+    """POST /api/pin/typing"""
+    # pin entry heartbeat
+    import time
+    with state.lock:
+        pl = state.players.get(data.get("id"))
+        if pl:
+            pl["typing_pin_until"] = time.time() + 4
+    h.send_json({"ok": True})
     return
 

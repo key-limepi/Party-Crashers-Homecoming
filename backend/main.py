@@ -22,7 +22,7 @@ def main():
         print("dual-stack!! ipv4 + ipv6!!", flush=True)
     except Exception:
         server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"party crashers homecoming is LIVE at http://localhost:{PORT} !! ({os.path.join(HERE, 'server.py')})", flush=True)
+    print(f"party crashers redrawn is LIVE at http://localhost:{PORT} !! ({os.path.join(HERE, 'server.py')})", flush=True)
     print("friends on your wifi: use your computer's IP instead of localhost!!", flush=True)
     try:
         server.serve_forever()

@@ -23,6 +23,15 @@ Object.assign(PlatformerEngine.prototype, {
         if (bd && bd.complete && bd.naturalWidth && lb) ctx.drawImage(bd, 0, 0, bd.naturalWidth, bd.naturalHeight, 0, 0, lb.w, lb.h);
         ctx.drawImage(this.levelArt, cx, cy, sw, sh, cx, cy, sw, sh);
       }
+    } else if (this.interArt && this.interArt.complete && this.activeMap === 'inter') {
+      const S = this.interScale || 1;
+      const lb = this.interBounds;
+      const bd = this.interBackdrop;
+      if (bd && bd.complete && bd.naturalWidth && lb) ctx.drawImage(bd, 0, 0, bd.naturalWidth, bd.naturalHeight, 0, 0, lb.w, lb.h);
+      const cx = Math.max(0, Math.round(this.camera.x)), cy = Math.max(0, Math.round(this.camera.y));
+      const sx = cx / S, sy = cy / S;
+      const sw = Math.min((this.width + 2) / S, this.interArt.width - sx), sh = Math.min((this.height + 2) / S, this.interArt.height - sy);
+      if (sw > 0 && sh > 0) ctx.drawImage(this.interArt, sx, sy, sw, sh, cx, cy, sw * S, sh * S);
     } else {
       for (const s of this.statics) {
         ctx.fillStyle = s.color;
@@ -387,6 +396,15 @@ Object.assign(PlatformerEngine.prototype, {
     // rockets then blast
     this.renderRockets(ctx);
     if (window.FX_ON !== false) this.renderFx(ctx);
+    // front props, over players
+    const fp = this.interProps;
+    if (fp && fp.complete && fp.naturalWidth && this.activeMap === 'inter') {
+      const S = this.interScale || 1;
+      const fx0 = Math.max(0, Math.round(this.camera.x)), fy0 = Math.max(0, Math.round(this.camera.y));
+      const fsx = fx0 / S, fsy = fy0 / S;
+      const fsw = Math.min((this.width + 2) / S, fp.width - fsx), fsh = Math.min((this.height + 2) / S, fp.height - fsy);
+      if (fsw > 0 && fsh > 0) ctx.drawImage(fp, fsx, fsy, fsw, fsh, fx0, fy0, fsw * S, fsh * S);
+    }
     // debug boxes
     if (this.debug) {
       ctx.strokeStyle = '#ff00ff';

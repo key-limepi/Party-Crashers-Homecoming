@@ -1,4 +1,4 @@
-# PARTY CRASHERS HOMECOMING
+# PARTY CRASHERS REDRAWN
 
 A revival of **Party Crashers**: a browser-based, multiplayer 2D platformer asym-horror inspired game 
 where one player becomes the killer ("Evil Lux") and everyone else has to survive long enough to escape.

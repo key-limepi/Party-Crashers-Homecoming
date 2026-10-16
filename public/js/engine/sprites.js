@@ -290,7 +290,7 @@ Object.assign(PlatformerEngine.prototype, {
       else if (b.animRunning && speed < 260) b.animRunning = false;
       const frames = (b.animRunning && s.run && s.run.length) ? s.run : s.walk;
       // slow run
-      const stride = b.animRunning ? (s.runStride || 65) : (s.walkStride || (tired ? 70 : 40));
+      const stride = b.animRunning ? (s.runStride || 45) : (s.walkStride || (tired ? 70 : 40));
       const i = Math.floor(b.walkDist / stride) % frames.length;
       return frames[i];
     }

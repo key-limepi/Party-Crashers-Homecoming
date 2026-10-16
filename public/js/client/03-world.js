@@ -18,16 +18,13 @@
     game.addSpring(305, 1089, 1500, loadImg(SPR + 'spring_red.png'));
     game.respawn();
 
-    // rest island
-    game.addPlatform(6000, 380, 800, 80, '#8ac926', 'inter'); // island floor
-    game.addPlatform(5960, 100, 40, 360, '#c084fc', 'inter'); // left wall
-    game.addPlatform(6800, 100, 40, 360, '#c084fc', 'inter'); // right wall
-    game.addPlatform(6200, 280, 140, 22, '#ff9f1c', 'inter');
-    game.addPlatform(6480, 200, 140, 22, '#ff9f1c', 'inter');
-    game.addPlatform(6340, 120, 120, 22, '#ff9f1c', 'inter');
-    // lobby springs
-    game.addSpring(6080, 354, 1500, loadImg(SPR + 'spring_red.png'), 'inter');
-    game.addSpring(6232, 254, 1200, loadImg(SPR + 'spring_orange.png'), 'inter');
-    game.addSpring(6620, 354, 950, loadImg(SPR + 'spring_yellow.png'), 'inter');
+    // test hitboxes
+    game.loadInterLevel(LEVEL_INTERMISSION, loadImg('./Assets/Images/Levels/Intermission.png'), 1, loadImg('./Assets/Images/Levels/IntermissionBG.png'), loadImg('./Assets/Images/Levels/Intermission_Props.png')); // built art
+    // inter springs
+    game.addSpring(246, 1820, 1200, loadImg(SPR + 'spring_orange.png'), 'inter'); // low floor
+    game.addSpring(166, 1446, 950, loadImg(SPR + 'spring_yellow.png'), 'inter'); // mid shelf
+    game.addSpring(2282, 1058, 1500, loadImg(SPR + 'spring_red.png'), 'inter'); // east ledge
+    game.addSpring(2367, 564, 1500, loadImg(SPR + 'spring_red.png'), 'inter'); // high deck
+    game.respawn();
 
     game.start();

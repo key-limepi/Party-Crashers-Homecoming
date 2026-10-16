@@ -70,9 +70,10 @@
         row.appendChild(col);
         partyList.appendChild(row);
       };
-      if (self && !p.evil) add(self.name, self.char === 'supersonic' && !SS.transformed ? 'sonic' : self.char, p.hp, p.maxHp, p.shield || 0, p.alive !== false, true, false, p.pos.x + p.w / 2, p.pos.y + p.h / 2);
+      if (self && !p.evil && self.in_round !== false) add(self.name, self.char === 'supersonic' && !SS.transformed ? 'sonic' : self.char, p.hp, p.maxHp, p.shield || 0, p.alive !== false, true, false, p.pos.x + p.w / 2, p.pos.y + p.h / 2);
       for (const [id, d] of Object.entries(others || {})) {
         if (!d || id === net.id || id === killerId) continue;
+        if (d.in_round === false) continue; // round only
         const r = game.remotes.find((r) => r.id === id);
         const rx = r ? r.pos.x + r.w / 2 : 1e9, ry = r ? r.pos.y + r.h / 2 : 1e9;
         add(d.name, d.char === 'supersonic' && !d.super ? 'sonic' : d.char, d.hp, d.maxhp || 100, d.shield || 0, (d.alive ?? d.hp > 0), false, false, rx, ry);

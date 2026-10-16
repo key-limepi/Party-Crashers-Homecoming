@@ -19,6 +19,7 @@ FILES = [
     "js/engine/sprites.js",
     "js/engine/render.js",
     "js/levels/level_rough_draft.js",
+    "js/levels/level_intermission.js",
     "js/client/01-core.js",
     "js/client/02-sprites.js",
     "js/client/03-world.js",

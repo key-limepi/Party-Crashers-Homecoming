@@ -4,13 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>party crashers homecoming</title>
+  <title>party crashers redrawn</title>
+  <link rel="icon" href="./Assets/Images/UI/luxicon.png">
   <link rel="stylesheet" href="./css/style.css?v=24">
 </head>
 
 <body>
   <div id="wrap">
-    <h1>party crashers homecoming OPEN PLAYTEST v0.86</h1>
+    <h1>party crashers redrawn OPEN PLAYTEST v0.91</h1>
     <p>this is a work in progress!! please report any bugs or imbalances you find!!</p>
     <p>coming to Formbar october 20th!</p>
     <div id="mainRow">
@@ -60,8 +61,7 @@
         <img id="afkImgBtn" src="./Assets/Images/UI/afk.png" alt="AFK" style="display:none">
         <div id="splash"><span>WARNING!!<br><br>Do not play this game if you are photosensitive or epileptic.<br>This
             game contains flashing lights.</span></div>
-        <div id="titleScreen" style="display:none"><span>PARTY CRASHERS<br>HOMECOMING<br><br>(temporary title!! click to
-            play!!)<br>formbar login needed!!</span></div>
+        <div id="titleScreen" style="display:none"><img id="titleLogo" src="./Assets/Images/logo.png" alt="party crashers redrawn"><span>click to play!!<br>formbar login needed!!</span></div>
         <div id="deathStatic" style="display:none"></div>
         <div id="lowhpStatic" style="display:none"></div>
         <div id="mapLoad" style="display:none"><div id="tipBar"></div></div>
@@ -73,6 +73,17 @@
             <div id="pinRow" style="display:none">
               <input id="pinBox" type="password" inputmode="numeric" minlength="4" maxlength="8" placeholder="digipog pin!!">
               <button id="pinBtn">save pin</button>
+              <label id="pinRememberLabel"><input type="checkbox" id="pinRemember"> remember my PIN</label>
+            </div>
+          </div>
+        </div>
+        <div id="verifyBanner" style="display:none">
+          <div class="pinPrompt">
+            <span>NEXT ROUND COSTS 15 DIGIPOGS!!</span>
+            <span class="pinSub">enter pin to join + pay!!</span>
+            <div id="verifyRow">
+              <input id="verifyBox" type="password" inputmode="numeric" minlength="4" maxlength="8" placeholder="digipog pin!!">
+              <button id="verifyBtn">join + pay</button>
             </div>
           </div>
         </div>
@@ -252,7 +263,7 @@
   </script>
   <!-- game scripts, one bundle (slow tunnels drop parallel fetches) -->
   <!-- order lives in backend/routes/bundle.py, bump bundle ?v= when any file changes -->
-  <script src="./js/bundle.js?v=64"></script>
+  <script src="./js/bundle.js?v=82"></script>
 </body>
 
 </html>

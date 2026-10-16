@@ -19,10 +19,6 @@ def join(h, data):
         h.send_json({"error": "enter your digipog pin!!", "pin": True}, 401)
         return
     with state.lock:
-        if state.phase == "round":
-            # locked match
-            h.send_json({"error": "match running!!"}, 403)
-            return
         pid = secrets.token_hex(4)
         # fid identity, mods/mutes follow
         fid = sess["fid"]

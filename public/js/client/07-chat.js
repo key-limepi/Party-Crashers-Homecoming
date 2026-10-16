@@ -31,7 +31,7 @@
         logModal.style.display = 'none';
         return;
       }
-      fetch('./changelog.md').then((r) => r.text()).then((t) => {
+      fetch('./changelog.md?v=' + Date.now()).then((r) => r.text()).then((t) => {
         logModal.textContent = t;
         logModal.style.display = 'block';
       }).catch(() => {});

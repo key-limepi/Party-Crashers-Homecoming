@@ -18,8 +18,8 @@
           if (data.phase !== 'round' || you?.in_round) {
             if (data.phase === 'round') game.switchMap('main', 100, 880);
             else {
-              game.switchMap('inter', 6120, 100); // island map
-              if ((data.phase === 'intermission' || data.phase === 'lobby') && !p.evil) {
+              game.switchMap('inter', 800, 1844); // test map
+              if (data.phase === 'intermission' || data.phase === 'lobby') {
                 // random fighter kit
                 net.costume = lobbyCostume(net.id);
                 wearChar(net.costume);
@@ -45,6 +45,15 @@
                 invis: false, m1: true, stunned: false, pull: false,
               }),
             }).catch(() => {});
+          } else {
+            // mid-match joiners wait in intermission
+            game.switchMap('inter', 800, 1844); // test map
+            p.hp = p.maxHp;
+            game.respawn();
+            justRevived = true;
+            game.cameraTarget = null;
+            specId = null;
+            roleBox.style.display = 'none';
           }
         };
         if (firstSync) doSwap();
@@ -96,7 +105,7 @@
         roleBox.style.display = 'block';
         roleTimer = setTimeout(() => { roleBox.style.display = 'none'; }, 3000);
         sayStatus('pick your killer!!', 5);
-        game.spawn = { x: 6650, y: 100 };
+        game.spawn = { x: 1850, y: 1844 }; // far corner
         game.respawn();
       }
       net.wasElect = net.amKillerElect;
@@ -130,8 +139,10 @@
       // black while map loads
       if (mapLoad) {
         const art = game.levelArt, bd = game.levelBackdrop;
+        const iart = game.interArt, ipr = game.interProps;
         const loading = (game.activeMap === 'main' &&
           ((art && !art.complete) || (bd && !bd.complete))) ||
+          (game.activeMap === 'inter' && ((iart && !iart.complete) || (ipr && !ipr.complete))) ||
           data.phase === 'intro';
         mapLoad.style.display = loading ? 'flex' : 'none';
       }
@@ -253,8 +264,16 @@
       maliceNum.textContent = you.malice || 0;
       buyMaliceBtn.disabled = data.phase !== 'intermission';
       buyMaliceBtn.textContent = net.me ? `buy ${net.me.malice_per_buy} malice (${net.me.malice_price} digipogs)` : 'buy malice';
-      // party list
-      const showParty = data.phase === 'round' && net.id;
+      // per-round join check
+      const vb = document.getElementById('verifyBanner');
+      if (vb) {
+        const needVerify = net.me && net.me.round_cost > 0 &&
+          (data.phase === 'intermission' || data.phase === 'select') &&
+          you && you.paid === false && /verify/i.test(you.pay_msg || '');
+        vb.style.display = needVerify ? 'flex' : 'none';
+      }
+      // party list, round players only
+      const showParty = data.phase === 'round' && net.id && you?.in_round !== false;
       partyList.style.display = showParty ? 'flex' : 'none';
       if (showParty && Date.now() - (net._partyT || 0) > 250) {
         net._partyT = Date.now();
@@ -264,9 +283,11 @@
 
     function syncRemotes(t) {
       let { p, data, others } = t;
+      const meIn = !!(others[net.id] && others[net.id].in_round);
       const seen = new Set();
       for (const [id, d] of Object.entries(others)) {
         if (id === net.id) continue;
+        if (d.in_round !== undefined && !!d.in_round !== meIn) continue; // same group only
         seen.add(id);
         let r = game.remotes.find((r) => r.id === id);
         if (!r) {

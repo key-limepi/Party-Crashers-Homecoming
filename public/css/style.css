@@ -771,6 +771,7 @@
       background: #000;
       z-index: 99;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
@@ -782,6 +783,11 @@
       font-size: 40px;
       font-style: italic;
       padding: 0 24px;
+    }
+    #titleLogo {
+      max-width: 94%;
+      max-height: 82%;
+      image-rendering: pixelated;
     }
 
     /* pin entry */
@@ -902,6 +908,50 @@
       font-size: clamp(24px, 5vw, 40px);
       font-style: italic;
       overflow-wrap: anywhere;
+    }
+    /* verify banner */
+    #verifyBanner {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 16px;
+      box-sizing: border-box;
+      background: rgba(0, 0, 0, 0.68);
+      pointer-events: auto;
+      line-height: normal;
+      z-index: 109;
+    }
+    #verifyBanner .pinPrompt > span {
+      color: #fff;
+      font-size: clamp(24px, 5vw, 40px);
+      font-style: italic;
+      overflow-wrap: anywhere;
+    }
+    #verifyBanner .pinSub {
+      font-size: clamp(14px, 2.6vh, 22px);
+      color: #ffe93b;
+    }
+    #verifyRow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      line-height: normal;
+    }
+    #verifyRow #verifyBox {
+      box-sizing: border-box;
+      font-size: 24px;
+      padding: 8px 12px;
+      width: min(220px, 56vw);
+      text-align: center;
+    }
+    #verifyRow #verifyBtn {
+      font-size: 20px;
+      margin: 0;
     }
 
     /* death static */

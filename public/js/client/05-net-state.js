@@ -128,10 +128,28 @@
       pinBox.focus();
     }
     async function savePin() {
+      // malice mode verifies
+      if (pinMode === 'malice') {
+        const res = await fetch('/api/malice/buy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: net.id, pin: pinBox.value.trim() }),
+        });
+        const out = await res.json();
+        pinBox.value = '';
+        pinRow.style.display = 'none';
+        pinBanner.style.display = 'none';
+        pinMode = 'save';
+        document.getElementById('pinRememberLabel').style.display = '';
+        pinBanner.querySelector('.pinPrompt > span').textContent = 'ENTER YOUR PIN!!';
+        sayStatus(out.ok ? `malice updated!! you have ${out.malice}!!` : (out.reason || 'could not buy!!'), 5);
+        buyMaliceBtn.disabled = false;
+        return;
+      }
       const res = await fetch('/api/pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin: pinBox.value.trim() }),
+        body: JSON.stringify({ pin: pinBox.value.trim(), remember: !!document.getElementById('pinRemember')?.checked }),
       });
       const out = await res.json();
       if (out.ok) {
@@ -151,6 +169,44 @@
       pinBox.blur();
       savePin();
     });
+    // typing heartbeat, holds round
+    const typingBeat = () => {
+      if (!net.id || Date.now() - (net.typingT || 0) < 2000) return;
+      net.typingT = Date.now();
+      fetch('/api/pin/typing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: net.id }),
+      }).catch(() => {});
+    };
+    pinBox.addEventListener('input', typingBeat);
+    // per-round join check
+    const verifyBox = document.getElementById('verifyBox');
+    async function submitVerify() {
+      if (!net.id) return;
+      const res = await fetch('/api/pin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: net.id, pin: verifyBox.value.trim() }),
+      });
+      const out = await res.json().catch(() => ({}));
+      if (out.ok) {
+        verifyBox.value = '';
+        document.getElementById('verifyBanner').style.display = 'none';
+        sayStatus('verified!! joining next round!!', 4);
+      } else {
+        sayStatus(out.reason || 'verify failed!!', 5);
+      }
+    }
+    document.getElementById('verifyBtn').addEventListener('click', submitVerify);
+    verifyBox.addEventListener('input', typingBeat);
+    verifyBox.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      verifyBox.blur();
+      submitVerify();
+    });
+    let pinMode = 'save'; // save or malice
     buyMaliceBtn.addEventListener('click', async () => {
       if (!net.id) return;
       buyMaliceBtn.disabled = true;
@@ -163,15 +219,21 @@
         }
         const parsed = Number(raw);
         amount = Number.isFinite(parsed) && parsed > 0 ? parsed : 1000;
+        const res = await fetch('/api/malice/buy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: net.id, amount }),
+        });
+        const out = await res.json();
+        sayStatus(out.ok ? `malice updated!! you have ${out.malice}!!` : (out.reason || 'could not buy!!'), 5);
+        buyMaliceBtn.disabled = false;
+        return;
       }
-      const res = await fetch('/api/malice/buy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: net.id, amount }),
-      });
-      const out = await res.json();
-      sayStatus(out.ok ? `malice updated!! you have ${out.malice}!!` : (out.reason || 'could not buy!!'), 5);
-      buyMaliceBtn.disabled = false;
+      // paid path verifies pin
+      pinMode = 'malice';
+      document.getElementById('pinRememberLabel').style.display = 'none';
+      pinBanner.querySelector('.pinPrompt > span').textContent = `MALICE: ${net.me?.malice_price ?? '?'} DIGIPOGS - ENTER PIN!!`;
+      showPinPrompt();
     });
     const midBox = document.getElementById('midBox');
     let midShown = false;
