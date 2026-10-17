@@ -70,7 +70,7 @@
     const MUSIC_VOLUME_SCALE = 0.68;
     const VOICE_VOLUME_SCALE = 1.35;
     const beds = {
-      map: loopTrack(MUS + 'map_musicV3.mp3'),
+      map: loopTrack(MUS + 'Rough-Draft-theme.mp3'), // rough draft theme
       wait: loopTrack(MUS + 'waiting4players.mp3'),
       inter: loopTrack(MUS + 'intermission.mp3'),
       lms: loopTrack(MUS + 'last_man_standing.mp3', false),
@@ -81,7 +81,7 @@
       lmsmario: loopTrack(MUS + 'mariolms.mp3', false), // mario anthem
       hero: loopTrack(MUS + 'supersonichero.mp3'), // super sonic theme
       chase: loopTrack(MUS + 'elux_chasenew.mp3'),
-      bear5chase: loopTrack(MUS + 'bear5chase.mp3'),
+      bear5chase: loopTrack(MUS + 'bear5chasetheme.mp3'), // bear5 chase theme
       terror: loopTrack(MUS + 'elux_terrorradius_new.mp3'),
       charselect: loopTrack(MUS + 'charselect.mp3'),
     };

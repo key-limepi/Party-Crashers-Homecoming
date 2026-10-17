@@ -66,13 +66,15 @@
         if (joined.muted > 0) applyMute(joined.muted); // muted stay
         if (!net.timer) {
           // chain ticks
-          const loop = () => {
+          const loop = (wait) => {
             net.timer = setTimeout(async () => {
+              const t0 = performance.now();
               try { await netTick(); } catch (e) { /* next tick!! */ }
-              loop();
-            }, 40); // tick rate
+              // only wait whats left of 40ms, high ping ticks go right away
+              loop(Math.max(0, 40 - (performance.now() - t0)));
+            }, wait); // tick rate
           };
-          loop();
+          loop(40);
           window.addEventListener('beforeunload', () => {
             navigator.sendBeacon && navigator.sendBeacon('/api/leave', JSON.stringify({ id: net.id }));
           });

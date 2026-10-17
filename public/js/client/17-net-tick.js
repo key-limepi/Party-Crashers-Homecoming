@@ -17,7 +17,8 @@ async function netTick() {
       }
       try {
         const t0 = performance.now();
-        await fetch('/api/state', {
+        // send and get at the same time, so a tick costs 1 trip instead of 2
+        const sendReq = fetch('/api/state', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -36,7 +37,9 @@ async function netTick() {
             pose: (poseName && Date.now() < poseUntil) ? poseName : null,
           }),
         });
-        const data = await (await fetch('/api/players')).json();
+        const getReq = fetch('/api/players');
+        const got = await Promise.all([sendReq, getReq]);
+        const data = await got[1].json();
         net.ping = Math.round(performance.now() - t0); // trip time
         const prevRound = net.round;
         const others = data.players || {};

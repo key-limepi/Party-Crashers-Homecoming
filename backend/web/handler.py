@@ -24,6 +24,11 @@ class DualStackServer(ThreadingHTTPServer):
 
 
 class Handler(SimpleHTTPRequestHandler):
+    # keep alive, so every poll does not pay for a new connection (big deal at high ping)
+    protocol_version = "HTTP/1.1"
+    disable_nagle_algorithm = True # send small replies right away
+    timeout = 30 # drop idle connections
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=PUBLIC_DIR, **kwargs)
 
@@ -53,6 +58,7 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header("Location", url)
         if cookie:
             self.send_header("Set-Cookie", cookie)
+        self.send_header("Content-Length", "0") # needed for keep alive
         self.end_headers()
 
     def send_json(self, obj, code=200):
@@ -80,11 +86,12 @@ class Handler(SimpleHTTPRequestHandler):
 
     # ---- dispatch ----
     def do_POST(self):
+        data = self.read_json() # always read the body first so the connection stays clean
         route = POST_ROUTES.get(self.path)
         if route is None:
             self.send_json({"error": "nope!!"}, 404)
             return
-        route(self, self.read_json())
+        route(self, data)
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)

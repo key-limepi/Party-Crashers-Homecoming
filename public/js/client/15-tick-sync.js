@@ -306,7 +306,15 @@
         const nowHist = performance.now();
         r.hist = r.hist || [{ x: d.x, y: d.y, t: nowHist }, { x: d.x, y: d.y, t: nowHist }];
         r.hist.push({ x: d.x, y: d.y, t: nowHist });
-        while (r.hist.length > 4) r.hist.shift();
+        while (r.hist.length > 8) r.hist.shift();
+        // how often updates really come in, so the glide can sit far enough behind
+        if (r.lastPush) {
+          const gap = Math.min(nowHist - r.lastPush, 500);
+          r.gap = r.gap ? r.gap * 0.8 + gap * 0.2 : gap;
+          const want = Math.min(450, Math.max(100, r.gap * 1.7));
+          r.delay = r.delay ? r.delay + (want - r.delay) * 0.1 : want;
+        }
+        r.lastPush = nowHist;
         r.name = d.name; r.facing = d.facing; r.hp = d.hp;
         r.char = id === data.killer_id ? (d.killer_char || 'evil') : (d.char || 'lux');
         r.onGround = d.onGround ?? true;

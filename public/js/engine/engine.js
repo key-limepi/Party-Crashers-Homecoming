@@ -515,7 +515,7 @@ class PlatformerEngine {
         const now0 = performance.now();
         r.hist = [{ x: r.pos.x, y: r.pos.y, t: now0 }, { x: r.pos.x, y: r.pos.y, t: now0 }];
       } else {
-        const rt = performance.now() - 100;
+        const rt = performance.now() - (r.delay || 100); // delay adapts to ping
         const h = (r.hist && r.hist.length >= 2) ? r.hist : null;
         let nx = r.tx, ny = r.ty;
         if (h) {
