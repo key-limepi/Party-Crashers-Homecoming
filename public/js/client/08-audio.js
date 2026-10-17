@@ -70,7 +70,7 @@
     const MUSIC_VOLUME_SCALE = 0.68;
     const VOICE_VOLUME_SCALE = 1.35;
     const beds = {
-      map: loopTrack(MUS + 'map_musicV2.mp3'),
+      map: loopTrack(MUS + 'map_musicV3.mp3'),
       wait: loopTrack(MUS + 'waiting4players.mp3'),
       inter: loopTrack(MUS + 'intermission.mp3'),
       lms: loopTrack(MUS + 'last_man_standing.mp3', false),
